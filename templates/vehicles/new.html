@@ -26,10 +26,17 @@
   </h1>
 </div>
 
+<!-- Seznam znamk za predloge -->
+<datalist id="makes-list">
+  {% for m in car_makes %}<option value="{{ m }}">{% endfor %}
+</datalist>
+<datalist id="models-list"></datalist>
+
 <div class="row">
   <div class="col-lg-8">
     <div class="form-section">
-      <form method="POST" action="{% if vehicle %}{{ url_for('vehicles.edit_vehicle', vehicle_id=vehicle.id) }}{% else %}{{ url_for('vehicles.new_vehicle') }}{% endif %}">
+      <form method="POST" id="vehicle-form"
+            action="{% if vehicle %}{{ url_for('vehicles.edit_vehicle', vehicle_id=vehicle.id) }}{% else %}{{ url_for('vehicles.new_vehicle') }}{% endif %}">
 
         <!-- Stranka -->
         {% if not vehicle %}
@@ -47,26 +54,56 @@
         </div>
         {% endif %}
 
+        <!-- VIN skeniranje -->
+        <div class="form-section-title"><i class="bi bi-upc-scan"></i> VIN številka</div>
+        <div class="mb-2">
+          <div class="input-group">
+            <input type="text" name="vin" id="vin" class="form-control"
+                   value="{{ vehicle.vin if vehicle else '' }}"
+                   placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
+                   style="font-family:monospace; letter-spacing:.08em; text-transform:uppercase">
+            <button type="button" class="btn btn-outline-primary" onclick="VIN.decodeTyped()">
+              <i class="bi bi-search me-1"></i>Razčleni
+            </button>
+          </div>
+          <div class="d-flex gap-2 mt-2 flex-wrap">
+            <button type="button" class="btn btn-primary btn-sm" onclick="VIN.open('barcode')">
+              <i class="bi bi-upc-scan me-1"></i>Skeniraj kodo s kamero
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="VIN.open('ocr')">
+              <i class="bi bi-camera me-1"></i>Fotografiraj VIN (besedilo)
+            </button>
+          </div>
+          <div id="vin-status" class="small mt-2"></div>
+          <div class="form-text">
+            Skeniraj črtno kodo na nalepki vrat, ali fotografiraj natisnjen VIN. Podatki vozila se izpolnijo samodejno.
+          </div>
+        </div>
+
         <!-- Osnova -->
-        <div class="form-section-title"><i class="bi bi-car-front"></i> Osnova</div>
+        <div class="form-section-title mt-3"><i class="bi bi-car-front"></i> Osnova</div>
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Znamka *</label>
-            <input type="text" name="brand" class="form-control"
+            <input type="text" name="brand" id="brand" class="form-control" list="makes-list"
                    value="{{ vehicle.brand if vehicle else '' }}"
-                   placeholder="Volkswagen" required>
+                   placeholder="Izberi ali vpiši…" autocomplete="off" required>
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Model *</label>
-            <input type="text" name="model" class="form-control"
+            <input type="text" name="model" id="model" class="form-control" list="models-list"
                    value="{{ vehicle.model if vehicle else '' }}"
-                   placeholder="Golf" required>
+                   placeholder="Izberi ali vpiši…" autocomplete="off" required>
           </div>
           <div class="col-md-2">
             <label class="form-label small fw-semibold">Letnik</label>
-            <input type="number" name="year" class="form-control"
-                   value="{{ vehicle.year if vehicle else '' }}"
-                   placeholder="2019" min="1950" max="2099">
+            <select name="year" id="year" class="form-select">
+              <option value="">—</option>
+              {% set current_year = 2026 %}
+              {% for y in range(current_year + 1, 1979, -1) %}
+              <option value="{{ y }}" {% if vehicle and vehicle.year == y %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-2">
             <label class="form-label small fw-semibold">Barva</label>
@@ -80,14 +117,6 @@
                    value="{{ vehicle.registration if vehicle else '' }}"
                    placeholder="LJ AB-123">
           </div>
-          <div class="col-md-8">
-            <label class="form-label small fw-semibold">VIN številka</label>
-            <input type="text" name="vin" class="form-control"
-                   value="{{ vehicle.vin if vehicle else '' }}"
-                   placeholder="WVW ZZZ 1K Z AW 000001" maxlength="17"
-                   style="font-family:monospace; letter-spacing:.05em">
-            <div class="form-text">17 znakov – identifikacijska številka vozila</div>
-          </div>
         </div>
 
         <!-- Motor -->
@@ -95,7 +124,7 @@
         <div class="row g-3 mb-4">
           <div class="col-md-3">
             <label class="form-label small fw-semibold">Tip motorja</label>
-            <select name="engine_type" class="form-select">
+            <select name="engine_type" id="engine_type" class="form-select">
               <option value="">—</option>
               {% for et in engine_types %}
               <option value="{{ et }}"
@@ -107,19 +136,19 @@
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">Prostornina (l)</label>
-            <input type="text" name="engine_displacement" class="form-control"
+            <input type="text" name="engine_displacement" id="engine_displacement" class="form-control"
                    value="{{ vehicle.engine_displacement if vehicle else '' }}"
                    placeholder="2.0">
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">Moč (kW)</label>
-            <input type="text" name="engine_power_kw" class="form-control"
+            <input type="text" name="engine_power_kw" id="engine_power_kw" class="form-control"
                    value="{{ vehicle.engine_power_kw if vehicle else '' }}"
                    placeholder="110">
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">Menjalnik</label>
-            <select name="transmission" class="form-select">
+            <select name="transmission" id="transmission" class="form-select">
               <option value="">—</option>
               {% for tr in transmissions %}
               <option value="{{ tr }}"
@@ -158,4 +187,190 @@
     </div>
   </div>
 </div>
+
+<!-- ── Scanner modal ──────────────────────────────────────────────────────── -->
+<div class="modal fade" id="scanModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="scan-title">Skeniraj VIN</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="VIN.stop()"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="position:relative; background:#000; border-radius:8px; overflow:hidden;">
+          <video id="scan-video" playsinline style="width:100%; max-height:60vh; display:block;"></video>
+          <div style="position:absolute; top:50%; left:8%; right:8%; height:2px; background:rgba(59,130,246,.9); transform:translateY(-50%);"></div>
+        </div>
+        <canvas id="scan-canvas" style="display:none;"></canvas>
+        <p id="scan-msg" class="small text-muted mt-2 mb-0">Usmeri kamero v VIN…</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="scan-capture" class="btn btn-primary" style="display:none" onclick="VIN.captureOCR()">
+          <i class="bi bi-camera me-1"></i>Zajemi in preberi
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="VIN.stop()">Zapri</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const MODELS_API = "{{ url_for('vehicles.api_models', make='__MAKE__') }}";
+const VIN_API    = "{{ url_for('vehicles.api_decode_vin', vin='__VIN__') }}";
+
+const VIN = (function () {
+  let stream = null, rafId = null, mode = 'barcode', modal = null;
+  const $ = (id) => document.getElementById(id);
+
+  function status(msg, kind) {
+    const el = $('vin-status');
+    el.className = 'small mt-2 text-' + (kind || 'muted');
+    el.innerHTML = msg;
+  }
+  function scanMsg(msg) { $('scan-msg').textContent = msg; }
+
+  function cleanVin(raw) {
+    let s = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    s = s.replace(/I/g, '1').replace(/O/g, '0').replace(/Q/g, '0');
+    const m = s.match(/[A-HJ-NPR-Z0-9]{17}/);
+    return m ? m[0] : '';
+  }
+
+  function getModal() {
+    if (!modal) modal = new bootstrap.Modal($('scanModal'));
+    return modal;
+  }
+
+  async function open(m) {
+    mode = m;
+    $('scan-title').textContent = (m === 'barcode') ? 'Skeniraj črtno kodo' : 'Fotografiraj VIN';
+    $('scan-capture').style.display = (m === 'ocr') ? '' : 'none';
+    getModal().show();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    } catch (e) {
+      scanMsg('Ni dostopa do kamere. Dovoli kamero v brskalniku ali vpiši VIN ročno.');
+      return;
+    }
+    const v = $('scan-video');
+    v.srcObject = stream;
+    await v.play();
+    if (m === 'barcode') startBarcode();
+    else scanMsg('Poravnaj VIN v okvir, nato pritisni "Zajemi in preberi".');
+  }
+
+  function startBarcode() {
+    if (!('BarcodeDetector' in window)) {
+      scanMsg('Skeniranje kode na tej napravi ni podprto. Uporabi "Fotografiraj VIN".');
+      return;
+    }
+    const det = new BarcodeDetector({ formats: ['code_39', 'code_128', 'data_matrix', 'qr_code', 'pdf417'] });
+    const v = $('scan-video');
+    scanMsg('Iščem črtno kodo…');
+    const tick = async () => {
+      if (!stream) return;
+      try {
+        const codes = await det.detect(v);
+        if (codes && codes.length) {
+          const vin = cleanVin(codes[0].rawValue);
+          if (vin) { found(vin); return; }
+        }
+      } catch (e) {}
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  async function captureOCR() {
+    const v = $('scan-video'), c = $('scan-canvas');
+    if (!v.videoWidth) return;
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    scanMsg('Berem besedilo… (lahko traja nekaj sekund)');
+    try {
+      const { data: { text } } = await Tesseract.recognize(c, 'eng', {
+        tessedit_char_whitelist: 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'
+      });
+      const vin = cleanVin(text);
+      if (vin) found(vin);
+      else scanMsg('VIN ni bil prepoznan. Poskusi bližje/ostreje ali vpiši ročno.');
+    } catch (e) {
+      scanMsg('Napaka pri branju. Poskusi znova ali vpiši ročno.');
+    }
+  }
+
+  function found(vin) {
+    $('vin').value = vin;
+    stop();
+    getModal().hide();
+    decode(vin);
+  }
+
+  function stop() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  function decodeTyped() {
+    const vin = cleanVin($('vin').value);
+    if (vin.length !== 17) { status('VIN mora imeti 17 znakov.', 'danger'); return; }
+    $('vin').value = vin;
+    decode(vin);
+  }
+
+  async function decode(vin) {
+    status('<i class="bi bi-arrow-repeat"></i> Razčlenjujem VIN…', 'primary');
+    try {
+      const r = await fetch(VIN_API.replace('__VIN__', encodeURIComponent(vin)));
+      const d = await r.json();
+      if (!d.ok) { status('VIN ni bilo mogoče razčleniti (preveri povezavo).', 'danger'); return; }
+      apply(d);
+      if (d.make) loadModels(d.make);
+      const got = [d.make, d.model, d.year].filter(Boolean).join(' ');
+      if (got) status('<i class="bi bi-check-circle text-success"></i> Prepoznano: ' + got, 'success');
+      else status('VIN razčlenjen, a brez podatkov o vozilu. Vpiši ročno.', 'warning');
+    } catch (e) {
+      status('Napaka pri povezavi z bazo VIN.', 'danger');
+    }
+  }
+
+  function setVal(id, val) { const el = $(id); if (el && val) el.value = val; }
+  function setSelect(id, val) {
+    const el = $(id); if (!el || !val) return;
+    if ([...el.options].some(o => o.value === val)) el.value = val;
+  }
+
+  function apply(d) {
+    setVal('brand', d.make);
+    setVal('model', d.model);
+    if (d.year) setSelect('year', String(d.year));
+    setVal('engine_displacement', d.displacement);
+    setVal('engine_power_kw', d.power_kw);
+    setSelect('engine_type', d.engine_type);
+    setSelect('transmission', d.transmission);
+  }
+
+  async function loadModels(make) {
+    try {
+      const r = await fetch(MODELS_API.replace('__MAKE__', encodeURIComponent(make)));
+      const d = await r.json();
+      const list = document.getElementById('models-list');
+      list.innerHTML = '';
+      (d.models || []).forEach(m => {
+        const o = document.createElement('option'); o.value = m; list.appendChild(o);
+      });
+    } catch (e) {}
+  }
+
+  return { open, stop, captureOCR, decodeTyped, decode, loadModels };
+})();
+
+// Ob izbiri znamke naloži modele
+document.getElementById('brand').addEventListener('change', function () {
+  if (this.value.trim().length >= 2) VIN.loadModels(this.value.trim());
+});
+</script>
 {% endblock %}
