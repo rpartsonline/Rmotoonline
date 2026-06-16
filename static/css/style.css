@@ -209,3 +209,14 @@ body {
   .main-wrap { margin-left: 0; }
   .info-grid { grid-template-columns:1fr; }
 }
+
+/* ── Typeahead predlogi (vozila) ─────────────────────────────────────────── */
+.vs-wrap { position: relative; }
+.vs-suggest {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 1080;
+  background: #fff; border: 1px solid #d6dee9; border-top: none;
+  border-radius: 0 0 8px 8px; max-height: 240px; overflow-y: auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,.10);
+}
+.vs-item { padding: 8px 12px; font-size: .88rem; cursor: pointer; }
+.vs-item:hover, .vs-item.active { background: #eff6ff; color: #1d4ed8; }

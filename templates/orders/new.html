@@ -75,40 +75,61 @@
 
   <!-- Novo vozilo polja -->
   <div id="new-vehicle-fields" style="display:none">
-    <div class="row g-2">
-      <div class="col-md-3">
-        <label class="form-label small">Znamka *</label>
-        <input type="text" name="new_vehicle_brand" class="form-control" placeholder="Volkswagen">
+    <!-- VIN -->
+    <div class="mb-2">
+      <label class="form-label small fw-semibold">VIN številka</label>
+      <div class="input-group">
+        <input type="text" name="new_vehicle_vin" id="nv_vin" class="form-control"
+               placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
+               style="font-family:monospace; letter-spacing:.06em; text-transform:uppercase">
+        <button type="button" class="btn btn-outline-primary" data-vs="decode">
+          <i class="bi bi-search me-1"></i>Razčleni
+        </button>
       </div>
-      <div class="col-md-3">
+      <div class="d-flex gap-2 mt-2 flex-wrap">
+        <button type="button" class="btn btn-primary btn-sm" data-vs="scan-barcode">
+          <i class="bi bi-upc-scan me-1"></i>Skeniraj kodo
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-vs="scan-ocr">
+          <i class="bi bi-camera me-1"></i>Fotografiraj VIN
+        </button>
+      </div>
+      <div id="nv_status" class="small mt-2"></div>
+    </div>
+
+    <div class="row g-2">
+      <div class="col-md-4">
+        <label class="form-label small">Znamka *</label>
+        <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
+               placeholder="Začni tipkati…" autocomplete="off">
+      </div>
+      <div class="col-md-4">
         <label class="form-label small">Model *</label>
-        <input type="text" name="new_vehicle_model" class="form-control" placeholder="Golf">
+        <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
+               placeholder="Začni tipkati…" autocomplete="off">
       </div>
       <div class="col-md-2">
         <label class="form-label small">Letnik</label>
-        <input type="number" name="new_vehicle_year" class="form-control" placeholder="2019" min="1950" max="2099">
+        <select name="new_vehicle_year" id="nv_year" class="form-select">
+          <option value="">—</option>
+          {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+        </select>
       </div>
       <div class="col-md-2">
         <label class="form-label small">Reg. tablica</label>
         <input type="text" name="new_vehicle_registration" class="form-control" placeholder="LJ AB-123">
       </div>
-      <div class="col-md-2">
-        <label class="form-label small">Tip motorja</label>
-        <input type="text" name="new_vehicle_engine_type" class="form-control" placeholder="diesel">
-      </div>
       <div class="col-md-3">
-        <label class="form-label small">VIN številka</label>
-        <input type="text" name="new_vehicle_vin" class="form-control"
-               placeholder="WVW…" maxlength="17"
-               style="font-family:monospace">
+        <label class="form-label small">Tip motorja</label>
+        <input type="text" name="new_vehicle_engine_type" id="nv_engine" class="form-control" placeholder="diesel">
       </div>
       <div class="col-md-2">
         <label class="form-label small">Prostornina (l)</label>
-        <input type="text" name="new_vehicle_displacement" class="form-control" placeholder="2.0">
+        <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0">
       </div>
       <div class="col-md-2">
         <label class="form-label small">Moč (kW)</label>
-        <input type="text" name="new_vehicle_power" class="form-control" placeholder="110">
+        <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110">
       </div>
     </div>
   </div>
@@ -232,6 +253,16 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{% include '_vehicle_smart_assets.html' %}
+<script>
+  VehicleSmart.apiModels = "{{ url_for('vehicles.api_models', make='__MAKE__') }}";
+  VehicleSmart.apiVin    = "{{ url_for('vehicles.api_decode_vin', vin='__VIN__') }}";
+  VehicleSmart.init({
+    make: 'nv_brand', model: 'nv_model', year: 'nv_year', vin: 'nv_vin',
+    engineType: 'nv_engine', displacement: 'nv_displ', power: 'nv_power',
+    transmission: null, status: 'nv_status'
+  });
+</script>
 <script>
 const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
 const PRESEL_CUST  = "{{ preselected_customer or '' }}";

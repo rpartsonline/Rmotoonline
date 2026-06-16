@@ -9,6 +9,7 @@ from models import (
     ORDER_ITEM_CATALOG, ITEM_CATALOG_MAP,
     TIRE_WIDTHS, TIRE_ASPECTS, TIRE_DIAMETERS,
 )
+from routes.vehicles import CAR_MAKES
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -194,6 +195,7 @@ def _render_new_order_form():
         customers    = Customer.query.order_by(Customer.name).all(),
         sources      = ORDER_SOURCES,
         item_catalog = ORDER_ITEM_CATALOG,
+        car_makes    = CAR_MAKES,
         tire_widths    = TIRE_WIDTHS,
         tire_aspects   = TIRE_ASPECTS,
         tire_diameters = TIRE_DIAMETERS,
