@@ -6,6 +6,8 @@ from models import (
     Customer, Vehicle,
     ORDER_STATUSES, STATUS_DICT, ITEM_STATUSES, ITEM_STATUS_DICT,
     ORDER_SOURCES, ITEM_UNITS,
+    ORDER_ITEM_CATALOG, ITEM_CATALOG_MAP,
+    TIRE_WIDTHS, TIRE_ASPECTS, TIRE_DIAMETERS,
 )
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
@@ -147,33 +149,37 @@ def new_order():
         db.session.add(order)
         db.session.flush()
 
-        # ── Postavke ─────────────────────────────────────────────────────────
-        descs     = f.getlist("item_description[]")
-        b_ids     = f.getlist("item_bartog_id[]")
-        qtys      = f.getlist("item_quantity[]")
-        units     = f.getlist("item_unit[]")
-        suppliers = f.getlist("item_supplier[]")
-        i_notes   = f.getlist("item_notes[]")
+        # ── Postavke (iz kataloga – samo označene) ────────────────────────────
+        selected = f.getlist("items")
 
-        for idx, desc in enumerate(descs):
-            if not desc.strip():
-                continue
-            qty_raw = qtys[idx] if idx < len(qtys) else "1"
-            try:
-                qty = float(qty_raw)
-            except ValueError:
-                qty = 1.0
-            item = OrderItem(
+        def add_item(description, key):
+            db.session.add(OrderItem(
                 order_id    = order.id,
-                description = desc.strip(),
-                bartog_id   = b_ids[idx].strip()     if idx < len(b_ids)     else "",
-                quantity    = qty,
-                unit        = units[idx]              if idx < len(units)     else "kos",
-                supplier    = suppliers[idx].strip()  if idx < len(suppliers) else "Bartog",
-                notes       = i_notes[idx].strip()    if idx < len(i_notes)   else "",
+                description = description,
+                bartog_id   = f.get(f"ident_{key}", "").strip(),
+                supplier    = f.get(f"izvor_{key}", "").strip(),
+                quantity    = 1,
+                unit        = "kos",
                 status      = "caka",
-            )
-            db.session.add(item)
+            ))
+
+        for key in selected:
+            if key in ITEM_CATALOG_MAP:
+                category, label = ITEM_CATALOG_MAP[key]
+                add_item(f"{category} – {label}", key)
+
+        if "PNEVMATIKE" in selected:
+            w = f.get("tire_width", "").strip()
+            a = f.get("tire_aspect", "").strip()
+            d = f.get("tire_diameter", "").strip()
+            dim = f"{w}/{a} R{d}" if (w and a and d) else ""
+            desc = f"Pnevmatike {dim}".strip()
+            add_item(desc, "PNEVMATIKE")
+
+        if "OSTALI" in selected:
+            opis = f.get("ostali_opis", "").strip()
+            desc = f"Ostali material: {opis}" if opis else "Ostali material"
+            add_item(desc, "OSTALI")
 
         db.session.commit()
         flash(f"Naročilo {order.order_number} je bilo uspešno ustvarjeno.", "success")
@@ -185,9 +191,12 @@ def new_order():
 def _render_new_order_form():
     return render_template(
         "orders/new.html",
-        customers  = Customer.query.order_by(Customer.name).all(),
-        sources    = ORDER_SOURCES,
-        item_units = ITEM_UNITS,
+        customers    = Customer.query.order_by(Customer.name).all(),
+        sources      = ORDER_SOURCES,
+        item_catalog = ORDER_ITEM_CATALOG,
+        tire_widths    = TIRE_WIDTHS,
+        tire_aspects   = TIRE_ASPECTS,
+        tire_diameters = TIRE_DIAMETERS,
         preselected_customer = request.args.get("customer_id"),
         preselected_vehicle  = request.args.get("vehicle_id"),
     )

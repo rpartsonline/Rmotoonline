@@ -136,35 +136,88 @@
 
 <!-- ── 4. POSTAVKE ───────────────────────────────────────────────────────── -->
 <div class="form-section">
-  <div class="form-section-title">
-    <i class="bi bi-list-check"></i> Postavke / Artikli
-    <button type="button" class="btn btn-sm btn-outline-primary ms-auto" onclick="addItem()">
-      <i class="bi bi-plus-lg me-1"></i>Dodaj vrstico
-    </button>
+  <div class="form-section-title"><i class="bi bi-list-check"></i> Postavke naročila</div>
+  <p class="text-muted small mb-3">
+    Pokljukaj, kar potrebuješ. Pri označeni postavki vpiši <strong>IDENT (Bartog)</strong> in <strong>izvor zaloge</strong> (npr. TQ, 5). Neoznačeno se v naročilo ne shrani.
+  </p>
+
+  {% for group in item_catalog %}
+  <div class="cat-block">
+    <div class="cat-head">{{ group.category }}</div>
+    <div class="cat-items">
+      {% for it in group['items'] %}
+      <div class="ci-row" data-key="{{ it.key }}">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="{{ it.key }}" class="form-check-input ci-cb">
+          <span class="ci-label">{{ it.label }}</span>
+        </label>
+        <div class="ci-inputs">
+          <input type="text" name="ident_{{ it.key }}" class="form-control form-control-sm"
+                 placeholder="IDENT Bartog" autocomplete="off">
+          <input type="text" name="izvor_{{ it.key }}" class="form-control form-control-sm"
+                 placeholder="Izvor (TQ, 5…)" autocomplete="off" style="max-width:140px">
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Pnevmatike -->
+  <div class="cat-block">
+    <div class="cat-head">Pnevmatike</div>
+    <div class="cat-items">
+      <div class="ci-row" data-key="PNEVMATIKE">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="PNEVMATIKE" class="form-check-input ci-cb">
+          <span class="ci-label">PNEVMATIKE</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <div class="tire-dims">
+            <select name="tire_width" class="form-select form-select-sm">
+              <option value="">Š</option>
+              {% for w in tire_widths %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+            </select>
+            <span class="tire-sep">/</span>
+            <select name="tire_aspect" class="form-select form-select-sm">
+              <option value="">V</option>
+              {% for a in tire_aspects %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+            </select>
+            <span class="tire-sep">R</span>
+            <select name="tire_diameter" class="form-select form-select-sm">
+              <option value="">P</option>
+              {% for d in tire_diameters %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+            </select>
+          </div>
+          <input type="text" name="ident_PNEVMATIKE" class="form-control form-control-sm"
+                 placeholder="IDENT Bartog" autocomplete="off">
+          <input type="text" name="izvor_PNEVMATIKE" class="form-control form-control-sm"
+                 placeholder="Izvor" autocomplete="off" style="max-width:120px">
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-sm" id="items-table">
-      <thead>
-        <tr>
-          <th style="min-width:220px">Naziv artikla / dela *</th>
-          <th style="min-width:130px">Bartog ID</th>
-          <th style="width:80px">Kol.</th>
-          <th style="width:90px">Enota</th>
-          <th style="min-width:120px">Dobavitelj</th>
-          <th style="min-width:150px">Opomba</th>
-          <th style="width:44px"></th>
-        </tr>
-      </thead>
-      <tbody id="items-body">
-        <!-- První vrstica se doda z JS -->
-      </tbody>
-    </table>
+  <!-- Ostali material -->
+  <div class="cat-block">
+    <div class="cat-head">Ostali material</div>
+    <div class="cat-items">
+      <div class="ci-row" data-key="OSTALI">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="OSTALI" class="form-check-input ci-cb">
+          <span class="ci-label">OSTALI MATERIAL</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <input type="text" name="ostali_opis" class="form-control form-control-sm"
+                 placeholder="Kaj je (opis)" autocomplete="off">
+          <input type="text" name="ident_OSTALI" class="form-control form-control-sm"
+                 placeholder="IDENT" autocomplete="off" style="max-width:160px">
+          <input type="text" name="izvor_OSTALI" class="form-control form-control-sm"
+                 placeholder="Izvor" autocomplete="off" style="max-width:120px">
+        </div>
+      </div>
+    </div>
   </div>
-  <p class="text-muted small mt-1">
-    <i class="bi bi-info-circle me-1"></i>
-    Bartog ID = ID artikla v vašem sistemu (npr. <code>BAR-12345</code>)
-  </p>
 </div>
 
 <!-- ── Submit ────────────────────────────────────────────────────────────── -->
@@ -180,52 +233,21 @@
 
 {% block extra_scripts %}
 <script>
-const ITEM_UNITS   = {{ item_units | tojson }};
 const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
 const PRESEL_CUST  = "{{ preselected_customer or '' }}";
 const PRESEL_VEH   = "{{ preselected_vehicle or '' }}";
 
-let rowIdx = 0;
-
-function addItem(desc='', bartogId='', qty=1, unit='kos', supplier='Bartog', note='') {
-  rowIdx++;
-  const unitOpts = ITEM_UNITS.map(u =>
-    `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`
-  ).join('');
-
-  const tr = document.createElement('tr');
-  tr.id = `ir-${rowIdx}`;
-  tr.innerHTML = `
-    <td><input type="text" name="item_description[]" class="form-control form-control-sm"
-               value="${esc(desc)}" placeholder="Naziv…" required></td>
-    <td><input type="text" name="item_bartog_id[]" class="form-control form-control-sm"
-               value="${esc(bartogId)}" placeholder="BAR-…"
-               style="font-family:monospace"></td>
-    <td><input type="number" name="item_quantity[]" class="form-control form-control-sm"
-               value="${qty}" min="0.01" step="0.01"></td>
-    <td><select name="item_unit[]" class="form-select form-select-sm">${unitOpts}</select></td>
-    <td><input type="text" name="item_supplier[]" class="form-control form-control-sm"
-               value="${esc(supplier)}"></td>
-    <td><input type="text" name="item_notes[]" class="form-control form-control-sm"
-               value="${esc(note)}" placeholder="…"></td>
-    <td>
-      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(${rowIdx})">
-        <i class="bi bi-trash"></i>
-      </button>
-    </td>
-  `;
-  document.getElementById('items-body').appendChild(tr);
-}
-
-function removeItem(idx) {
-  const body = document.getElementById('items-body');
-  if (body.children.length <= 1) return;
-  document.getElementById(`ir-${idx}`)?.remove();
-}
-
-function esc(str) {
-  return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
+// ── Postavke: prikaži polja samo za označene ──────────────────────────────
+document.querySelectorAll('.ci-cb').forEach(cb => {
+  cb.addEventListener('change', function () {
+    const row = this.closest('.ci-row');
+    row.classList.toggle('active', this.checked);
+    if (this.checked) {
+      const first = row.querySelector('.ci-inputs input, .ci-inputs select');
+      if (first) first.focus();
+    }
+  });
+});
 
 // ── Customer → vehicle cascade ────────────────────────────────────────────
 const custSel  = document.getElementById('customer-select');
@@ -271,8 +293,6 @@ vehSel.addEventListener('change', () => {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  addItem(); // ena prazna vrstica na začetku
-
   if (PRESEL_CUST && custSel.value !== 'new') {
     newCustF.style.display = 'none';
     loadVehicles(PRESEL_CUST, PRESEL_VEH);
@@ -289,5 +309,29 @@ document.addEventListener('DOMContentLoaded', () => {
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { display:inline-block; animation: spin .8s linear infinite; }
+
+.cat-block { border:1px solid var(--border,#e5eaf2); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.cat-head {
+  background:#151c2c; color:#fff; font-weight:700;
+  padding:9px 14px; font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
+}
+.cat-items { padding:2px 0; }
+.ci-row {
+  display:flex; align-items:center; gap:12px;
+  padding:7px 14px; border-bottom:1px solid #f0f4f9; flex-wrap:wrap;
+  transition:background .12s;
+}
+.ci-row:last-child { border-bottom:none; }
+.ci-row.active { background:#eff6ff; }
+.ci-check { display:flex; align-items:center; gap:10px; min-width:210px; margin:0; cursor:pointer; }
+.ci-cb { width:18px; height:18px; cursor:pointer; flex-shrink:0; }
+.ci-label { font-family:monospace; font-weight:700; font-size:.86rem; color:#334155; }
+.ci-row.active .ci-label { color:#1d4ed8; }
+.ci-inputs { display:none; gap:8px; flex:1; align-items:center; flex-wrap:wrap; min-width:240px; }
+.ci-row.active .ci-inputs { display:flex; }
+.ci-inputs .form-control { max-width:200px; }
+.tire-dims { display:flex; align-items:center; gap:4px; }
+.tire-dims .form-select { width:auto; min-width:64px; }
+.tire-sep { font-weight:700; color:#64748b; }
 </style>
 {% endblock %}

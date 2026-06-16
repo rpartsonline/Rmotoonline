@@ -176,3 +176,72 @@ class OrderStatusLog(db.Model):
     @property
     def new_status_info(self):
         return STATUS_DICT.get(self.new_status, {"label": self.new_status, "color": "secondary"})
+
+
+# ── Katalog postavk za novo naročilo ─────────────────────────────────────────
+# Glavne rubrike s podgrupami. Delavec pokljuka, kar potrebuje, in vpiše
+# IDENT (Bartog) ter izvor zaloge. Neoznačeno se v naročilo ne shrani.
+
+ORDER_ITEM_CATALOG = [
+    {
+        "category": "Mali servis",
+        "items": [
+            {"key": "FO",     "label": "FO"},
+            {"key": "FZ",     "label": "FZ"},
+            {"key": "FK",     "label": "FK"},
+            {"key": "FG",     "label": "FG"},
+            {"key": "OLJE",   "label": "OLJE"},
+            {"key": "SVECKE", "label": "SVEČKE"},
+        ],
+    },
+    {
+        "category": "Velik servis",
+        "items": [
+            {"key": "GZ",        "label": "GZ"},
+            {"key": "VC",        "label": "VČ"},
+            {"key": "GZVC",      "label": "GZ+VČ"},
+            {"key": "MJ",        "label": "MJ"},
+            {"key": "NAPENJALEC","label": "NAPENJALEC"},
+            {"key": "DRSNIK",    "label": "DRSNIK"},
+            {"key": "SET_MIKRO", "label": "SET MIKRO JERMENA"},
+        ],
+    },
+    {
+        "category": "Zavore in podvozje",
+        "items": [
+            {"key": "PD",            "label": "PD"},
+            {"key": "PP",            "label": "PP"},
+            {"key": "INDIKATOR_SP",  "label": "INDIKATOR (spredaj)"},
+            {"key": "ZD",            "label": "ZD"},
+            {"key": "ZP",            "label": "ZP"},
+            {"key": "INDIKATOR_ZA",  "label": "INDIKATOR (zadaj)"},
+            {"key": "PD_CELJUST",    "label": "PD ČELJUST"},
+            {"key": "PL_CELJUST",    "label": "PL ČELJUST"},
+            {"key": "ZD_CELJUST",    "label": "ZD ČELJUST"},
+            {"key": "ZL_CELJUST",    "label": "ZL ČELJUST"},
+            {"key": "ZICE_ROCNE",    "label": "ŽICE ROČNE"},
+            {"key": "FERODE",        "label": "FERODE"},
+            {"key": "ZAV_CILINDRI",  "label": "ZAVORNI CILINDRI"},
+            {"key": "VOL_KONCNIK_L", "label": "VOLANSKI KONČNIK L"},
+            {"key": "VOL_KONCNIK_D", "label": "VOLANSKI KONČNIK D"},
+            {"key": "SPONA_VOLANA",  "label": "SPONA VOLANA"},
+            {"key": "MANSETA_VOLANA","label": "MANŠETA VOLANA"},
+            {"key": "MANSETA_ZUN",   "label": "MANŠETA ZUNANJA"},
+            {"key": "MANSETA_NOT",   "label": "MANŠETA NOTRANJA"},
+            {"key": "LEZAJ_SP",      "label": "KOLESNI LEŽAJ SPREDAJ"},
+            {"key": "LEZAJ_ZA",      "label": "KOLESNI LEŽAJ ZADAJ"},
+        ],
+    },
+]
+
+# Ravna preslikava key -> (kategorija, oznaka)
+ITEM_CATALOG_MAP = {
+    it["key"]: (group["category"], it["label"])
+    for group in ORDER_ITEM_CATALOG
+    for it in group["items"]
+}
+
+# Standardne dimenzije pnevmatik (širina / višina R premer)
+TIRE_WIDTHS    = list(range(135, 356, 10))
+TIRE_ASPECTS   = list(range(25, 86, 5))
+TIRE_DIAMETERS = list(range(13, 23))
