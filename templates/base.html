@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Naročilnice{% endblock %} – AutoNaročila</title>
+  <title>{% block title %}Naročilnice{% endblock %} – R-MotoShop</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -14,8 +14,8 @@
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
-    <i class="bi bi-wrench-adjustable-circle-fill"></i>
-    <span>AutoNaročila</span>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="R-MotoShop" class="sb-logo">
+    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
   </div>
 
   <ul class="sb-nav">

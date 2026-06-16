@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prijava – AutoNaročila</title>
+  <title>Prijava – R-MotoShop</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -12,9 +12,9 @@
 <div class="login-bg">
   <div class="login-box">
     <div class="text-center mb-4">
-      <div class="login-icon mb-2"><i class="bi bi-wrench-adjustable-circle-fill"></i></div>
-      <h4 class="fw-bold mb-1">AutoNaročila</h4>
-      <p class="text-muted small mb-0">Evidenca naročil avtodelov in storitev</p>
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="R-MotoShop"
+           style="max-width:220px; width:100%; height:auto; border-radius:8px;">
+      <p class="text-muted small mb-0 mt-3">Evidenca naročil avtodelov in storitev</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}

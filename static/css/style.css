@@ -32,13 +32,13 @@ body {
 .sidebar.collapsed { width: 58px; }
 
 .sb-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 18px 16px;
-  color: #fff; font-size: 1rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 14px;
   border-bottom: 1px solid rgba(255,255,255,.06);
   white-space: nowrap;
 }
-.sb-header i { font-size: 1.4rem; color: var(--sb-active); flex-shrink: 0; }
+.sb-logo { max-width: 185px; width: 100%; height: auto; display: block; }
+.sb-logo-mark { display: none; font-size: 1.5rem; color: var(--sb-active); }
 
 .sb-nav { list-style: none; margin:0; padding: 10px 8px; flex:1; overflow-y:auto; }
 .sb-nav li { margin-bottom: 2px; }
@@ -68,13 +68,14 @@ body {
 .sb-logout:hover { color: #fff; }
 
 /* Collapsed hides text */
-.sidebar.collapsed .sb-header span,
 .sidebar.collapsed .sb-link span,
 .sidebar.collapsed .sb-section,
 .sidebar.collapsed .sb-user span,
 .sidebar.collapsed .sb-logout { display: none; }
 .sidebar.collapsed .sb-link { justify-content: center; }
 .sidebar.collapsed .sb-header { justify-content:center; padding: 18px 0; }
+.sidebar.collapsed .sb-logo { display: none; }
+.sidebar.collapsed .sb-logo-mark { display: block; }
 
 /* ── Main area ──────────────────────────────────────────────────────────── */
 .main-wrap {
