@@ -59,78 +59,93 @@
 <div class="form-section">
   <div class="form-section-title"><i class="bi bi-car-front"></i> Vozilo</div>
 
-  <div class="mb-3">
-    <label class="form-label small fw-semibold">Izberi vozilo stranke</label>
-    <select name="vehicle_id" id="vehicle-select" class="form-select">
-      <option value="none">– Brez vozila –</option>
-      <option value="new">➕ Dodaj novo vozilo…</option>
-      {% if preselected_vehicle %}
-        <!-- Vehicles will be loaded via JS -->
-      {% endif %}
-    </select>
-    <div id="vehicle-loader" class="text-muted small mt-1" style="display:none">
-      <i class="bi bi-arrow-repeat spin"></i> Nalagam vozila…
+  <!-- Hitri izbor že vpisanih vozil stranke -->
+  <div id="existing-vehicles" class="mb-3" style="display:none">
+    <label class="form-label small fw-semibold">Že vpisana vozila stranke (klikni za izbiro)</label>
+    <div id="ev-chips" class="d-flex gap-2 flex-wrap"></div>
+  </div>
+  <input type="hidden" name="existing_vehicle_id" id="existing_vehicle_id">
+  <div id="vehicle-loader" class="text-muted small mb-2" style="display:none">
+    <i class="bi bi-arrow-repeat spin"></i> Nalagam vozila…
+  </div>
+
+  <!-- VIN -->
+  <div class="form-section-title"><i class="bi bi-upc-scan"></i> VIN številka</div>
+  <div class="mb-2">
+    <div class="input-group">
+      <input type="text" name="new_vehicle_vin" id="nv_vin" class="form-control"
+             placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
+             style="font-family:monospace; letter-spacing:.06em; text-transform:uppercase">
+      <button type="button" class="btn btn-outline-primary" data-vs="decode">
+        <i class="bi bi-search me-1"></i>Razčleni
+      </button>
+    </div>
+    <div class="d-flex gap-2 mt-2 flex-wrap">
+      <button type="button" class="btn btn-primary btn-sm" data-vs="scan-barcode">
+        <i class="bi bi-upc-scan me-1"></i>Skeniraj kodo s kamero
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-vs="scan-ocr">
+        <i class="bi bi-camera me-1"></i>Fotografiraj VIN (besedilo)
+      </button>
+    </div>
+    <div id="nv_status" class="small mt-2"></div>
+    <div class="form-text">Skeniraj kodo na nalepki vrat ali fotografiraj VIN. Podatki se izpolnijo samodejno.</div>
+  </div>
+
+  <!-- Osnova -->
+  <div class="form-section-title mt-3"><i class="bi bi-car-front"></i> Osnova</div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Znamka *</label>
+      <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
+             placeholder="Začni tipkati…" autocomplete="off">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Model *</label>
+      <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
+             placeholder="Začni tipkati…" autocomplete="off">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Letnik</label>
+      <select name="new_vehicle_year" id="nv_year" class="form-select">
+        <option value="">—</option>
+        {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Barva</label>
+      <input type="text" name="new_vehicle_color" class="form-control" placeholder="Srebrna">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Registrska tablica</label>
+      <input type="text" name="new_vehicle_registration" class="form-control" placeholder="LJ AB-123">
     </div>
   </div>
 
-  <!-- Novo vozilo polja -->
-  <div id="new-vehicle-fields" style="display:none">
-    <!-- VIN -->
-    <div class="mb-2">
-      <label class="form-label small fw-semibold">VIN številka</label>
-      <div class="input-group">
-        <input type="text" name="new_vehicle_vin" id="nv_vin" class="form-control"
-               placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
-               style="font-family:monospace; letter-spacing:.06em; text-transform:uppercase">
-        <button type="button" class="btn btn-outline-primary" data-vs="decode">
-          <i class="bi bi-search me-1"></i>Razčleni
-        </button>
-      </div>
-      <div class="d-flex gap-2 mt-2 flex-wrap">
-        <button type="button" class="btn btn-primary btn-sm" data-vs="scan-barcode">
-          <i class="bi bi-upc-scan me-1"></i>Skeniraj kodo
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-vs="scan-ocr">
-          <i class="bi bi-camera me-1"></i>Fotografiraj VIN
-        </button>
-      </div>
-      <div id="nv_status" class="small mt-2"></div>
+  <!-- Motor -->
+  <div class="form-section-title mt-2"><i class="bi bi-gear"></i> Motor & menjalnik</div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Tip motorja</label>
+      <select name="new_vehicle_engine_type" id="nv_engine" class="form-select">
+        <option value="">—</option>
+        {% for et in engine_types %}<option value="{{ et }}">{{ et|capitalize }}</option>{% endfor %}
+      </select>
     </div>
-
-    <div class="row g-2">
-      <div class="col-md-4">
-        <label class="form-label small">Znamka *</label>
-        <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
-               placeholder="Začni tipkati…" autocomplete="off">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small">Model *</label>
-        <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
-               placeholder="Začni tipkati…" autocomplete="off">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Letnik</label>
-        <select name="new_vehicle_year" id="nv_year" class="form-select">
-          <option value="">—</option>
-          {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Reg. tablica</label>
-        <input type="text" name="new_vehicle_registration" class="form-control" placeholder="LJ AB-123">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small">Tip motorja</label>
-        <input type="text" name="new_vehicle_engine_type" id="nv_engine" class="form-control" placeholder="diesel">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Prostornina (l)</label>
-        <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Moč (kW)</label>
-        <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110">
-      </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Prostornina (l)</label>
+      <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Moč (kW)</label>
+      <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Menjalnik</label>
+      <select name="new_vehicle_transmission" id="nv_transmission" class="form-select">
+        <option value="">—</option>
+        {% for tr in transmissions %}<option value="{{ tr }}">{{ tr|capitalize }}</option>{% endfor %}
+      </select>
     </div>
   </div>
 </div>
@@ -260,7 +275,7 @@
   VehicleSmart.init({
     make: 'nv_brand', model: 'nv_model', year: 'nv_year', vin: 'nv_vin',
     engineType: 'nv_engine', displacement: 'nv_displ', power: 'nv_power',
-    transmission: null, status: 'nv_status'
+    transmission: 'nv_transmission', status: 'nv_status'
   });
 </script>
 <script>
@@ -280,46 +295,97 @@ document.querySelectorAll('.ci-cb').forEach(cb => {
   });
 });
 
-// ── Customer → vehicle cascade ────────────────────────────────────────────
+// ── Customer → existing vehicles (chips) ──────────────────────────────────
 const custSel  = document.getElementById('customer-select');
-const vehSel   = document.getElementById('vehicle-select');
 const newCustF = document.getElementById('new-customer-fields');
-const newVehF  = document.getElementById('new-vehicle-fields');
 const vehLoader= document.getElementById('vehicle-loader');
+const evWrap   = document.getElementById('existing-vehicles');
+const evChips  = document.getElementById('ev-chips');
+const exIdEl   = document.getElementById('existing_vehicle_id');
 
-async function loadVehicles(customerId, preselVehId='') {
-  vehSel.innerHTML = '<option value="none">– Brez vozila –</option><option value="new">➕ Dodaj novo vozilo…</option>';
+const NV = {
+  vin: 'nv_vin', brand: 'nv_brand', model: 'nv_model', year: 'nv_year',
+  reg: 'new_vehicle_registration', engine: 'nv_engine'
+};
+
+function setF(id, val) { const el = document.getElementById(id); if (el) el.value = val || ''; }
+function setFName(name, val) { const el = document.querySelector(`[name="${name}"]`); if (el) el.value = val || ''; }
+
+function clearVehicleForm() {
+  exIdEl.value = '';
+  setF('nv_vin',''); setF('nv_brand',''); setF('nv_model','');
+  setFName('new_vehicle_registration',''); setF('nv_displ',''); setF('nv_power','');
+  const y=document.getElementById('nv_year'); if(y) y.value='';
+  const e=document.getElementById('nv_engine'); if(e) e.value='';
+  const t=document.getElementById('nv_transmission'); if(t) t.value='';
+  setFName('new_vehicle_color','');
+  [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+}
+
+function selectExisting(v, chip) {
+  exIdEl.value = v.id;
+  setF('nv_brand', v.brand); setF('nv_model', v.model);
+  setF('nv_vin', v.vin);
+  const y=document.getElementById('nv_year'); if(y && v.year) y.value=String(v.year);
+  setFName('new_vehicle_registration', v.registration);
+  const e=document.getElementById('nv_engine'); if(e && v.engine_type) e.value=v.engine_type;
+  [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+  if (chip) chip.classList.add('active');
+}
+
+async function loadVehicles(customerId, preselId='') {
+  evChips.innerHTML = '';
+  evWrap.style.display = 'none';
+  exIdEl.value = '';
   if (!customerId) return;
-
   vehLoader.style.display = 'block';
   try {
     const resp = await fetch(`${VEHICLE_API}/${customerId}/vehicles`);
     const data = await resp.json();
-    data.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = v.name;
-      if (String(v.id) === preselVehId) opt.selected = true;
-      vehSel.appendChild(opt);
-    });
+    if (data.length) {
+      data.forEach(v => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ev-chip';
+        chip.textContent = v.name;
+        chip.addEventListener('click', () => selectExisting(v, chip));
+        evChips.appendChild(chip);
+        if (preselId && String(v.id) === String(preselId)) selectExisting(v, chip);
+      });
+      const novo = document.createElement('button');
+      novo.type = 'button';
+      novo.className = 'ev-chip ev-chip-new';
+      novo.innerHTML = '<i class="bi bi-plus-lg"></i> Novo vozilo';
+      novo.addEventListener('click', clearVehicleForm);
+      evChips.appendChild(novo);
+      evWrap.style.display = '';
+    }
   } catch(e) { console.error(e); }
   finally { vehLoader.style.display = 'none'; }
 }
+
+// če delavec ročno spremeni znamko/model, odvežemo izbrano obstoječe vozilo
+['nv_brand','nv_model','nv_vin'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => {
+    if (exIdEl.value) {
+      exIdEl.value = '';
+      [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+    }
+  });
+});
 
 custSel.addEventListener('change', () => {
   const val = custSel.value;
   if (val === 'new') {
     newCustF.style.display = '';
-    vehSel.innerHTML = '<option value="none">– Brez vozila –</option><option value="new">➕ Dodaj novo vozilo…</option>';
+    evWrap.style.display = 'none';
+    evChips.innerHTML = '';
+    exIdEl.value = '';
   } else {
     newCustF.style.display = 'none';
     loadVehicles(val);
   }
-  newVehF.style.display = 'none';
-});
-
-vehSel.addEventListener('change', () => {
-  newVehF.style.display = vehSel.value === 'new' ? '' : 'none';
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────
@@ -328,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
     newCustF.style.display = 'none';
     loadVehicles(PRESEL_CUST, PRESEL_VEH);
   } else if (!PRESEL_CUST) {
-    // Default: show new customer form if no customers exist
     const hasCustomers = custSel.options.length > 1;
     if (!hasCustomers) {
       custSel.value = 'new';
@@ -364,5 +429,14 @@ document.addEventListener('DOMContentLoaded', () => {
 .tire-dims { display:flex; align-items:center; gap:4px; }
 .tire-dims .form-select { width:auto; min-width:64px; }
 .tire-sep { font-weight:700; color:#64748b; }
+
+.ev-chip {
+  border:1px solid #cbd5e1; background:#fff; color:#334155;
+  border-radius:20px; padding:5px 14px; font-size:.84rem; cursor:pointer;
+  transition:all .12s;
+}
+.ev-chip:hover { border-color:#3b82f6; color:#1d4ed8; }
+.ev-chip.active { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+.ev-chip-new { border-style:dashed; color:#64748b; }
 </style>
 {% endblock %}

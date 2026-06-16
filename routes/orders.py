@@ -5,7 +5,7 @@ from models import (
     db, Order, OrderItem, OrderStatusLog,
     Customer, Vehicle,
     ORDER_STATUSES, STATUS_DICT, ITEM_STATUSES, ITEM_STATUS_DICT,
-    ORDER_SOURCES, ITEM_UNITS,
+    ORDER_SOURCES, ITEM_UNITS, ENGINE_TYPES, TRANSMISSIONS,
     ORDER_ITEM_CATALOG, ITEM_CATALOG_MAP,
     TIRE_WIDTHS, TIRE_ASPECTS, TIRE_DIAMETERS,
 )
@@ -110,8 +110,10 @@ def new_order():
             customer_id = int(customer_id)
 
         # ── Vozilo ───────────────────────────────────────────────────────────
-        vehicle_id = f.get("vehicle_id", "").strip()
-        if not vehicle_id or vehicle_id == "new":
+        existing_id = f.get("existing_vehicle_id", "").strip()
+        if existing_id.isdigit():
+            vehicle_id = int(existing_id)
+        else:
             brand = f.get("new_vehicle_brand", "").strip()
             model = f.get("new_vehicle_model", "").strip()
             if brand and model:
@@ -125,6 +127,8 @@ def new_order():
                     engine_type         = f.get("new_vehicle_engine_type",  "").strip(),
                     engine_displacement = f.get("new_vehicle_displacement", "").strip(),
                     engine_power_kw     = f.get("new_vehicle_power",        "").strip(),
+                    transmission        = f.get("new_vehicle_transmission", "").strip(),
+                    color               = f.get("new_vehicle_color",        "").strip(),
                     registration        = f.get("new_vehicle_registration", "").strip(),
                 )
                 db.session.add(vehicle)
@@ -132,10 +136,6 @@ def new_order():
                 vehicle_id = vehicle.id
             else:
                 vehicle_id = None
-        elif vehicle_id == "none":
-            vehicle_id = None
-        else:
-            vehicle_id = int(vehicle_id)
 
         # ── Naročilo ─────────────────────────────────────────────────────────
         order = Order(
@@ -196,6 +196,8 @@ def _render_new_order_form():
         sources      = ORDER_SOURCES,
         item_catalog = ORDER_ITEM_CATALOG,
         car_makes    = CAR_MAKES,
+        engine_types = ENGINE_TYPES,
+        transmissions = TRANSMISSIONS,
         tire_widths    = TIRE_WIDTHS,
         tire_aspects   = TIRE_ASPECTS,
         tire_diameters = TIRE_DIAMETERS,
