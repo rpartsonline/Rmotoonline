@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prijava – AutoNaročila</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+<div class="login-bg">
+  <div class="login-box">
+    <div class="text-center mb-4">
+      <div class="login-icon mb-2"><i class="bi bi-wrench-adjustable-circle-fill"></i></div>
+      <h4 class="fw-bold mb-1">AutoNaročila</h4>
+      <p class="text-muted small mb-0">Evidenca naročil avtodelov in storitev</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} py-2 small">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      <div class="mb-3">
+        <label class="form-label text-muted small fw-semibold">Uporabniško ime</label>
+        <input type="text" name="username" class="form-control"
+               placeholder="Vnesite uporabniško ime" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-muted small fw-semibold">Geslo</label>
+        <input type="password" name="password" class="form-control"
+               placeholder="Vnesite geslo" required>
+      </div>
+      <div class="mb-4 d-flex align-items-center gap-2">
+        <input type="checkbox" class="form-check-input" id="rem" name="remember">
+        <label class="form-check-label small text-muted" for="rem">Zapomni si me</label>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 py-2">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Prijava
+      </button>
+    </form>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

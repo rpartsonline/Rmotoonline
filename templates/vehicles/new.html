@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}{% if vehicle %}Uredi vozilo{% else %}Novo vozilo{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">Stranke</a></li>
+  {% if vehicle %}
+  <li class="breadcrumb-item">
+    <a href="{{ url_for('customers.customer_detail', customer_id=vehicle.customer_id) }}">{{ vehicle.customer.name }}</a>
+  </li>
+  <li class="breadcrumb-item active">Uredi vozilo</li>
+  {% else %}
+  <li class="breadcrumb-item active">Novo vozilo</li>
+  {% endif %}
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1>
+    {% if vehicle %}
+    <i class="bi bi-pencil me-2 text-primary"></i>Uredi vozilo
+    {% else %}
+    <i class="bi bi-car-front me-2 text-primary"></i>Novo vozilo
+    {% endif %}
+  </h1>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="form-section">
+      <form method="POST" action="{% if vehicle %}{{ url_for('vehicles.edit_vehicle', vehicle_id=vehicle.id) }}{% else %}{{ url_for('vehicles.new_vehicle') }}{% endif %}">
+
+        <!-- Stranka -->
+        {% if not vehicle %}
+        <div class="mb-4">
+          <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
+          <select name="customer_id" class="form-select" required>
+            <option value="">— Izberi stranko —</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}"
+              {% if preselected_customer == c.id|string or preselected_customer == c.id %}selected{% endif %}>
+              {{ c.name }}{% if c.phone %} · {{ c.phone }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <!-- Osnova -->
+        <div class="form-section-title"><i class="bi bi-car-front"></i> Osnova</div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Znamka *</label>
+            <input type="text" name="brand" class="form-control"
+                   value="{{ vehicle.brand if vehicle else '' }}"
+                   placeholder="Volkswagen" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Model *</label>
+            <input type="text" name="model" class="form-control"
+                   value="{{ vehicle.model if vehicle else '' }}"
+                   placeholder="Golf" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">Letnik</label>
+            <input type="number" name="year" class="form-control"
+                   value="{{ vehicle.year if vehicle else '' }}"
+                   placeholder="2019" min="1950" max="2099">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">Barva</label>
+            <input type="text" name="color" class="form-control"
+                   value="{{ vehicle.color if vehicle else '' }}"
+                   placeholder="Srebrna">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Registrska tablica</label>
+            <input type="text" name="registration" class="form-control"
+                   value="{{ vehicle.registration if vehicle else '' }}"
+                   placeholder="LJ AB-123">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label small fw-semibold">VIN številka</label>
+            <input type="text" name="vin" class="form-control"
+                   value="{{ vehicle.vin if vehicle else '' }}"
+                   placeholder="WVW ZZZ 1K Z AW 000001" maxlength="17"
+                   style="font-family:monospace; letter-spacing:.05em">
+            <div class="form-text">17 znakov – identifikacijska številka vozila</div>
+          </div>
+        </div>
+
+        <!-- Motor -->
+        <div class="form-section-title mt-2"><i class="bi bi-gear"></i> Motor & menjalnik</div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tip motorja</label>
+            <select name="engine_type" class="form-select">
+              <option value="">—</option>
+              {% for et in engine_types %}
+              <option value="{{ et }}"
+                {% if vehicle and vehicle.engine_type == et %}selected{% endif %}>
+                {{ et|capitalize }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Prostornina (l)</label>
+            <input type="text" name="engine_displacement" class="form-control"
+                   value="{{ vehicle.engine_displacement if vehicle else '' }}"
+                   placeholder="2.0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Moč (kW)</label>
+            <input type="text" name="engine_power_kw" class="form-control"
+                   value="{{ vehicle.engine_power_kw if vehicle else '' }}"
+                   placeholder="110">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Menjalnik</label>
+            <select name="transmission" class="form-select">
+              <option value="">—</option>
+              {% for tr in transmissions %}
+              <option value="{{ tr }}"
+                {% if vehicle and vehicle.transmission == tr %}selected{% endif %}>
+                {{ tr|capitalize }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Opomba -->
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Opomba</label>
+          <textarea name="notes" class="form-control" rows="2"
+                    placeholder="Posebnosti vozila…">{{ vehicle.notes if vehicle else '' }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>
+            {% if vehicle %}Shrani spremembe{% else %}Dodaj vozilo{% endif %}
+          </button>
+          {% if vehicle %}
+          <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=vehicle.id) }}"
+             class="btn btn-outline-secondary">Prekliči</a>
+          {% elif preselected_customer %}
+          <a href="{{ url_for('customers.customer_detail', customer_id=preselected_customer) }}"
+             class="btn btn-outline-secondary">Prekliči</a>
+          {% else %}
+          <a href="{{ url_for('customers.list_customers') }}"
+             class="btn btn-outline-secondary">Prekliči</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

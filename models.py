@@ -1,0 +1,178 @@
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+
+db = SQLAlchemy()
+
+# ── Lookup tables ────────────────────────────────────────────────────────────
+
+ORDER_STATUSES = [
+    ("novo",       "Novo",              "secondary"),
+    ("caka",       "Čaka na naročilo",  "warning"),
+    ("naroceno",   "Naročeno",          "info"),
+    ("v_dostavi",  "V dostavi",         "primary"),
+    ("prejeto",    "Prejeto",           "success"),
+    ("zakljuceno", "Zaključeno",        "dark"),
+    ("preklicano", "Preklicano",        "danger"),
+]
+
+STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}
+
+ITEM_STATUSES = [
+    ("caka",       "Čaka",       "warning"),
+    ("naroceno",   "Naročeno",   "info"),
+    ("v_dostavi",  "V dostavi",  "primary"),
+    ("prejeto",    "Prejeto",    "success"),
+    ("ni_voljo",   "Ni na voljo","danger"),
+]
+
+ITEM_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ITEM_STATUSES}
+
+ORDER_SOURCES = ["klic", "whatsapp", "email", "osebno", "drugo"]
+ENGINE_TYPES  = ["bencin", "diesel", "hibrid", "elektro", "plin", "drugo"]
+TRANSMISSIONS = ["ročni", "avtomatski", "poluavtomatski"]
+ITEM_UNITS    = ["kos", "komplet", "liter", "par", "set", "ura"]
+
+
+# ── Models ────────────────────────────────────────────────────────────────────
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    username      = db.Column(db.String(80),  unique=True, nullable=False)
+    full_name     = db.Column(db.String(120), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    is_admin      = db.Column(db.Boolean, default=False)
+    is_active_user= db.Column(db.Boolean, default=True)
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    orders = db.relationship("Order", backref="employee", lazy=True)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self):
+        return f"<User {self.username}>"
+
+
+class Customer(db.Model):
+    __tablename__ = "customers"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(200), nullable=False)
+    phone      = db.Column(db.String(50))
+    email      = db.Column(db.String(120))
+    address    = db.Column(db.String(300))
+    notes      = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    vehicles = db.relationship("Vehicle", backref="customer", lazy=True, cascade="all, delete-orphan")
+    orders   = db.relationship("Order",   backref="customer", lazy=True)
+
+    def __repr__(self):
+        return f"<Customer {self.name}>"
+
+
+class Vehicle(db.Model):
+    __tablename__ = "vehicles"
+
+    id                  = db.Column(db.Integer, primary_key=True)
+    customer_id         = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    vin                 = db.Column(db.String(17))
+    brand               = db.Column(db.String(100), nullable=False)
+    model               = db.Column(db.String(100), nullable=False)
+    year                = db.Column(db.Integer)
+    engine_type         = db.Column(db.String(50))
+    engine_displacement = db.Column(db.String(20))   # npr. 2.0
+    engine_power_kw     = db.Column(db.String(20))   # kW
+    transmission        = db.Column(db.String(50))
+    color               = db.Column(db.String(50))
+    registration        = db.Column(db.String(20))   # registrska
+    notes               = db.Column(db.Text)
+    created_at          = db.Column(db.DateTime, default=datetime.utcnow)
+
+    orders = db.relationship("Order", backref="vehicle", lazy=True)
+
+    @property
+    def display_name(self):
+        parts = [self.brand, self.model]
+        if self.year:
+            parts.append(f"({self.year})")
+        if self.registration:
+            parts.append(f"· {self.registration}")
+        return " ".join(parts)
+
+    def __repr__(self):
+        return f"<Vehicle {self.brand} {self.model}>"
+
+
+class Order(db.Model):
+    __tablename__ = "orders"
+
+    id           = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(20), unique=True, nullable=False)
+    customer_id  = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    vehicle_id   = db.Column(db.Integer, db.ForeignKey("vehicles.id"))
+    employee_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status       = db.Column(db.String(20), default="novo", nullable=False)
+    source       = db.Column(db.String(50), default="klic")
+    notes        = db.Column(db.Text)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ordered_at   = db.Column(db.DateTime)    # ko je naročeno
+    completed_at = db.Column(db.DateTime)    # ko je zaključeno
+
+    items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
+    status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")
+
+    @property
+    def status_info(self):
+        return STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+
+    def __repr__(self):
+        return f"<Order {self.order_number}>"
+
+
+class OrderItem(db.Model):
+    __tablename__ = "order_items"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    order_id    = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
+    description = db.Column(db.String(300), nullable=False)
+    bartog_id   = db.Column(db.String(100))
+    supplier    = db.Column(db.String(100), default="Bartog")
+    quantity    = db.Column(db.Float, default=1)
+    unit        = db.Column(db.String(20), default="kos")
+    status      = db.Column(db.String(20), default="caka")
+    notes       = db.Column(db.Text)
+
+    @property
+    def status_info(self):
+        return ITEM_STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+
+
+class OrderStatusLog(db.Model):
+    __tablename__ = "order_status_logs"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    order_id        = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
+    old_status      = db.Column(db.String(20))
+    new_status      = db.Column(db.String(20))
+    changed_by_id   = db.Column(db.Integer, db.ForeignKey("users.id"))
+    notes           = db.Column(db.String(300))
+    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+
+    changed_by = db.relationship("User")
+
+    @property
+    def old_status_info(self):
+        return STATUS_DICT.get(self.old_status, {"label": self.old_status, "color": "secondary"}) if self.old_status else None
+
+    @property
+    def new_status_info(self):
+        return STATUS_DICT.get(self.new_status, {"label": self.new_status, "color": "secondary"})
