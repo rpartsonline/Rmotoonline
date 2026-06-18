@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Stranke{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item active">Stranke</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-people me-2 text-primary"></i>Stranke</h1>
+  <a href="{{ url_for('customers.new_customer') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nova stranka
+  </a>
+</div>
+
+<!-- Search -->
+<div class="card-plain mb-3">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="search" class="form-control form-control-sm"
+           placeholder="Išči po imenu, telefonu ali e-pošti…" value="{{ search }}" style="max-width:380px">
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+    {% if search %}
+    <a href="{{ url_for('customers.list_customers') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title">{{ customers|length }} strank</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Ime</th>
+          <th>Telefon</th>
+          <th>E-pošta</th>
+          <th>Vozil</th>
+          <th>Naročil</th>
+          <th>Od</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td>
+            <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}"
+               class="fw-semibold text-decoration-none text-dark">{{ c.name }}</a>
+          </td>
+          <td>
+            {% if c.phone %}
+            <a href="tel:{{ c.phone }}" class="text-decoration-none">{{ c.phone }}</a>
+            {% else %}–{% endif %}
+          </td>
+          <td class="small text-muted">{{ c.email or '–' }}</td>
+          <td class="text-center">
+            <span class="badge bg-light text-dark border">{{ c.vehicles|length }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-light text-dark border">{{ c.orders|length }}</span>
+          </td>
+          <td class="small text-muted">{{ c.created_at|sl_date }}</td>
+          <td>
+            <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-people fs-2 d-block mb-2"></i>
+            Ni strank. <a href="{{ url_for('customers.new_customer') }}">Dodaj prvo stranko →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Pregled{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item active">Pregled</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Pregled</h1>
+  <span class="text-muted small">{{ now.strftime('%A, %d.%m.%Y') if now else '' }}</span>
+</div>
+
+<!-- ── Stat cards ────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="num text-primary">{{ total_orders }}</div>
+      <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Vsa naročila</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="num text-warning">{{ active_orders }}</div>
+      <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>Aktivna naročila</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="num text-success">{{ total_customers }}</div>
+      <div class="lbl"><i class="bi bi-people me-1"></i>Stranke</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="num text-info">{{ total_vehicles }}</div>
+      <div class="lbl"><i class="bi bi-car-front me-1"></i>Vozila</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status breakdown ──────────────────────────────────────────────────── -->
+<div class="tbl-card mb-4">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-bar-chart me-2"></i>Stanje po statusih</h6>
+  </div>
+  <div class="p-3">
+    <div class="row g-2">
+      {% for key, info in status_counts.items() %}
+      <div class="col-6 col-md-3">
+        <a href="{{ url_for('orders.list_orders', status=key) }}" class="text-decoration-none">
+          <div class="d-flex align-items-center justify-content-between p-2 rounded"
+               style="background:#f8fafc; border:1px solid #e5eaf2;">
+            <span class="badge bg-{{ info.color }} badge-status">{{ info.label }}</span>
+            <span class="fw-bold text-dark">{{ info.count }}</span>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Recent orders -->
+  <div class="col-lg-7">
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title"><i class="bi bi-clock-history me-2"></i>Zadnja naročila</h6>
+        <a href="{{ url_for('orders.list_orders') }}" class="btn btn-sm btn-outline-secondary">Vsa</a>
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Naročilnica</th>
+            <th>Stranka</th>
+            <th>Status</th>
+            <th>Datum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in recent_orders %}
+          <tr>
+            <td>
+              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                 class="order-num text-decoration-none">{{ o.order_number }}</a>
+            </td>
+            <td>{{ o.customer.name }}</td>
+            <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+            <td class="text-muted small">{{ o.created_at|sl_date }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">Ni naročil.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pending orders -->
+  <div class="col-lg-5">
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title">
+          <i class="bi bi-exclamation-circle text-warning me-2"></i>Odprta naročila
+          <span class="badge bg-warning text-dark ms-1">{{ pending_orders|length }}</span>
+        </h6>
+      </div>
+      <table class="table">
+        <tbody>
+          {% for o in pending_orders %}
+          <tr>
+            <td>
+              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                 class="order-num text-decoration-none">{{ o.order_number }}</a>
+              <div class="small text-muted">{{ o.customer.name }}</div>
+            </td>
+            <td class="text-end">
+              <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td class="text-center text-muted py-4">Ni odprtih naročil. 🎉</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

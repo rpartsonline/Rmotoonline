@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}{{ order.order_number }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('orders.list_orders') }}">Naročila</a></li>
+  <li class="breadcrumb-item active">{{ order.order_number }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <div>
+    <h1>
+      <span class="order-num">{{ order.order_number }}</span>
+      <span class="badge bg-{{ order.status_info.color }} ms-2 fs-6">{{ order.status_info.label }}</span>
+    </h1>
+    <div class="text-muted small">
+      Ustvaril: {{ order.employee.full_name }} · {{ order.created_at|sl_datetime }}
+      <span class="chip-source ms-2">{{ order.source }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('orders.list_orders') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Nazaj
+    </a>
+    {% if current_user.is_admin %}
+    <form method="POST" action="{{ url_for('orders.delete_order', order_id=order.id) }}"
+          onsubmit="return confirm('Res izbrisati naročilo {{ order.order_number }}?')">
+      <button class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash me-1"></i>Izbriši
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Left column ──────────────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+
+    <!-- Stranka + Vozilo -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="card-plain h-100">
+          <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
+          <div class="info-grid">
+            <div class="info-row">
+              <label>Ime</label>
+              <span>
+                <a href="{{ url_for('customers.customer_detail', customer_id=order.customer_id) }}"
+                   class="text-decoration-none text-dark fw-semibold">
+                  {{ order.customer.name }}
+                </a>
+              </span>
+            </div>
+            <div class="info-row">
+              <label>Telefon</label>
+              <span>
+                {% if order.customer.phone %}
+                <a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>
+                {% else %}–{% endif %}
+              </span>
+            </div>
+            <div class="info-row">
+              <label>E-pošta</label>
+              <span>{{ order.customer.email or '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Naslov</label>
+              <span>{{ order.customer.address or '–' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card-plain h-100">
+          <div class="form-section-title"><i class="bi bi-car-front"></i> Vozilo</div>
+          {% if order.vehicle %}
+          {% set v = order.vehicle %}
+          <div class="info-grid">
+            <div class="info-row">
+              <label>Vozilo</label>
+              <span class="fw-semibold">{{ v.brand }} {{ v.model }}</span>
+            </div>
+            <div class="info-row">
+              <label>Letnik</label>
+              <span>{{ v.year or '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Registrska</label>
+              <span>{{ v.registration or '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Tip motorja</label>
+              <span>{{ v.engine_type or '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Prostornina</label>
+              <span>{{ (v.engine_displacement + ' l') if v.engine_displacement else '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Moč</label>
+              <span>{{ (v.engine_power_kw + ' kW') if v.engine_power_kw else '–' }}</span>
+            </div>
+            {% if v.vin %}
+            <div class="info-row" style="grid-column:1/-1">
+              <label>VIN</label>
+              <span style="font-family:monospace">{{ v.vin }}</span>
+            </div>
+            {% endif %}
+          </div>
+          <div class="mt-2">
+            <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
+               class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-pencil me-1"></i>Uredi vozilo
+            </a>
+          </div>
+          {% else %}
+          <p class="text-muted small">Ni vozila.</p>
+          <a href="{{ url_for('vehicles.new_vehicle', customer_id=order.customer_id) }}"
+             class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus me-1"></i>Dodaj vozilo
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Opomba -->
+    {% if order.notes %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-chat-text"></i> Opomba</div>
+      <p class="mb-0">{{ order.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Postavke -->
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title"><i class="bi bi-list-check me-2"></i>Postavke ({{ order.items|length }})</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Artikel / Delo</th>
+              <th>Bartog ID</th>
+              <th>Kol.</th>
+              <th>Izvor</th>
+              <th>Status</th>
+              <th>Opomba</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in order.items %}
+            <tr>
+              <td class="fw-semibold">{{ item.description }}</td>
+              <td>
+                {% if item.bartog_id %}
+                <code class="small">{{ item.bartog_id }}</code>
+                {% else %}<span class="text-muted">–</span>{% endif %}
+              </td>
+              <td>{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }} {{ item.unit }}</td>
+              <td class="small text-muted">{{ item.supplier }}</td>
+              <td>
+                <form method="POST"
+                      action="{{ url_for('orders.update_item_status', order_id=order.id, item_id=item.id) }}"
+                      class="d-flex align-items-center gap-1">
+                  <select name="status" class="form-select form-select-sm" style="width:auto"
+                          onchange="this.form.submit()">
+                    {% for key, lbl, col in item_statuses %}
+                    <option value="{{ key }}" {% if item.status == key %}selected{% endif %}>{{ lbl }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </td>
+              <td class="small text-muted">{{ item.notes or '–' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Ni postavk.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /col-lg-8 -->
+
+  <!-- ── Right column ─────────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+
+    <!-- Status update -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Posodobi status</div>
+      <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}">
+        <div class="mb-2">
+          <select name="status" class="form-select">
+            {% for key, lbl, col in statuses %}
+            <option value="{{ key }}" {% if order.status == key %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-2">
+          <input type="text" name="status_note" class="form-control form-control-sm"
+                 placeholder="Opomba k spremembi (neobvezno)">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-check-lg me-1"></i>Posodobi status
+        </button>
+      </form>
+    </div>
+
+    <!-- Timestamps -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-calendar3"></i> Časi</div>
+      <div class="info-grid" style="grid-template-columns:1fr">
+        <div class="info-row">
+          <label>Ustvarjeno</label>
+          <span>{{ order.created_at|sl_datetime }}</span>
+        </div>
+        <div class="info-row">
+          <label>Posodobljeno</label>
+          <span>{{ order.updated_at|sl_datetime }}</span>
+        </div>
+        {% if order.ordered_at %}
+        <div class="info-row">
+          <label>Naročeno</label>
+          <span>{{ order.ordered_at|sl_datetime }}</span>
+        </div>
+        {% endif %}
+        {% if order.completed_at %}
+        <div class="info-row">
+          <label>Zaključeno</label>
+          <span>{{ order.completed_at|sl_datetime }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Status history -->
+    {% if order.status_logs %}
+    <div class="card-plain">
+      <div class="form-section-title"><i class="bi bi-clock-history"></i> Zgodovina statusov</div>
+      <div class="timeline">
+        {% for log in order.status_logs|sort(attribute='created_at', reverse=True) %}
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-text">
+            {% if log.old_status_info %}
+            <span class="badge bg-{{ log.old_status_info.color }} badge-sm">{{ log.old_status_info.label }}</span>
+            <i class="bi bi-arrow-right mx-1"></i>
+            {% endif %}
+            <span class="badge bg-{{ log.new_status_info.color }}">{{ log.new_status_info.label }}</span>
+            {% if log.notes %}<div class="mt-1 text-muted fst-italic small">{{ log.notes }}</div>{% endif %}
+          </div>
+          <div class="tl-meta">
+            {{ log.created_at|sl_datetime }}
+            {% if log.changed_by %} · {{ log.changed_by.full_name }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /col-lg-4 -->
+</div><!-- /row -->
+{% endblock %}

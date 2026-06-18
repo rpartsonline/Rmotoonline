@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.name }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">Stranke</a></li>
+  <li class="breadcrumb-item active">{{ customer.name }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-person me-2 text-primary"></i>{{ customer.name }}</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Uredi
+    </a>
+    <a href="{{ url_for('orders.new_order', customer_id=customer.id) }}"
+       class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo naročilo
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Info ─────────────────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-info-circle"></i> Podatki</div>
+      <div class="info-grid" style="grid-template-columns:1fr">
+        <div class="info-row">
+          <label>Telefon</label>
+          <span>
+            {% if customer.phone %}
+            <a href="tel:{{ customer.phone }}" class="text-decoration-none">{{ customer.phone }}</a>
+            {% else %}–{% endif %}
+          </span>
+        </div>
+        <div class="info-row">
+          <label>E-pošta</label>
+          <span>{{ customer.email or '–' }}</span>
+        </div>
+        <div class="info-row">
+          <label>Naslov</label>
+          <span>{{ customer.address or '–' }}</span>
+        </div>
+        <div class="info-row">
+          <label>Stranka od</label>
+          <span>{{ customer.created_at|sl_date }}</span>
+        </div>
+        {% if customer.notes %}
+        <div class="info-row">
+          <label>Opomba</label>
+          <span class="fst-italic text-muted">{{ customer.notes }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <!-- ── Vozila ───────────────────────────────────────────────────────── -->
+    <div class="tbl-card mb-3">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title"><i class="bi bi-car-front me-2"></i>Vozila ({{ customer.vehicles|length }})</h6>
+        <a href="{{ url_for('vehicles.new_vehicle', customer_id=customer.id) }}"
+           class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg me-1"></i>Dodaj vozilo
+        </a>
+      </div>
+      <table class="table table-sm">
+        <thead><tr><th>Vozilo</th><th>VIN</th><th>Motor</th><th>Registrska</th><th></th></tr></thead>
+        <tbody>
+          {% for v in customer.vehicles %}
+          <tr>
+            <td class="fw-semibold">{{ v.brand }} {{ v.model }} {% if v.year %}<span class="text-muted fw-normal">({{ v.year }})</span>{% endif %}</td>
+            <td><code class="small">{{ v.vin or '–' }}</code></td>
+            <td class="small text-muted">
+              {{ v.engine_type or '' }}
+              {% if v.engine_displacement %} {{ v.engine_displacement }}l{% endif %}
+              {% if v.engine_power_kw %} / {{ v.engine_power_kw }}kW{% endif %}
+            </td>
+            <td class="small">{{ v.registration or '–' }}</td>
+            <td>
+              <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
+                 class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted text-center py-3 small">Ni vozil.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Naročila ─────────────────────────────────────────────────────── -->
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title"><i class="bi bi-clipboard me-2"></i>Naročila ({{ customer.orders|length }})</h6>
+      </div>
+      <table class="table table-sm">
+        <thead><tr><th>Naročilnica</th><th>Vozilo</th><th>Postavk</th><th>Status</th><th>Datum</th><th></th></tr></thead>
+        <tbody>
+          {% for o in customer.orders|sort(attribute='created_at', reverse=True) %}
+          <tr>
+            <td><a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                   class="order-num text-decoration-none">{{ o.order_number }}</a></td>
+            <td class="small text-muted">{{ o.vehicle.display_name if o.vehicle else '–' }}</td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ o.items|length }}</span></td>
+            <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+            <td class="small text-muted">{{ o.created_at|sl_date }}</td>
+            <td>
+              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                 class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted text-center py-3 small">Ni naročil za to stranko.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

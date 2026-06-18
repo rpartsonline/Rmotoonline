@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Upravljanje uporabnikov{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item active">Admin · Uporabniki</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-person-gear me-2 text-primary"></i>Upravljanje uporabnikov</h1>
+  <a href="{{ url_for('admin.new_user') }}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i>Nov uporabnik
+  </a>
+</div>
+
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title">{{ users|length }} uporabnikov</h6>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Ime in priimek</th>
+        <th>Uporabniško ime</th>
+        <th>Vloga</th>
+        <th>Status</th>
+        <th>Ustvarjen</th>
+        <th>Naročil</th>
+        <th>Geslo</th>
+        <th>Aktivnost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="{% if not u.is_active_user %}table-light text-muted{% endif %}">
+        <td class="fw-semibold">{{ u.full_name }}</td>
+        <td><code>{{ u.username }}</code></td>
+        <td>
+          {% if u.is_admin %}
+          <span class="badge bg-danger">Admin</span>
+          {% else %}
+          <span class="badge bg-secondary">Zaposlen</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.is_active_user %}
+          <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aktiven</span>
+          {% else %}
+          <span class="badge bg-secondary">Deaktiviran</span>
+          {% endif %}
+        </td>
+        <td class="small text-muted">{{ u.created_at|sl_date }}</td>
+        <td class="text-center">
+          <span class="badge bg-light text-dark border">{{ u.orders|length }}</span>
+        </td>
+        <td>
+          <!-- Reset password modal trigger -->
+          <button class="btn btn-sm btn-outline-warning"
+                  data-bs-toggle="modal"
+                  data-bs-target="#resetModal{{ u.id }}">
+            <i class="bi bi-key me-1"></i>Ponastavi
+          </button>
+        </td>
+        <td>
+          {% if u.id != current_user.id %}
+          <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}"
+                onsubmit="return confirm('Res {% if u.is_active_user %}deaktivirati{% else %}aktivirati{% endif %} {{ u.username }}?')">
+            <button type="submit" class="btn btn-sm {% if u.is_active_user %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+              {% if u.is_active_user %}
+              <i class="bi bi-person-dash me-1"></i>Deaktiviraj
+              {% else %}
+              <i class="bi bi-person-check me-1"></i>Aktiviraj
+              {% endif %}
+            </button>
+          </form>
+          {% else %}
+          <span class="text-muted small">(Vi)</span>
+          {% endif %}
+        </td>
+      </tr>
+
+      <!-- Reset password modal for each user -->
+      <div class="modal fade" id="resetModal{{ u.id }}" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+          <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.reset_password', user_id=u.id) }}">
+              <div class="modal-header">
+                <h6 class="modal-title">Ponastavi geslo – {{ u.username }}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <label class="form-label small">Novo geslo (min. 6 znakov)</label>
+                <input type="password" name="new_password" class="form-control" required minlength="6"
+                       placeholder="Vnesite novo geslo">
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Prekliči</button>
+                <button type="submit" class="btn btn-sm btn-warning">Ponastavi geslo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-4">Ni uporabnikov.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

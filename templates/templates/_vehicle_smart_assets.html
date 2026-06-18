@@ -1,0 +1,29 @@
+<!-- Skupni viri za pametna polja vozila (skener + skripte). Vključi pred init. -->
+<div class="modal fade" id="scanModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="scan-title">Skeniraj VIN</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="VehicleSmart.stopCam()"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="position:relative; background:#000; border-radius:8px; overflow:hidden;">
+          <video id="scan-video" playsinline style="width:100%; max-height:60vh; display:block;"></video>
+          <div style="position:absolute; top:50%; left:8%; right:8%; height:2px; background:rgba(59,130,246,.9); transform:translateY(-50%);"></div>
+        </div>
+        <canvas id="scan-canvas" style="display:none;"></canvas>
+        <p id="scan-msg" class="small text-muted mt-2 mb-0">Usmeri kamero v VIN…</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="scan-capture" class="btn btn-primary" style="display:none" onclick="VehicleSmart.captureOCR()">
+          <i class="bi bi-camera me-1"></i>Zajemi in preberi
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="VehicleSmart.stopCam()">Zapri</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>window.CAR_MAKES = {{ car_makes | tojson }};</script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="{{ url_for('static', filename='js/vehicle_smart.js') }}"></script>

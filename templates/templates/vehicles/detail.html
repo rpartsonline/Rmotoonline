@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}{{ vehicle.display_name }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">Stranke</a></li>
+  <li class="breadcrumb-item">
+    <a href="{{ url_for('customers.customer_detail', customer_id=vehicle.customer_id) }}">{{ vehicle.customer.name }}</a>
+  </li>
+  <li class="breadcrumb-item active">{{ vehicle.brand }} {{ vehicle.model }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1>
+    <i class="bi bi-car-front me-2 text-primary"></i>
+    {{ vehicle.brand }} {{ vehicle.model }}
+    {% if vehicle.year %}<span class="text-muted fw-normal fs-5">({{ vehicle.year }})</span>{% endif %}
+  </h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('vehicles.edit_vehicle', vehicle_id=vehicle.id) }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Uredi
+    </a>
+    <a href="{{ url_for('orders.new_order', customer_id=vehicle.customer_id, vehicle_id=vehicle.id) }}"
+       class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo naročilo
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Podatki ─────────────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-person"></i> Lastnik</div>
+      <a href="{{ url_for('customers.customer_detail', customer_id=vehicle.customer_id) }}"
+         class="fw-semibold text-decoration-none text-dark d-block mb-1">
+        {{ vehicle.customer.name }}
+      </a>
+      {% if vehicle.customer.phone %}
+      <a href="tel:{{ vehicle.customer.phone }}" class="text-decoration-none small text-muted">
+        <i class="bi bi-telephone me-1"></i>{{ vehicle.customer.phone }}
+      </a>
+      {% endif %}
+    </div>
+
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-car-front"></i> Osnova</div>
+      <div class="info-grid" style="grid-template-columns:1fr">
+        <div class="info-row"><label>Znamka</label><span>{{ vehicle.brand }}</span></div>
+        <div class="info-row"><label>Model</label><span>{{ vehicle.model }}</span></div>
+        <div class="info-row"><label>Letnik</label><span>{{ vehicle.year or '–' }}</span></div>
+        <div class="info-row"><label>Barva</label><span>{{ vehicle.color or '–' }}</span></div>
+        <div class="info-row"><label>Registrska</label><span class="fw-bold">{{ vehicle.registration or '–' }}</span></div>
+        {% if vehicle.vin %}
+        <div class="info-row">
+          <label>VIN</label>
+          <span style="font-family:monospace; font-size:.85rem; word-break:break-all">{{ vehicle.vin }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card-plain">
+      <div class="form-section-title"><i class="bi bi-gear"></i> Motor</div>
+      <div class="info-grid" style="grid-template-columns:1fr">
+        <div class="info-row"><label>Tip</label><span>{{ vehicle.engine_type or '–' }}</span></div>
+        <div class="info-row">
+          <label>Prostornina</label>
+          <span>{{ (vehicle.engine_displacement + ' l') if vehicle.engine_displacement else '–' }}</span>
+        </div>
+        <div class="info-row">
+          <label>Moč</label>
+          <span>{{ (vehicle.engine_power_kw + ' kW') if vehicle.engine_power_kw else '–' }}</span>
+        </div>
+        <div class="info-row"><label>Menjalnik</label><span>{{ vehicle.transmission or '–' }}</span></div>
+      </div>
+      {% if vehicle.notes %}
+      <hr class="my-2">
+      <div class="small text-muted fst-italic">{{ vehicle.notes }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Zgodovina naročil ─────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title">
+          <i class="bi bi-clipboard me-2"></i>Naročila za to vozilo ({{ vehicle.orders|length }})
+        </h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Naročilnica</th>
+              <th>Postavk</th>
+              <th>Vir</th>
+              <th>Zaposlen</th>
+              <th>Status</th>
+              <th>Datum</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in vehicle.orders|sort(attribute='created_at', reverse=True) %}
+            <tr>
+              <td>
+                <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                   class="order-num text-decoration-none">{{ o.order_number }}</a>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-light text-dark border">{{ o.items|length }}</span>
+              </td>
+              <td><span class="chip-source">{{ o.source }}</span></td>
+              <td class="small text-muted">{{ o.employee.full_name }}</td>
+              <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+              <td class="small text-muted">{{ o.created_at|sl_date }}</td>
+              <td>
+                <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                   class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4 small">
+                Ni naročil za to vozilo.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
