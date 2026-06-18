@@ -112,10 +112,6 @@
         {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-2">
-      <label class="form-label small fw-semibold">Barva</label>
-      <input type="text" name="new_vehicle_color" class="form-control" placeholder="Srebrna">
-    </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Registrska tablica</label>
       <input type="text" name="new_vehicle_registration" class="form-control" placeholder="LJ AB-123">
@@ -414,7 +410,6 @@ function clearVehicleForm() {
   const y=document.getElementById('nv_year'); if(y) y.value='';
   const e=document.getElementById('nv_engine'); if(e) e.value='';
   const t=document.getElementById('nv_transmission'); if(t) t.value='';
-  setFName('new_vehicle_color','');
   [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
 }
 
