@@ -136,55 +136,79 @@
     </div>
     {% endif %}
 
-    <!-- Postavke -->
+    <!-- Postavke (urejanje) -->
+    <form method="POST" action="{{ url_for('orders.save_items', order_id=order.id) }}">
     <div class="tbl-card">
       <div class="tbl-header">
         <h6 class="tbl-header-title"><i class="bi bi-list-check me-2"></i>Postavke ({{ order.items|length }})</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addItemRow()">
+          <i class="bi bi-plus-lg me-1"></i>Dodaj postavko
+        </button>
       </div>
       <div class="table-responsive">
-        <table class="table table-sm">
+        <table class="table table-sm align-middle">
           <thead>
             <tr>
               <th>Artikel / Delo</th>
-              <th>Bartog ID</th>
-              <th>Kol.</th>
-              <th>Izvor</th>
-              <th>Status</th>
+              <th style="width:130px">IDENT</th>
+              <th style="width:150px">Kol.</th>
+              <th style="width:110px">Izvor</th>
+              <th style="width:130px">Status</th>
               <th>Opomba</th>
+              <th style="width:46px" class="text-center">Briši</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="items-body">
             {% for item in order.items %}
             <tr>
-              <td class="fw-semibold">{{ item.description }}</td>
-              <td>
-                {% if item.bartog_id %}
-                <code class="small">{{ item.bartog_id }}</code>
-                {% else %}<span class="text-muted">–</span>{% endif %}
+              <td class="fw-semibold">
+                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                {{ item.description }}
               </td>
-              <td>{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }} {{ item.unit }}</td>
-              <td class="small text-muted">{{ item.supplier }}</td>
               <td>
-                <form method="POST"
-                      action="{{ url_for('orders.update_item_status', order_id=order.id, item_id=item.id) }}"
-                      class="d-flex align-items-center gap-1">
-                  <select name="status" class="form-select form-select-sm" style="width:auto"
-                          onchange="this.form.submit()">
-                    {% for key, lbl, col in item_statuses %}
-                    <option value="{{ key }}" {% if item.status == key %}selected{% endif %}>{{ lbl }}</option>
-                    {% endfor %}
+                <input type="text" name="bartog_id[]" class="form-control form-control-sm"
+                       value="{{ item.bartog_id or '' }}" placeholder="IDENT">
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <input type="text" name="quantity[]" class="form-control form-control-sm" style="width:56px"
+                         value="{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }}">
+                  <select name="unit[]" class="form-select form-select-sm" style="width:auto">
+                    {% for u in item_units %}<option value="{{ u }}" {% if item.unit == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
                   </select>
-                </form>
+                </div>
               </td>
-              <td class="small text-muted">{{ item.notes or '–' }}</td>
+              <td>
+                <input type="text" name="supplier[]" class="form-control form-control-sm"
+                       value="{{ item.supplier or '' }}" placeholder="Izvor">
+              </td>
+              <td>
+                <select name="status[]" class="form-select form-select-sm">
+                  {% for key, lbl, col in item_statuses %}
+                  <option value="{{ key }}" {% if item.status == key %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="text" name="notes[]" class="form-control form-control-sm"
+                       value="{{ item.notes or '' }}" placeholder="Opomba">
+              </td>
+              <td class="text-center">
+                <input type="checkbox" name="delete[]" value="{{ item.id }}" class="form-check-input" title="Označi za brisanje">
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="6" class="text-center text-muted py-3">Ni postavk.</td></tr>
+            <tr id="no-items"><td colspan="7" class="text-center text-muted py-3">Ni postavk.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      <div class="p-3 border-top d-flex gap-2 align-items-center flex-wrap">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Shrani spremembe</button>
+        <span class="text-muted small">Označene v stolpcu „Briši“ se ob shranjevanju izbrišejo.</span>
+      </div>
     </div>
+    </form>
 
   </div><!-- /col-lg-8 -->
 
@@ -267,4 +291,27 @@
 
   </div><!-- /col-lg-4 -->
 </div><!-- /row -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const UNIT_OPTIONS = `{% for u in item_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}`;
+
+function addItemRow() {
+  const tbody = document.getElementById('items-body');
+  const noItems = document.getElementById('no-items');
+  if (noItems) noItems.remove();
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><input type="text" name="new_description[]" class="form-control form-control-sm" placeholder="Naziv artikla / dela"></td>' +
+    '<td><input type="text" name="new_bartog[]" class="form-control form-control-sm" placeholder="IDENT"></td>' +
+    '<td><div class="d-flex gap-1"><input type="text" name="new_quantity[]" value="1" class="form-control form-control-sm" style="width:56px"><select name="new_unit[]" class="form-select form-select-sm" style="width:auto">' + UNIT_OPTIONS + '</select></div></td>' +
+    '<td><input type="text" name="new_supplier[]" class="form-control form-control-sm" placeholder="Izvor"></td>' +
+    '<td><span class="badge bg-light text-dark border">novo</span></td>' +
+    '<td><input type="text" name="new_notes[]" class="form-control form-control-sm" placeholder="Opomba"></td>' +
+    '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" title="Odstrani" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x-lg"></i></button></td>';
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+}
+</script>
 {% endblock %}

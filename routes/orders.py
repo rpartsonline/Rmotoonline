@@ -253,6 +253,7 @@ def order_detail(order_id):
         order        = order,
         statuses     = ORDER_STATUSES,
         item_statuses= ITEM_STATUSES,
+        item_units   = ITEM_UNITS,
         STATUS_DICT  = STATUS_DICT,
     )
 
@@ -308,6 +309,75 @@ def update_item_status(order_id, item_id):
         db.session.commit()
 
     return redirect(url_for("orders.order_detail", order_id=order_id))
+
+
+# ── Save items (edit / add / delete) ──────────────────────────────────────────
+
+@orders_bp.route("/<int:order_id>/items/save", methods=["POST"])
+@login_required
+def save_items(order_id):
+    order = Order.query.get_or_404(order_id)
+    f = request.form
+
+    def parse_qty(raw):
+        try:
+            return float((raw or "1").replace(",", "."))
+        except ValueError:
+            return 1.0
+
+    valid_item_statuses = [s[0] for s in ITEM_STATUSES]
+
+    # ── Obstoječe postavke ──
+    item_ids   = f.getlist("item_id[]")
+    delete_ids = set(f.getlist("delete[]"))
+    bartogs    = f.getlist("bartog_id[]")
+    qtys       = f.getlist("quantity[]")
+    units      = f.getlist("unit[]")
+    supps      = f.getlist("supplier[]")
+    notes      = f.getlist("notes[]")
+    statuses   = f.getlist("status[]")
+
+    for idx, iid in enumerate(item_ids):
+        item = db.session.get(OrderItem, int(iid))
+        if not item or item.order_id != order.id:
+            continue
+        if iid in delete_ids:
+            db.session.delete(item)
+            continue
+        if idx < len(bartogs):  item.bartog_id = bartogs[idx].strip()
+        if idx < len(qtys):     item.quantity  = parse_qty(qtys[idx])
+        if idx < len(units):    item.unit      = units[idx]
+        if idx < len(supps):    item.supplier  = supps[idx].strip()
+        if idx < len(notes):    item.notes     = notes[idx].strip()
+        if idx < len(statuses) and statuses[idx] in valid_item_statuses:
+            item.status = statuses[idx]
+
+    # ── Nove postavke ──
+    nd = f.getlist("new_description[]")
+    nb = f.getlist("new_bartog[]")
+    nq = f.getlist("new_quantity[]")
+    nu = f.getlist("new_unit[]")
+    ns = f.getlist("new_supplier[]")
+    nn = f.getlist("new_notes[]")
+    for idx, desc in enumerate(nd):
+        desc = desc.strip()
+        if not desc:
+            continue
+        db.session.add(OrderItem(
+            order_id    = order.id,
+            description = desc,
+            bartog_id   = nb[idx].strip() if idx < len(nb) else "",
+            quantity    = parse_qty(nq[idx] if idx < len(nq) else "1"),
+            unit        = nu[idx] if idx < len(nu) else "kos",
+            supplier    = ns[idx].strip() if idx < len(ns) else "",
+            notes       = nn[idx].strip() if idx < len(nn) else "",
+            status      = "caka",
+        ))
+
+    order.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Postavke so bile shranjene.", "success")
+    return redirect(url_for("orders.order_detail", order_id=order.id))
 
 
 # ── Delete order (admin only) ─────────────────────────────────────────────────
