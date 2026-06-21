@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required
-from models import Order, Customer, Vehicle, STATUS_DICT
+from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, INQUIRY_STATUSES
 
 main_bp = Blueprint("main", __name__)
 
@@ -44,21 +44,21 @@ def dashboard():
         Order.created_at >= start, Order.created_at < end
     ).count()
 
-    new_orders       = Order.query.filter_by(kind="narocilo", status="novo").count()
-    completed_orders = Order.query.filter_by(kind="narocilo", status="zakljuceno").count()
+    new_orders     = Order.query.filter_by(kind="narocilo", status="novo").count()
+    ordered_orders = Order.query.filter_by(kind="narocilo", status="naroceno").count()
 
-    # Aktivna naročila (še v teku) – za seznam odprtih spodaj
+    # Aktivna naročila (še ni naročeno) – za seznam odprtih spodaj
     active_orders = Order.query.filter_by(kind="narocilo").filter(
-        Order.status.in_(["caka", "naroceno", "v_dostavi"])
+        Order.status.in_(["novo", "poslano_povprasevanje"])
     ).count()
 
-    # Števila po statusu
-    status_counts = {}
-    for key, info in STATUS_DICT.items():
-        status_counts[key] = {
-            **info,
-            "count": Order.query.filter_by(kind="narocilo", status=key).count(),
-        }
+    # Razčlenitev povpraševanj po 3 statusih
+    inquiry_breakdown = []
+    for key, label, color in INQUIRY_STATUSES:
+        inquiry_breakdown.append({
+            "key": key, "label": label, "color": color,
+            "count": Order.query.filter_by(kind="povprasevanje", status=key).count(),
+        })
 
     recent_orders = (
         Order.query.filter_by(kind="narocilo")
@@ -67,7 +67,7 @@ def dashboard():
 
     pending_orders = (
         Order.query.filter_by(kind="narocilo")
-        .filter(Order.status.in_(["caka", "naroceno", "v_dostavi"]))
+        .filter(Order.status.in_(["novo", "poslano_povprasevanje"]))
         .order_by(Order.created_at.asc())
         .all()
     )
@@ -76,10 +76,10 @@ def dashboard():
         "dashboard.html",
         today_orders=today_orders,
         new_orders=new_orders,
-        completed_orders=completed_orders,
+        ordered_orders=ordered_orders,
         active_orders=active_orders,
         today_str=_today_str(),
-        status_counts=status_counts,
+        inquiry_breakdown=inquiry_breakdown,
         recent_orders=recent_orders,
         pending_orders=pending_orders,
     )

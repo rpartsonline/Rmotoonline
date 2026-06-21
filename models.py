@@ -8,16 +8,21 @@ db = SQLAlchemy()
 # ── Lookup tables ────────────────────────────────────────────────────────────
 
 ORDER_STATUSES = [
-    ("novo",       "Novo",              "secondary"),
-    ("caka",       "Čaka na naročilo",  "warning"),
-    ("naroceno",   "Naročeno",          "info"),
-    ("v_dostavi",  "V dostavi",         "primary"),
-    ("prejeto",    "Prejeto",           "success"),
-    ("zakljuceno", "Zaključeno",        "dark"),
-    ("preklicano", "Preklicano",        "danger"),
+    ("novo",                  "Novo naročilo",         "primary"),
+    ("naroceno",              "Naročeno",              "info"),
+    ("poslano_povprasevanje", "Poslano povpraševanje", "warning"),
 ]
 
 STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}
+
+# Stari statusi – samo za prikaz morebitnih obstoječih zapisov
+LEGACY_STATUS_DICT = {
+    "caka":       {"label": "Čaka na naročilo", "color": "warning"},
+    "v_dostavi":  {"label": "V dostavi",        "color": "primary"},
+    "prejeto":    {"label": "Prejeto",          "color": "success"},
+    "zakljuceno": {"label": "Zaključeno",       "color": "dark"},
+    "preklicano": {"label": "Preklicano",       "color": "danger"},
+}
 
 # Statusi povpraševanj (ločen nabor)
 INQUIRY_STATUSES = [
@@ -28,7 +33,7 @@ INQUIRY_STATUSES = [
 INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
 
 # Združen slovar za prikaz oznak (ključi se ne prekrivajo)
-ALL_STATUS_DICT = {**STATUS_DICT, **INQUIRY_STATUS_DICT}
+ALL_STATUS_DICT = {**LEGACY_STATUS_DICT, **STATUS_DICT, **INQUIRY_STATUS_DICT}
 
 ITEM_STATUSES = [
     ("caka",       "Čaka",       "warning"),

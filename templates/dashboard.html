@@ -32,29 +32,36 @@
     </a>
   </div>
   <div class="col-6 col-lg-4">
-    <a href="{{ url_for('orders.list_orders', status='zakljuceno') }}" class="text-decoration-none">
+    <a href="{{ url_for('orders.list_orders', status='naroceno') }}" class="text-decoration-none">
       <div class="stat-card">
-        <div class="num text-success">{{ completed_orders }}</div>
-        <div class="lbl"><i class="bi bi-check-circle me-1 text-success"></i>Zaključena naročila</div>
+        <div class="num text-success">{{ ordered_orders }}</div>
+        <div class="lbl"><i class="bi bi-check-circle me-1 text-success"></i>Naročena naročila</div>
       </div>
     </a>
   </div>
 </div>
 
-<!-- ── Status breakdown ──────────────────────────────────────────────────── -->
+<!-- ── Povpraševanja ──────────────────────────────────────────────────────── -->
 <div class="tbl-card mb-4">
-  <div class="tbl-header">
-    <h6 class="tbl-header-title"><i class="bi bi-bar-chart me-2"></i>Stanje po statusih</h6>
+  <div class="tbl-header d-flex align-items-center justify-content-between">
+    <h6 class="tbl-header-title mb-0">
+      <a href="{{ url_for('orders.list_inquiries') }}" class="text-decoration-none text-reset">
+        <i class="bi bi-chat-left-text me-2"></i>Povpraševanja
+      </a>
+    </h6>
+    <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+    </a>
   </div>
   <div class="p-3">
     <div class="row g-2">
-      {% for key, info in status_counts.items() %}
-      <div class="col-6 col-md-3">
-        <a href="{{ url_for('orders.list_orders', status=key) }}" class="text-decoration-none">
+      {% for s in inquiry_breakdown %}
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('orders.list_inquiries', status=s.key) }}" class="text-decoration-none">
           <div class="d-flex align-items-center justify-content-between p-2 rounded"
                style="background:#f8fafc; border:1px solid #e5eaf2;">
-            <span class="badge bg-{{ info.color }} badge-status">{{ info.label }}</span>
-            <span class="fw-bold text-dark">{{ info.count }}</span>
+            <span class="badge bg-{{ s.color }} badge-status">{{ s.label }}</span>
+            <span class="fw-bold text-dark fs-5">{{ s.count }}</span>
           </div>
         </a>
       </div>
