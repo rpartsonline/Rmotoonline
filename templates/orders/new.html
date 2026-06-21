@@ -168,11 +168,19 @@
 
 <!-- ── 4. POSTAVKE ───────────────────────────────────────────────────────── -->
 <div class="form-section">
+  {% if kind == 'povprasevanje' %}
+  <div class="form-section-title"><i class="bi bi-list-check"></i> Povpraševanje za nadomestne dele</div>
+  <p class="text-muted small mb-3">
+    Vpiši nadomestne dele, za katere povprašuješ. Pri vsaki vrstici lahko vpišeš tudi IDENT in izvor.
+  </p>
+  {% else %}
   <div class="form-section-title"><i class="bi bi-list-check"></i> Postavke naročila</div>
   <p class="text-muted small mb-3">
     Pokljukaj, kar potrebuješ. Pri označeni postavki vpiši <strong>IDENT (Bartog)</strong> in <strong>izvor zaloge</strong> (npr. TQ, 5). Neoznačeno se v naročilo ne shrani.
   </p>
+  {% endif %}
 
+  {% if kind != 'povprasevanje' %}
   {% for group in item_catalog %}
   <div class="cat-block">
     <div class="cat-head">{{ group.category }}</div>
@@ -309,6 +317,7 @@
 
     </div>
   </div>
+  {% endif %}
 
   <!-- Ostali material (več vrstic – nova se odpre samodejno) -->
   <div class="cat-block">
