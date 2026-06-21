@@ -319,9 +319,9 @@
   </div>
   {% endif %}
 
-  <!-- Ostali material (več vrstic – nova se odpre samodejno) -->
+  <!-- Ostali material / Iskani nadomestni deli (povpraševanje) -->
   <div class="cat-block">
-    <div class="cat-head">Ostali material</div>
+    <div class="cat-head">{% if kind == 'povprasevanje' %}Iskani nadomestni deli ali pnevmatike{% else %}Ostali material{% endif %}</div>
     <div class="cat-items" id="ostali-list"></div>
   </div>
 </div>

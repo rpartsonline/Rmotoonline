@@ -349,6 +349,20 @@ def update_status(order_id):
         flash("Neveljaven status.", "danger")
         return redirect(url_for("orders.order_detail", order_id=order_id))
 
+    # Rok dobave je obvezen za „Naročena – čakamo dobavo"
+    if new_status == "narocena_caka":
+        raw = request.form.get("delivery_days", "").strip()
+        try:
+            days = int(raw)
+            if days < 0:
+                raise ValueError
+        except ValueError:
+            flash("Za status Naročena – čakamo dobavo je obvezen rok dobave (število dni).", "danger")
+            return redirect(url_for("orders.order_detail", order_id=order_id))
+        from datetime import timedelta
+        from models import today_local
+        order.delivery_date = today_local() + timedelta(days=days)
+
     log = OrderStatusLog(
         order_id      = order.id,
         old_status    = order.status,
@@ -367,7 +381,8 @@ def update_status(order_id):
     order.updated_at = datetime.utcnow()
     db.session.commit()
 
-    flash(f"Status posodobljen → {STATUS_DICT[new_status]['label']}", "success")
+    label = ALL_STATUS_DICT.get(new_status, {}).get("label", new_status)
+    flash(f"Status posodobljen → {label}", "success")
     return redirect(url_for("orders.order_detail", order_id=order_id))
 
 
