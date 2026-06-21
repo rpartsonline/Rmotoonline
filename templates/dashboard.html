@@ -13,6 +13,14 @@
   <span class="text-muted small">{{ now.strftime('%A, %d.%m.%Y') if now else '' }}</span>
 </div>
 
+<!-- ── Naročila ──────────────────────────────────────────────────────────── -->
+<div class="page-hdr">
+  <h1><i class="bi bi-clipboard-check me-2 text-primary"></i>Naročila</h1>
+  <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Novo naročilo
+  </a>
+</div>
+
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
   <div class="col-12 col-lg-4">
@@ -42,32 +50,24 @@
 </div>
 
 <!-- ── Povpraševanja ──────────────────────────────────────────────────────── -->
-<div class="tbl-card mb-4">
-  <div class="tbl-header d-flex align-items-center justify-content-between">
-    <h6 class="tbl-header-title mb-0">
-      <a href="{{ url_for('orders.list_inquiries') }}" class="text-decoration-none text-reset">
-        <i class="bi bi-chat-left-text me-2"></i>Povpraševanja
-      </a>
-    </h6>
-    <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+<div class="page-hdr">
+  <h1><i class="bi bi-chat-left-text me-2 text-primary"></i>Povpraševanja</h1>
+  <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  {% for s in inquiry_breakdown %}
+  <div class="col-12 col-lg-4">
+    <a href="{{ url_for('orders.list_inquiries', status=s.key) }}" class="text-decoration-none">
+      <div class="stat-card d-flex align-items-center justify-content-between">
+        <span class="badge bg-{{ s.color }} badge-status">{{ s.label }}</span>
+        <span class="num">{{ s.count }}</span>
+      </div>
     </a>
   </div>
-  <div class="p-3">
-    <div class="row g-2">
-      {% for s in inquiry_breakdown %}
-      <div class="col-12 col-md-4">
-        <a href="{{ url_for('orders.list_inquiries', status=s.key) }}" class="text-decoration-none">
-          <div class="d-flex align-items-center justify-content-between p-2 rounded"
-               style="background:#f8fafc; border:1px solid #e5eaf2;">
-            <span class="badge bg-{{ s.color }} badge-status">{{ s.label }}</span>
-            <span class="fw-bold text-dark fs-5">{{ s.count }}</span>
-          </div>
-        </a>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
+  {% endfor %}
 </div>
 
 <div class="row g-3">
