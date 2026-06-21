@@ -70,6 +70,27 @@
   {% endfor %}
 </div>
 
+<!-- ── Beležka ────────────────────────────────────────────────────────────── -->
+<div class="page-hdr">
+  <h1><i class="bi bi-journal-text me-2 text-primary"></i>Beležka</h1>
+  <a href="{{ url_for('notes.list_notes') }}" class="btn btn-primary">
+    <i class="bi bi-pencil me-1"></i>Odpri beležko
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  {% for nc in note_counts %}
+  <div class="col-6 col-lg-3">
+    <a href="{{ url_for('notes.list_notes', person=nc.person) }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num {% if nc.count %}text-danger{% else %}text-muted{% endif %}">{{ nc.count }}</div>
+        <div class="lbl"><i class="bi bi-person me-1"></i>{{ nc.person }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
 <div class="row g-3">
   <!-- Recent orders -->
   <div class="col-lg-7">

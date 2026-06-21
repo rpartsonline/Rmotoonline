@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required
-from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, INQUIRY_STATUSES
+from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, Note, NOTE_PEOPLE, INQUIRY_STATUSES
 
 main_bp = Blueprint("main", __name__)
 
@@ -60,6 +60,12 @@ def dashboard():
             "count": Order.query.filter_by(kind="povprasevanje", status=key).count(),
         })
 
+    # Beležke – nezaključene po osebi
+    note_counts = [
+        {"person": p, "count": Note.query.filter_by(person=p, done=False).count()}
+        for p in NOTE_PEOPLE
+    ]
+
     recent_orders = (
         Order.query.filter_by(kind="narocilo")
         .order_by(Order.created_at.desc()).limit(10).all()
@@ -80,6 +86,7 @@ def dashboard():
         active_orders=active_orders,
         today_str=_today_str(),
         inquiry_breakdown=inquiry_breakdown,
+        note_counts=note_counts,
         recent_orders=recent_orders,
         pending_orders=pending_orders,
     )

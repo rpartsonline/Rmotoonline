@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Beležka{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Beležka</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-journal-text me-2 text-primary"></i>Beležka</h1>
+</div>
+
+<!-- Osebe (število nezaključenih) -->
+<div class="row g-3 mb-4">
+  {% for p in people %}
+  <div class="col-6 col-lg-3">
+    <a href="{{ url_for('notes.list_notes', person=p, show=show) }}" class="text-decoration-none">
+      <div class="stat-card {% if person_filter == p %}border-primary{% endif %}" style="{% if person_filter == p %}border:2px solid #3b82f6;{% endif %}">
+        <div class="num {% if counts[p] %}text-danger{% else %}text-muted{% endif %}">{{ counts[p] }}</div>
+        <div class="lbl"><i class="bi bi-person me-1"></i>{{ p }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Nova beležka -->
+<div class="form-section mb-4">
+  <div class="form-section-title"><i class="bi bi-plus-circle"></i> Nova beležka</div>
+  <form method="POST" action="{{ url_for('notes.add_note') }}" class="row g-2 align-items-end">
+    <div class="col-md-7">
+      <label class="form-label small fw-semibold">Besedilo</label>
+      <input type="text" name="text" class="form-control" placeholder="Vpiši beležko…" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Za koga</label>
+      <select name="person" class="form-select">
+        <option value="">— vsi —</option>
+        {% for p in people %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg me-1"></i>Dodaj</button>
+    </div>
+  </form>
+</div>
+
+<!-- Filter prikaza -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <a href="{{ url_for('notes.list_notes', person=person_filter, show='todo') }}"
+     class="btn btn-sm {% if show == 'todo' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Za obdelat</a>
+  <a href="{{ url_for('notes.list_notes', person=person_filter, show='done') }}"
+     class="btn btn-sm {% if show == 'done' %}btn-success{% else %}btn-outline-secondary{% endif %}">Obdelano</a>
+  <a href="{{ url_for('notes.list_notes', person=person_filter, show='all') }}"
+     class="btn btn-sm {% if show == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Vse</a>
+  {% if person_filter %}
+  <a href="{{ url_for('notes.list_notes', show=show) }}" class="btn btn-sm btn-outline-secondary ms-auto">
+    <i class="bi bi-x-lg me-1"></i>Počisti osebo: {{ person_filter }}
+  </a>
+  {% endif %}
+</div>
+
+<!-- Seznam beležk -->
+<div class="tbl-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:90px">Stanje</th>
+          <th>Beležka</th>
+          <th style="width:170px">Za koga</th>
+          <th style="width:150px">Dodal</th>
+          <th style="width:90px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in notes %}
+        <tr class="{% if n.done %}table-light text-muted{% endif %}">
+          <td>
+            <form method="POST" action="{{ url_for('notes.toggle_note', note_id=n.id) }}">
+              {% if n.done %}
+              <button class="btn btn-sm btn-outline-success" title="Označi za obdelat">
+                <i class="bi bi-check-circle-fill"></i>
+              </button>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" title="Označi kot obdelano">
+                <i class="bi bi-circle"></i>
+              </button>
+              {% endif %}
+            </form>
+          </td>
+          <td class="{% if n.done %}text-decoration-line-through{% else %}fw-semibold{% endif %}">{{ n.text }}</td>
+          <td>
+            {% if n.person %}<span class="badge bg-light text-dark border">{{ n.person }}</span>
+            {% else %}<span class="text-muted">vsi</span>{% endif %}
+          </td>
+          <td class="small text-muted">
+            {{ n.created_by.full_name if n.created_by else '' }}<br>
+            <span>{{ n.created_at|sl_date }}</span>
+          </td>
+          <td class="text-end">
+            <form method="POST" action="{{ url_for('notes.delete_note', note_id=n.id) }}"
+                  onsubmit="return confirm('Izbrišem to beležko?')">
+              <button class="btn btn-sm btn-outline-danger" title="Izbriši"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-5">
+            <i class="bi bi-journal fs-2 d-block mb-2"></i>Ni beležk.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

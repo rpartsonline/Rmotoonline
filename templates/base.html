@@ -43,6 +43,12 @@
         <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
+    <li>
+      <a href="{{ url_for('notes.list_notes') }}"
+         class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-journal-text"></i><span>Beležka</span>
+      </a>
+    </li>
 
     {% if current_user.is_admin %}
     <li class="sb-section">Admin</li>

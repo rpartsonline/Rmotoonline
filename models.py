@@ -212,6 +212,24 @@ class OrderStatusLog(db.Model):
         return STATUS_DICT.get(self.new_status, {"label": self.new_status, "color": "secondary"})
 
 
+# ── Beležka (skupna tabla obvestil med zaposlenimi) ───────────────────────────
+NOTE_PEOPLE = ["Alan Daksobler", "Sašo Juretič", "Vid Kenda", "Rok Jerkič"]
+
+
+class Note(db.Model):
+    __tablename__ = "notes"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    text       = db.Column(db.Text, nullable=False)
+    person     = db.Column(db.String(100))           # za koga je beležka
+    done       = db.Column(db.Boolean, default=False)  # obdelano / za obdelat
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    done_at    = db.Column(db.DateTime)
+
+    created_by = db.relationship("User")
+
+
 # ── Katalog postavk za novo naročilo ─────────────────────────────────────────
 # Glavne rubrike s podgrupami. Delavec pokljuka, kar potrebuje, in vpiše
 # IDENT (Bartog) ter izvor zaloge. Neoznačeno se v naročilo ne shrani.
