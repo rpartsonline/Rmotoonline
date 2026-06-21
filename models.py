@@ -19,8 +19,8 @@ def today_local():
 
 ORDER_STATUSES = [
     ("novo",                  "Novo naročilo",         "danger"),
-    ("naroceno",              "Naročeno",              "success"),
     ("poslano_povprasevanje", "Naročilo v obdelavi",   "warning"),
+    ("naroceno",              "Naročeno",              "success"),
 ]
 
 STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}

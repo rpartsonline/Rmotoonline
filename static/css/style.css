@@ -253,7 +253,7 @@ body {
 /* ── Oblaček: dobava materiala ───────────────────────────────────────────── */
 .delivery-badge {
   position: fixed; right: 28px; bottom: 104px; z-index: 1200;
-  display: inline-flex; align-items: center; gap: 9px;
+  display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
   background: #f59e0b; color: #fff; text-decoration: none;
   padding: 13px 20px; border-radius: 50px; font-weight: 800; font-size: .92rem;
   box-shadow: 0 8px 26px rgba(245,158,11,.5);
