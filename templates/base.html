@@ -121,6 +121,31 @@
     mainWrap.classList.toggle('expanded');
   });
 </script>
+
+<!-- Plavajoč oblaček: nova naročila -->
+<a href="{{ url_for('orders.list_orders', status='novo') }}" id="new-orders-badge"
+   class="new-orders-badge" title="Nova naročila"
+   style="{% if not new_orders_count %}display:none;{% endif %}">
+  <i class="bi bi-bell-fill"></i>
+  <span class="nob-text">Nova naročila</span>
+  <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
+</a>
+<script>
+  (function () {
+    const url = "{{ url_for('main.new_orders_count') }}";
+    const badge = document.getElementById('new-orders-badge');
+    const cnt = document.getElementById('new-orders-count');
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 30000);
+  })();
+</script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

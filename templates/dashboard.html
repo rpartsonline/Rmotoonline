@@ -15,29 +15,29 @@
 
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-primary">{{ total_orders }}</div>
-      <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Vsa naročila</div>
-    </div>
+  <div class="col-12 col-lg-4">
+    <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-primary">{{ today_orders }}</div>
+        <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Naročila · {{ today_str }}</div>
+      </div>
+    </a>
   </div>
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-warning">{{ active_orders }}</div>
-      <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>Aktivna naročila</div>
-    </div>
+  <div class="col-6 col-lg-4">
+    <a href="{{ url_for('orders.list_orders', status='novo') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-danger">{{ new_orders }}</div>
+        <div class="lbl"><i class="bi bi-bell-fill me-1 text-danger"></i>Nova naročila</div>
+      </div>
+    </a>
   </div>
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-success">{{ total_customers }}</div>
-      <div class="lbl"><i class="bi bi-people me-1"></i>Stranke</div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-info">{{ total_vehicles }}</div>
-      <div class="lbl"><i class="bi bi-car-front me-1"></i>Vozila</div>
-    </div>
+  <div class="col-6 col-lg-4">
+    <a href="{{ url_for('orders.list_orders', status='zakljuceno') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-success">{{ completed_orders }}</div>
+        <div class="lbl"><i class="bi bi-check-circle me-1 text-success"></i>Zaključena naročila</div>
+      </div>
+    </a>
   </div>
 </div>
 

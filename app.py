@@ -52,6 +52,16 @@ def create_app():
     def sl_datetime(dt):
         return dt.strftime("%d.%m.%Y %H:%M") if dt else "–"
 
+    # Število novih naročil – na voljo v vseh predlogah (za oblaček)
+    @app.context_processor
+    def inject_new_orders_count():
+        from models import Order
+        try:
+            n = Order.query.filter_by(status="novo").count()
+        except Exception:
+            n = 0
+        return {"new_orders_count": n}
+
     # ── Blueprints ──────────────────────────────────────────────────────────
     from routes.auth import auth_bp
     from routes.main import main_bp
