@@ -27,7 +27,7 @@
     </li>
     <li>
       <a href="{{ url_for('orders.list_orders') }}"
-         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.endpoint != 'orders.new_order' %}active{% endif %}">
+         class="sb-link {% if request.endpoint == 'orders.list_orders' %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
       </a>
     </li>
@@ -35,6 +35,18 @@
       <a href="{{ url_for('orders.new_order') }}"
          class="sb-link {% if request.endpoint == 'orders.new_order' %}active{% endif %}">
         <i class="bi bi-plus-circle"></i><span>Novo naročilo</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('orders.list_inquiries') }}"
+         class="sb-link {% if request.endpoint == 'orders.list_inquiries' %}active{% endif %}">
+        <i class="bi bi-chat-left-text"></i><span>Povpraševanja</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('orders.new_inquiry') }}"
+         class="sb-link {% if request.endpoint == 'orders.new_inquiry' %}active{% endif %}">
+        <i class="bi bi-plus-circle"></i><span>Novo povpraševanje</span>
       </a>
     </li>
     <li>

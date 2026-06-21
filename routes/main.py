@@ -40,15 +40,15 @@ def _today_utc_range():
 @login_required
 def dashboard():
     start, end = _today_utc_range()
-    today_orders = Order.query.filter(
+    today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
     ).count()
 
-    new_orders       = Order.query.filter_by(status="novo").count()
-    completed_orders = Order.query.filter_by(status="zakljuceno").count()
+    new_orders       = Order.query.filter_by(kind="narocilo", status="novo").count()
+    completed_orders = Order.query.filter_by(kind="narocilo", status="zakljuceno").count()
 
     # Aktivna naročila (še v teku) – za seznam odprtih spodaj
-    active_orders = Order.query.filter(
+    active_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.status.in_(["caka", "naroceno", "v_dostavi"])
     ).count()
 
@@ -57,13 +57,16 @@ def dashboard():
     for key, info in STATUS_DICT.items():
         status_counts[key] = {
             **info,
-            "count": Order.query.filter_by(status=key).count(),
+            "count": Order.query.filter_by(kind="narocilo", status=key).count(),
         }
 
-    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
+    recent_orders = (
+        Order.query.filter_by(kind="narocilo")
+        .order_by(Order.created_at.desc()).limit(10).all()
+    )
 
     pending_orders = (
-        Order.query
+        Order.query.filter_by(kind="narocilo")
         .filter(Order.status.in_(["caka", "naroceno", "v_dostavi"]))
         .order_by(Order.created_at.asc())
         .all()
@@ -85,4 +88,4 @@ def dashboard():
 @main_bp.route("/api/new-orders-count")
 @login_required
 def new_orders_count():
-    return jsonify({"count": Order.query.filter_by(status="novo").count()})
+    return jsonify({"count": Order.query.filter_by(kind="narocilo", status="novo").count()})

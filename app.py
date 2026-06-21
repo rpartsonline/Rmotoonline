@@ -57,7 +57,7 @@ def create_app():
     def inject_new_orders_count():
         from models import Order
         try:
-            n = Order.query.filter_by(status="novo").count()
+            n = Order.query.filter_by(kind="narocilo", status="novo").count()
         except Exception:
             n = 0
         return {"new_orders_count": n}
@@ -80,9 +80,25 @@ def create_app():
     # ── Init DB & default admin ──────────────────────────────────────────────
     with app.app_context():
         db.create_all()
+        _ensure_schema(db)
         _seed_admin(db, User)
 
     return app
+
+
+def _ensure_schema(db):
+    """Varno doda nove stolpce v obstoječo bazo (SQLite)."""
+    from sqlalchemy import inspect, text
+    try:
+        cols = [c["name"] for c in inspect(db.engine).get_columns("orders")]
+        if "kind" not in cols:
+            db.session.execute(text(
+                "ALTER TABLE orders ADD COLUMN kind VARCHAR(20) DEFAULT 'narocilo'"
+            ))
+            db.session.commit()
+            print("✅  Dodan stolpec 'kind' v tabelo orders.")
+    except Exception as e:
+        print(f"⚠️  Migracija (kind) preskočena: {e}")
 
 
 def _seed_admin(db, User):

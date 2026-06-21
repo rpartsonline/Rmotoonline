@@ -223,27 +223,29 @@ body {
 
 /* ── Oblaček: nova naročila ──────────────────────────────────────────────── */
 .new-orders-badge {
-  position: fixed; right: 22px; bottom: 22px; z-index: 1200;
-  display: inline-flex; align-items: center; gap: 8px;
+  position: fixed; right: 28px; bottom: 28px; z-index: 1200;
+  display: inline-flex; align-items: center; gap: 12px;
   background: #e02424; color: #fff; text-decoration: none;
-  padding: 12px 18px; border-radius: 40px; font-weight: 700;
-  box-shadow: 0 8px 24px rgba(224,36,36,.45);
-  animation: nob-pulse 1.8s ease-in-out infinite;
+  padding: 18px 28px; border-radius: 50px; font-weight: 800;
+  box-shadow: 0 10px 34px rgba(224,36,36,.55);
+  animation: nob-pulse 1.7s ease-in-out infinite;
 }
-.new-orders-badge:hover { background: #c81e1e; color: #fff; }
-.new-orders-badge .bi { font-size: 1.2rem; }
-.nob-text { font-size: .9rem; }
+.new-orders-badge:hover { background: #c81e1e; color: #fff; transform: scale(1.04); }
+.new-orders-badge .bi { font-size: 1.7rem; }
+.nob-text { font-size: 1.15rem; letter-spacing: .2px; }
 .nob-count {
-  background: #fff; color: #e02424; border-radius: 20px;
-  min-width: 24px; height: 24px; padding: 0 7px;
+  background: #fff; color: #e02424; border-radius: 30px;
+  min-width: 38px; height: 38px; padding: 0 11px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: .9rem; font-weight: 800;
+  font-size: 1.3rem; font-weight: 900;
 }
 @keyframes nob-pulse {
-  0%, 100% { box-shadow: 0 8px 24px rgba(224,36,36,.45); }
-  50%      { box-shadow: 0 8px 30px rgba(224,36,36,.75); }
+  0%, 100% { box-shadow: 0 10px 34px rgba(224,36,36,.50); transform: scale(1); }
+  50%      { box-shadow: 0 12px 44px rgba(224,36,36,.85); transform: scale(1.05); }
 }
 @media (max-width: 576px) {
-  .new-orders-badge { right: 14px; bottom: 14px; padding: 11px 15px; }
-  .nob-text { display: none; }
+  .new-orders-badge { right: 16px; bottom: 16px; padding: 15px 22px; gap: 9px; }
+  .new-orders-badge .bi { font-size: 1.5rem; }
+  .nob-text { font-size: 1rem; }
+  .nob-count { min-width: 34px; height: 34px; font-size: 1.15rem; }
 }

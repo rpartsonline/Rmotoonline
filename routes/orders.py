@@ -9,19 +9,50 @@ from models import (
     ORDER_ITEM_CATALOG, ITEM_CATALOG_MAP,
     TIRE_WIDTHS, TIRE_ASPECTS, TIRE_DIAMETERS,
     TIRE_SEASONS, TIRE_BRANDS, MOTO_TIRE_BRANDS, AGRO_TIRE_BRANDS, TRUCK_TIRE_BRANDS,
+    INQUIRY_STATUSES, INQUIRY_STATUS_DICT, ALL_STATUS_DICT,
 )
 from routes.vehicles import CAR_MAKES
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
 
+# ── Pomožno: razlikovanje naročilo / povpraševanje ─────────────────────────────
+
+def _kind_cfg(kind):
+    """Vrne nastavitve za dani tip (naročilo ali povpraševanje)."""
+    if kind == "povprasevanje":
+        return {
+            "kind": "povprasevanje",
+            "prefix": "POV",
+            "initial_status": "oddano",
+            "statuses": INQUIRY_STATUSES,
+            "status_dict": INQUIRY_STATUS_DICT,
+            "page_title": "Povpraševanja",
+            "new_title": "Novo povpraševanje",
+            "list_endpoint": "orders.list_inquiries",
+            "new_endpoint": "orders.new_inquiry",
+        }
+    return {
+        "kind": "narocilo",
+        "prefix": "NAR",
+        "initial_status": "novo",
+        "statuses": ORDER_STATUSES,
+        "status_dict": STATUS_DICT,
+        "page_title": "Naročila",
+        "new_title": "Novo naročilo",
+        "list_endpoint": "orders.list_orders",
+        "new_endpoint": "orders.new_order",
+    }
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
-def generate_order_number():
+def generate_order_number(kind="narocilo"):
+    prefix = _kind_cfg(kind)["prefix"]
     year = datetime.utcnow().year
     last = (
         Order.query
-        .filter(Order.order_number.like(f"NAR-{year}-%"))
+        .filter(Order.order_number.like(f"{prefix}-{year}-%"))
         .order_by(Order.id.desc())
         .first()
     )
@@ -29,10 +60,10 @@ def generate_order_number():
         try:
             num = int(last.order_number.split("-")[-1]) + 1
         except (ValueError, IndexError):
-            num = Order.query.count() + 1
+            num = Order.query.filter_by(kind=kind).count() + 1
     else:
         num = 1
-    return f"NAR-{year}-{num:04d}"
+    return f"{prefix}-{year}-{num:04d}"
 
 
 # ── List ──────────────────────────────────────────────────────────────────────
@@ -40,13 +71,24 @@ def generate_order_number():
 @orders_bp.route("/")
 @login_required
 def list_orders():
+    return _render_list("narocilo")
+
+
+@orders_bp.route("/povprasevanja/")
+@login_required
+def list_inquiries():
+    return _render_list("povprasevanje")
+
+
+def _render_list(kind):
+    cfg = _kind_cfg(kind)
     status_filter   = request.args.get("status", "")
     customer_filter = request.args.get("customer_id", "")
     date_from_str   = request.args.get("date_from", "")
     date_to_str     = request.args.get("date_to", "")
     search          = request.args.get("search", "").strip()
 
-    q = Order.query
+    q = Order.query.filter_by(kind=kind)
 
     if status_filter:
         q = q.filter_by(status=status_filter)
@@ -69,17 +111,31 @@ def list_orders():
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
 
+    # Razčlenitev po statusih (za pregled na vrhu seznama)
+    breakdown = []
+    for key, label, color in cfg["statuses"]:
+        breakdown.append({
+            "key": key, "label": label, "color": color,
+            "count": Order.query.filter_by(kind=kind, status=key).count(),
+        })
+
     return render_template(
         "orders/list.html",
         orders=orders,
         customers=customers,
-        statuses=ORDER_STATUSES,
-        STATUS_DICT=STATUS_DICT,
+        statuses=cfg["statuses"],
+        STATUS_DICT=cfg["status_dict"],
         status_filter=status_filter,
         customer_filter=customer_filter,
         date_from=date_from_str,
         date_to=date_to_str,
         search=search,
+        kind=kind,
+        page_title=cfg["page_title"],
+        new_title=cfg["new_title"],
+        new_url=url_for(cfg["new_endpoint"]),
+        list_url=url_for(cfg["list_endpoint"]),
+        status_breakdown=breakdown,
     )
 
 
@@ -88,6 +144,17 @@ def list_orders():
 @orders_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_order():
+    return _handle_new("narocilo")
+
+
+@orders_bp.route("/povprasevanja/new", methods=["GET", "POST"])
+@login_required
+def new_inquiry():
+    return _handle_new("povprasevanje")
+
+
+def _handle_new(kind):
+    cfg = _kind_cfg(kind)
     if request.method == "POST":
         f = request.form
 
@@ -97,7 +164,7 @@ def new_order():
             name = f.get("new_customer_name", "").strip()
             if not name:
                 flash("Ime stranke je obvezno.", "danger")
-                return _render_new_order_form()
+                return _render_new_order_form(kind)
             customer = Customer(
                 name    = name,
                 phone   = f.get("new_customer_phone", "").strip(),
@@ -138,13 +205,14 @@ def new_order():
             else:
                 vehicle_id = None
 
-        # ── Naročilo ─────────────────────────────────────────────────────────
+        # ── Naročilo / povpraševanje ─────────────────────────────────────────
         order = Order(
-            order_number = generate_order_number(),
+            order_number = generate_order_number(kind),
+            kind         = kind,
             customer_id  = customer_id,
             vehicle_id   = vehicle_id,
             employee_id  = current_user.id,
-            status       = "novo",
+            status       = cfg["initial_status"],
             source       = f.get("source", "klic"),
             notes        = f.get("notes", "").strip(),
         )
@@ -214,13 +282,15 @@ def new_order():
             ))
 
         db.session.commit()
-        flash(f"Naročilo {order.order_number} je bilo uspešno ustvarjeno.", "success")
+        what = "Povpraševanje" if kind == "povprasevanje" else "Naročilo"
+        flash(f"{what} {order.order_number} je bilo uspešno ustvarjeno.", "success")
         return redirect(url_for("orders.order_detail", order_id=order.id))
 
-    return _render_new_order_form()
+    return _render_new_order_form(kind)
 
 
-def _render_new_order_form():
+def _render_new_order_form(kind="narocilo"):
+    cfg = _kind_cfg(kind)
     return render_template(
         "orders/new.html",
         customers    = Customer.query.order_by(Customer.name).all(),
@@ -239,6 +309,10 @@ def _render_new_order_form():
         truck_brands   = TRUCK_TIRE_BRANDS,
         preselected_customer = request.args.get("customer_id"),
         preselected_vehicle  = request.args.get("vehicle_id"),
+        kind        = kind,
+        page_title  = cfg["new_title"],
+        form_action = url_for(cfg["new_endpoint"]),
+        cancel_url  = url_for(cfg["list_endpoint"]),
     )
 
 
@@ -248,13 +322,17 @@ def _render_new_order_form():
 @login_required
 def order_detail(order_id):
     order = Order.query.get_or_404(order_id)
+    cfg = _kind_cfg(order.kind or "narocilo")
     return render_template(
         "orders/detail.html",
         order        = order,
-        statuses     = ORDER_STATUSES,
+        statuses     = cfg["statuses"],
         item_statuses= ITEM_STATUSES,
         item_units   = ITEM_UNITS,
-        STATUS_DICT  = STATUS_DICT,
+        STATUS_DICT  = cfg["status_dict"],
+        kind         = cfg["kind"],
+        page_title   = cfg["page_title"],
+        list_url     = url_for(cfg["list_endpoint"]),
     )
 
 
@@ -265,7 +343,7 @@ def order_detail(order_id):
 def update_status(order_id):
     order = Order.query.get_or_404(order_id)
     new_status  = request.form.get("status")
-    valid_keys  = [s[0] for s in ORDER_STATUSES]
+    valid_keys  = [s[0] for s in _kind_cfg(order.kind or "narocilo")["statuses"]]
 
     if new_status not in valid_keys:
         flash("Neveljaven status.", "danger")
@@ -387,13 +465,15 @@ def save_items(order_id):
 def delete_order(order_id):
     order = Order.query.get_or_404(order_id)
     if not current_user.is_admin:
-        flash("Samo administratorji lahko brišejo naročila.", "danger")
+        flash("Samo administratorji lahko brišejo.", "danger")
         return redirect(url_for("orders.order_detail", order_id=order_id))
     num = order.order_number
+    list_endpoint = _kind_cfg(order.kind or "narocilo")["list_endpoint"]
+    is_inq = (order.kind == "povprasevanje")
     db.session.delete(order)
     db.session.commit()
-    flash(f"Naročilo {num} je bilo izbrisano.", "info")
-    return redirect(url_for("orders.list_orders"))
+    flash(f"{'Povpraševanje' if is_inq else 'Naročilo'} {num} je bilo izbrisano.", "info")
+    return redirect(url_for(list_endpoint))
 
 
 # ── AJAX: vehicles for customer ───────────────────────────────────────────────

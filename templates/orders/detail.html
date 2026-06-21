@@ -3,7 +3,7 @@
 
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0 small">
-  <li class="breadcrumb-item"><a href="{{ url_for('orders.list_orders') }}">Naročila</a></li>
+  <li class="breadcrumb-item"><a href="{{ list_url|default(url_for('orders.list_orders')) }}">{{ page_title|default('Naročila') }}</a></li>
   <li class="breadcrumb-item active">{{ order.order_number }}</li>
 </ol>
 {% endblock %}
@@ -21,7 +21,7 @@
     </div>
   </div>
   <div class="d-flex gap-2">
-    <a href="{{ url_for('orders.list_orders') }}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{ list_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Nazaj
     </a>
     {% if current_user.is_admin %}

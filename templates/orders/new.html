@@ -1,19 +1,19 @@
 {% extends 'base.html' %}
-{% block title %}Novo naročilo{% endblock %}
+{% block title %}{{ page_title|default('Novo naročilo') }}{% endblock %}
 
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0 small">
-  <li class="breadcrumb-item"><a href="{{ url_for('orders.list_orders') }}">Naročila</a></li>
+  <li class="breadcrumb-item"><a href="{{ cancel_url|default(url_for('orders.list_orders')) }}">{{ (kind == 'povprasevanje') and 'Povpraševanja' or 'Naročila' }}</a></li>
   <li class="breadcrumb-item active">Novo</li>
 </ol>
 {% endblock %}
 
 {% block content %}
 <div class="page-hdr">
-  <h1><i class="bi bi-plus-circle me-2 text-primary"></i>Novo naročilo</h1>
+  <h1><i class="bi bi-plus-circle me-2 text-primary"></i>{{ page_title|default('Novo naročilo') }}</h1>
 </div>
 
-<form method="POST" action="{{ url_for('orders.new_order') }}">
+<form method="POST" action="{{ form_action|default(url_for('orders.new_order')) }}">
 
 <!-- ── 1. STRANKA ─────────────────────────────────────────────────────────── -->
 <div class="form-section">
@@ -320,9 +320,9 @@
 <!-- ── Submit ────────────────────────────────────────────────────────────── -->
 <div class="d-flex gap-2">
   <button type="submit" class="btn btn-primary px-4">
-    <i class="bi bi-check-lg me-1"></i>Ustvari naročilo
+    <i class="bi bi-check-lg me-1"></i>{{ (kind == 'povprasevanje') and 'Ustvari povpraševanje' or 'Ustvari naročilo' }}
   </button>
-  <a href="{{ url_for('orders.list_orders') }}" class="btn btn-outline-secondary">Prekliči</a>
+  <a href="{{ cancel_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary">Prekliči</a>
 </div>
 
 </form>

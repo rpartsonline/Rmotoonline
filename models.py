@@ -19,6 +19,17 @@ ORDER_STATUSES = [
 
 STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}
 
+# Statusi povpraševanj (ločen nabor)
+INQUIRY_STATUSES = [
+    ("oddano",        "Oddano povpraševanje",     "info"),
+    ("ponudba",       "Ponudba",                  "warning"),
+    ("narocena_caka", "Naročena – čakamo dobavo", "primary"),
+]
+INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
+
+# Združen slovar za prikaz oznak (ključi se ne prekrivajo)
+ALL_STATUS_DICT = {**STATUS_DICT, **INQUIRY_STATUS_DICT}
+
 ITEM_STATUSES = [
     ("caka",       "Čaka",       "warning"),
     ("naroceno",   "Naročeno",   "info"),
@@ -116,6 +127,7 @@ class Order(db.Model):
 
     id           = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
+    kind         = db.Column(db.String(20), default="narocilo", nullable=False)  # narocilo | povprasevanje
     customer_id  = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
     vehicle_id   = db.Column(db.Integer, db.ForeignKey("vehicles.id"))
     employee_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
@@ -132,7 +144,7 @@ class Order(db.Model):
 
     @property
     def status_info(self):
-        return STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+        return ALL_STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
 
     def __repr__(self):
         return f"<Order {self.order_number}>"
