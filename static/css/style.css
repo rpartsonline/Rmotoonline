@@ -249,3 +249,25 @@ body {
   .nob-text { font-size: 1rem; }
   .nob-count { min-width: 34px; height: 34px; font-size: 1.15rem; }
 }
+
+/* ── Oblaček: dobava materiala ───────────────────────────────────────────── */
+.delivery-badge {
+  position: fixed; right: 28px; bottom: 104px; z-index: 1200;
+  display: inline-flex; align-items: center; gap: 12px;
+  background: #f59e0b; color: #fff; text-decoration: none;
+  padding: 18px 28px; border-radius: 50px; font-weight: 800;
+  box-shadow: 0 10px 34px rgba(245,158,11,.55);
+  animation: nob-pulse 1.9s ease-in-out infinite;
+}
+.delivery-badge:hover { color: #fff; transform: scale(1.04); }
+.delivery-badge .bi { font-size: 1.7rem; }
+.delivery-badge .nob-count { color: #b45309; }
+.delivery-badge.is-red {
+  background: #e02424;
+  box-shadow: 0 10px 34px rgba(224,36,36,.6);
+}
+.delivery-badge.is-red .nob-count { color: #e02424; }
+@media (max-width: 576px) {
+  .delivery-badge { right: 16px; bottom: 92px; padding: 15px 22px; gap: 9px; }
+  .delivery-badge .bi { font-size: 1.5rem; }
+}

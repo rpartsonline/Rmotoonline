@@ -142,6 +142,16 @@
   <span class="nob-text">Nova naročila</span>
   <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
 </a>
+
+<!-- Plavajoč oblaček: dobava materiala -->
+<a href="{{ url_for('orders.list_inquiries', status='narocena_caka') }}" id="delivery-badge"
+   class="delivery-badge {% if delivery_alert_red %}is-red{% endif %}" title="Dobava materiala"
+   style="{% if not delivery_alert_count %}display:none;{% endif %}">
+  <i class="bi bi-truck"></i>
+  <span class="nob-text">Dobava materiala</span>
+  <span class="nob-count" id="delivery-count">{{ delivery_alert_count }}</span>
+</a>
+
 <script>
   (function () {
     const url = "{{ url_for('main.new_orders_count') }}";
@@ -156,6 +166,24 @@
       } catch (e) {}
     }
     setInterval(poll, 30000);
+  })();
+
+  (function () {
+    const url = "{{ url_for('main.delivery_alert') }}";
+    const badge = document.getElementById('delivery-badge');
+    const cnt = document.getElementById('delivery-count');
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) {
+          cnt.textContent = d.count;
+          badge.classList.toggle('is-red', !!d.red);
+          badge.style.display = '';
+        } else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 60000);
   })();
 </script>
 {% block extra_scripts %}{% endblock %}

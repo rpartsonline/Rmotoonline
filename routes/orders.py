@@ -458,6 +458,29 @@ def save_items(order_id):
     return redirect(url_for("orders.order_detail", order_id=order.id))
 
 
+# ── Datum dobave (povpraševanja) ──────────────────────────────────────────────
+
+@orders_bp.route("/<int:order_id>/delivery", methods=["POST"])
+@login_required
+def set_delivery(order_id):
+    from datetime import timedelta
+    from models import today_local
+    order = Order.query.get_or_404(order_id)
+    raw = request.form.get("days", "").strip()
+    if raw == "":
+        order.delivery_date = None
+        flash("Datum dobave odstranjen.", "info")
+    else:
+        try:
+            days = max(0, int(raw))
+            order.delivery_date = today_local() + timedelta(days=days)
+            flash(f"Dobava predvidena čez {days} dni.", "success")
+        except ValueError:
+            flash("Vnesi število dni.", "danger")
+    db.session.commit()
+    return redirect(url_for("orders.order_detail", order_id=order.id))
+
+
 # ── Delete order (admin only) ─────────────────────────────────────────────────
 
 @orders_bp.route("/<int:order_id>/delete", methods=["POST"])

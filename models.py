@@ -5,6 +5,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
+
+def today_local():
+    """Današnji datum po slovenskem času."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Ljubljana")).date()
+    except Exception:
+        return datetime.now().date()
+
+
 # ── Lookup tables ────────────────────────────────────────────────────────────
 
 ORDER_STATUSES = [
@@ -26,9 +36,9 @@ LEGACY_STATUS_DICT = {
 
 # Statusi povpraševanj (ločen nabor)
 INQUIRY_STATUSES = [
-    ("oddano",        "Oddano povpraševanje",     "info"),
-    ("ponudba",       "Ponudba",                  "warning"),
-    ("narocena_caka", "Naročena – čakamo dobavo", "primary"),
+    ("oddano",        "Oddano povpraševanje",      "info"),
+    ("ponudba",       "Ponudba poslana stranki",   "warning"),
+    ("narocena_caka", "Naročena – čakamo dobavo",  "primary"),
 ]
 INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
 
@@ -143,6 +153,7 @@ class Order(db.Model):
     updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     ordered_at   = db.Column(db.DateTime)    # ko je naročeno
     completed_at = db.Column(db.DateTime)    # ko je zaključeno
+    delivery_date = db.Column(db.Date)       # predviden prihod materiala (povpraševanja)
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")
@@ -150,6 +161,12 @@ class Order(db.Model):
     @property
     def status_info(self):
         return ALL_STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+
+    @property
+    def delivery_days_left(self):
+        if not self.delivery_date:
+            return None
+        return (self.delivery_date - today_local()).days
 
     def __repr__(self):
         return f"<Order {self.order_number}>"

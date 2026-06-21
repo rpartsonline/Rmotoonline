@@ -133,7 +133,16 @@
           </td>
           <td><span class="chip-source">{{ o.source }}</span></td>
           <td class="small text-muted">{{ o.employee.full_name }}</td>
-          <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+          <td>
+            <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
+            {% if kind == 'povprasevanje' and o.delivery_date %}
+              {% set dl = o.delivery_days_left %}
+              <span class="badge {% if dl is not none and dl <= 0 %}bg-danger{% elif dl == 1 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %} d-inline-flex align-items-center gap-1 mt-1">
+                <i class="bi bi-truck"></i>
+                {% if dl is none %}–{% elif dl < 0 %}zamuda {{ -dl }}d{% elif dl == 0 %}danes{% elif dl == 1 %}jutri{% else %}{{ dl }} dni{% endif %}
+              </span>
+            {% endif %}
+          </td>
           <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
             <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"

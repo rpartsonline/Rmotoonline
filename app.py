@@ -52,15 +52,34 @@ def create_app():
     def sl_datetime(dt):
         return dt.strftime("%d.%m.%Y %H:%M") if dt else "–"
 
-    # Število novih naročil – na voljo v vseh predlogah (za oblaček)
+    # Opozorila – na voljo v vseh predlogah (za oblačke)
     @app.context_processor
-    def inject_new_orders_count():
-        from models import Order
+    def inject_alerts():
+        from datetime import timedelta
+        from models import Order, today_local
+        new_count = 0
+        deliv_count = 0
+        deliv_red = False
         try:
-            n = Order.query.filter_by(kind="narocilo", status="novo").count()
+            new_count = Order.query.filter_by(kind="narocilo", status="novo").count()
+            today = today_local()
+            tomorrow = today + timedelta(days=1)
+            due = (
+                Order.query
+                .filter_by(kind="povprasevanje", status="narocena_caka")
+                .filter(Order.delivery_date.isnot(None))
+                .filter(Order.delivery_date <= tomorrow)
+                .all()
+            )
+            deliv_count = len(due)
+            deliv_red = any(o.delivery_date <= today for o in due)
         except Exception:
-            n = 0
-        return {"new_orders_count": n}
+            pass
+        return {
+            "new_orders_count": new_count,
+            "delivery_alert_count": deliv_count,
+            "delivery_alert_red": deliv_red,
+        }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
     from routes.auth import auth_bp
@@ -97,8 +116,14 @@ def _ensure_schema(db):
             ))
             db.session.commit()
             print("✅  Dodan stolpec 'kind' v tabelo orders.")
+        if "delivery_date" not in cols:
+            db.session.execute(text(
+                "ALTER TABLE orders ADD COLUMN delivery_date DATE"
+            ))
+            db.session.commit()
+            print("✅  Dodan stolpec 'delivery_date' v tabelo orders.")
     except Exception as e:
-        print(f"⚠️  Migracija (kind) preskočena: {e}")
+        print(f"⚠️  Migracija preskočena: {e}")
 
 
 def _seed_admin(db, User):

@@ -89,3 +89,23 @@ def dashboard():
 @login_required
 def new_orders_count():
     return jsonify({"count": Order.query.filter_by(kind="narocilo", status="novo").count()})
+
+
+@main_bp.route("/api/delivery-alert")
+@login_required
+def delivery_alert():
+    from datetime import timedelta
+    from models import today_local
+    today = today_local()
+    tomorrow = today + timedelta(days=1)
+    due = (
+        Order.query
+        .filter_by(kind="povprasevanje", status="narocena_caka")
+        .filter(Order.delivery_date.isnot(None))
+        .filter(Order.delivery_date <= tomorrow)
+        .all()
+    )
+    return jsonify({
+        "count": len(due),
+        "red": any(o.delivery_date <= today for o in due),
+    })

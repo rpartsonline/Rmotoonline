@@ -236,6 +236,38 @@
       </form>
     </div>
 
+    {% if kind == 'povprasevanje' and order.status == 'narocena_caka' %}
+    <!-- Dobava materiala -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Dobava materiala</div>
+      {% set dl = order.delivery_days_left %}
+      {% if order.delivery_date %}
+        <div class="mb-2 p-2 rounded text-center
+                    {% if dl is not none and dl <= 0 %}bg-danger text-white
+                    {% elif dl == 1 %}bg-warning{% else %}bg-light{% endif %}">
+          <div class="fw-bold fs-5">
+            {% if dl is none %}–
+            {% elif dl < 0 %}Zamuda {{ -dl }} dni!
+            {% elif dl == 0 %}Dobava je danes!
+            {% elif dl == 1 %}Dobava jutri!
+            {% else %}Še {{ dl }} dni{% endif %}
+          </div>
+          <div class="small">Predviden prihod: {{ order.delivery_date.strftime('%d.%m.%Y') }}</div>
+        </div>
+      {% endif %}
+      <form method="POST" action="{{ url_for('orders.set_delivery', order_id=order.id) }}">
+        <label class="form-label small fw-semibold">Dobava čez (dni)</label>
+        <div class="input-group input-group-sm">
+          <input type="number" name="days" min="0" class="form-control"
+                 placeholder="npr. 5"
+                 value="{{ dl if dl is not none and dl >= 0 else '' }}">
+          <button type="submit" class="btn btn-primary">Shrani</button>
+        </div>
+        <div class="form-text">Vpiši čez koliko dni pride material. Dan pred dobavo se prikaže opozorilo.</div>
+      </form>
+    </div>
+    {% endif %}
+
     <!-- Timestamps -->
     <div class="card-plain mb-3">
       <div class="form-section-title"><i class="bi bi-calendar3"></i> Časi</div>
