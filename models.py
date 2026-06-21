@@ -18,9 +18,9 @@ def today_local():
 # ── Lookup tables ────────────────────────────────────────────────────────────
 
 ORDER_STATUSES = [
-    ("novo",                  "Novo naročilo",         "primary"),
-    ("naroceno",              "Naročeno",              "info"),
-    ("poslano_povprasevanje", "Poslano povpraševanje", "warning"),
+    ("novo",                  "Novo naročilo",         "danger"),
+    ("naroceno",              "Naročeno",              "success"),
+    ("poslano_povprasevanje", "Naročilo v obdelavi",   "warning"),
 ]
 
 STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}
@@ -36,9 +36,9 @@ LEGACY_STATUS_DICT = {
 
 # Statusi povpraševanj (ločen nabor)
 INQUIRY_STATUSES = [
-    ("oddano",        "Oddano povpraševanje",      "info"),
+    ("oddano",        "Poslano povpraševanje",     "danger"),
     ("ponudba",       "Ponudba poslana stranki",   "warning"),
-    ("narocena_caka", "Naročena – čakamo dobavo",  "primary"),
+    ("narocena_caka", "Naročena – čakamo dobavo",  "success"),
 ]
 INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
 

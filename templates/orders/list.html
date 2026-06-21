@@ -25,7 +25,7 @@
 
 <!-- ── Stanje po statusih ─────────────────────────────────────────────────── -->
 {% if status_breakdown %}
-<div class="row g-2 mb-3">
+<div class="row g-2 mb-3 justify-content-center">
   {% for s in status_breakdown %}
   <div class="col-6 col-md">
     <a href="{{ list_url }}?status={{ s.key }}" class="text-decoration-none">
