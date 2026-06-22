@@ -39,6 +39,7 @@ INQUIRY_STATUSES = [
     ("oddano",        "Poslano povpraševanje",     "danger"),
     ("ponudba",       "Ponudba poslana stranki",   "warning"),
     ("narocena_caka", "Naročena – čakamo dobavo",  "success"),
+    ("dobavljeno",    "Dobavljeno",                "secondary"),
 ]
 INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
 
