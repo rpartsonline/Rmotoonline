@@ -143,7 +143,10 @@
               </span>
             {% endif %}
           </td>
-          <td class="small text-muted">{{ o.created_at|sl_date }}</td>
+          <td class="small text-muted">
+            {{ o.created_at|sl_date }}<br>
+            <span><i class="bi bi-clock me-1"></i>{{ o.created_at|sl_time }}</span>
+          </td>
           <td>
             <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
                class="btn btn-sm btn-outline-primary">

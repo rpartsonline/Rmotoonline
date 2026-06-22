@@ -52,6 +52,19 @@ def create_app():
     def sl_datetime(dt):
         return dt.strftime("%d.%m.%Y %H:%M") if dt else "–"
 
+    @app.template_filter("sl_time")
+    def sl_time(dt):
+        """Ura po slovenskem času (created_at je shranjen v UTC)."""
+        if not dt:
+            return "–"
+        try:
+            from zoneinfo import ZoneInfo
+            return (dt.replace(tzinfo=ZoneInfo("UTC"))
+                      .astimezone(ZoneInfo("Europe/Ljubljana"))
+                      .strftime("%H:%M"))
+        except Exception:
+            return dt.strftime("%H:%M")
+
     # Opozorila – na voljo v vseh predlogah (za oblačke)
     @app.context_processor
     def inject_alerts():

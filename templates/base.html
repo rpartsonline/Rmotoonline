@@ -38,15 +38,15 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('customers.list_customers') }}"
-         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-people"></i><span>Stranke</span>
-      </a>
-    </li>
-    <li>
       <a href="{{ url_for('notes.list_notes') }}"
          class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
         <i class="bi bi-journal-text"></i><span>Beležka</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('customers.list_customers') }}"
+         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
 

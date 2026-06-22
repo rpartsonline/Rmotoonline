@@ -23,14 +23,6 @@
 
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-12 col-lg-4">
-    <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
-      <div class="stat-card">
-        <div class="num text-primary">{{ today_orders }}</div>
-        <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Naročila · {{ today_str }}</div>
-      </div>
-    </a>
-  </div>
   <div class="col-6 col-lg-4">
     <a href="{{ url_for('orders.list_orders', status='novo') }}" class="text-decoration-none">
       <div class="stat-card">
@@ -47,6 +39,14 @@
       </div>
     </a>
   </div>
+  <div class="col-12 col-lg-4">
+    <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-primary">{{ today_orders }}</div>
+        <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Naročila · {{ today_str }}</div>
+      </div>
+    </a>
+  </div>
 </div>
 
 <!-- ── Povpraševanja ──────────────────────────────────────────────────────── -->
@@ -59,9 +59,9 @@
 
 <div class="row g-3 mb-4">
   {% for s in inquiry_breakdown %}
-  <div class="col-12 col-lg-4">
+  <div class="col-6 col-lg-3">
     <a href="{{ url_for('orders.list_inquiries', status=s.key) }}" class="text-decoration-none">
-      <div class="stat-card d-flex align-items-center justify-content-between">
+      <div class="stat-card stat-card-sm d-flex align-items-center justify-content-between">
         <span class="badge bg-{{ s.color }} badge-status">{{ s.label }}</span>
         <span class="num">{{ s.count }}</span>
       </div>
