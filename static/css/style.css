@@ -274,3 +274,11 @@ body {
   .delivery-badge { right: auto; left: 16px; bottom: 16px; padding: 11px 16px; gap: 7px; }
   .delivery-badge .bi { font-size: 1.2rem; }
 }
+
+/* ── Uvoz iz slike (Bartog košarica) ─────────────────────────────────────── */
+.bi-importer { border:1px dashed #c7d2e0; border-radius:10px; padding:14px; background:#f8fafc; }
+.bi-drop {
+  border:2px dashed #b6c4d6; border-radius:8px; padding:18px; text-align:center;
+  color:#64748b; cursor:pointer; background:#fff; transition:all .15s;
+}
+.bi-drop:hover, .bi-drop.bi-over { border-color:#3b82f6; color:#1d4ed8; background:#eff6ff; }

@@ -181,6 +181,21 @@
   {% endif %}
 
   {% if kind != 'povprasevanje' %}
+  <!-- Uvoz iz Bartog košarice (slika) -->
+  <div class="bi-importer mb-3">
+    <div class="form-section-title mb-2"><i class="bi bi-clipboard-data"></i> Uvoz iz slike (Bartog košarica)</div>
+    <div id="bi-drop" class="bi-drop">
+      <i class="bi bi-image fs-3 d-block mb-1"></i>
+      Klikni za nalaganje slike ali <strong>prilepi (Ctrl+V)</strong> print screen košarice.
+      <input type="file" id="bi-file" accept="image/*" hidden>
+    </div>
+    <div id="bi-status" class="small mt-2"></div>
+    <div id="bi-table" class="table-responsive mt-2"></div>
+    <button type="button" id="bi-apply" class="btn btn-success btn-sm" style="display:none">
+      <i class="bi bi-check-lg me-1"></i>Vpiši v naročilo
+    </button>
+  </div>
+
   {% for group in item_catalog %}
   <div class="cat-block">
     <div class="cat-head">{{ group.category }}</div>
@@ -339,6 +354,16 @@
 
 {% block extra_scripts %}
 {% include '_vehicle_smart_assets.html' %}
+{% if kind != 'povprasevanje' %}
+<script>
+  window.CATALOG_LABELS = {
+    {% for group in item_catalog %}{% for it in group['items'] %}"{{ it.key }}": "{{ group.category }} – {{ it.label }}",
+    {% endfor %}{% endfor %}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/bartog_import.js') }}"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ if (window.BartogImport) BartogImport.init(); });</script>
+{% endif %}
 <script>
   VehicleSmart.apiModels = "{{ url_for('vehicles.api_models', make='__MAKE__') }}";
   VehicleSmart.apiVin    = "{{ url_for('vehicles.api_decode_vin', vin='__VIN__') }}";
