@@ -231,6 +231,31 @@ class Note(db.Model):
     created_by = db.relationship("User")
 
 
+# ── Dostava (rute) ────────────────────────────────────────────────────────────
+DELIVERY_ROUTES = [
+    ("vipava",         "Ruta Vipava"),
+    ("selo",           "Ruta Selo"),
+    ("kras_planina",   "Ruta Kras + Planina"),
+    ("idrija",         "Ruta Idrija"),
+    ("vrhnika",        "Ruta Vrhnika"),
+]
+DELIVERY_ROUTE_DICT = {k: v for k, v in DELIVERY_ROUTES}
+
+
+class DeliveryStop(db.Model):
+    __tablename__ = "delivery_stops"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    route       = db.Column(db.String(30), nullable=False)   # ključ rute
+    customer    = db.Column(db.String(150), nullable=False)  # ime stranke
+    address     = db.Column(db.String(250))                  # naslov
+    phone       = db.Column(db.String(50))
+    note        = db.Column(db.String(300))
+    position    = db.Column(db.Integer, default=0)           # vrstni red v ruti
+    done        = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 # ── Katalog postavk za novo naročilo ─────────────────────────────────────────
 # Glavne rubrike s podgrupami. Delavec pokljuka, kar potrebuje, in vpiše
 # IDENT (Bartog) ter izvor zaloge. Neoznačeno se v naročilo ne shrani.

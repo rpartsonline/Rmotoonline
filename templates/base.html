@@ -44,6 +44,12 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('delivery.overview') }}"
+         class="sb-link {% if request.endpoint and 'delivery' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-truck"></i><span>Dostava</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('customers.list_customers') }}"
          class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
         <i class="bi bi-people"></i><span>Stranke</span>

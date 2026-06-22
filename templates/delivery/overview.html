@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Dostava{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Dostava</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-truck me-2 text-primary"></i>Dostava</h1>
+</div>
+
+<div class="row g-3">
+  {% for key, label in routes %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <a href="{{ url_for('delivery.route_view', route_key=key) }}" class="text-decoration-none">
+      <div class="stat-card d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-bold fs-5 text-dark"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ label }}</div>
+          <div class="small text-muted">strank za dostavo</div>
+        </div>
+        <span class="num {% if counts[key] %}text-danger{% else %}text-muted{% endif %}">{{ counts[key] }}</span>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

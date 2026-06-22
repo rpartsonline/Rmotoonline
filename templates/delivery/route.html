@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}{{ route_label }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('delivery.overview') }}">Dostava</a></li>
+  <li class="breadcrumb-item active">{{ route_label }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-geo-alt me-2 text-primary"></i>{{ route_label }}</h1>
+  <a href="{{ url_for('delivery.print_route', route_key=route_key) }}" target="_blank" class="btn btn-primary">
+    <i class="bi bi-printer me-1"></i>Natisni za šoferja
+  </a>
+</div>
+
+<!-- Hitri preklop med rutami -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  {% for key, label in routes %}
+  <a href="{{ url_for('delivery.route_view', route_key=key) }}"
+     class="btn btn-sm {% if key == route_key %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<!-- Dodaj stranko -->
+<div class="form-section mb-4">
+  <div class="form-section-title"><i class="bi bi-plus-circle"></i> Dodaj stranko na ruto</div>
+  <form method="POST" action="{{ url_for('delivery.add_stop', route_key=route_key) }}" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Stranka *</label>
+      <input type="text" name="customer" class="form-control" placeholder="Ime stranke" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Naslov</label>
+      <input type="text" name="address" class="form-control" placeholder="Ulica, kraj">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Telefon</label>
+      <input type="text" name="phone" class="form-control" placeholder="040…">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Opomba</label>
+      <input type="text" name="note" class="form-control" placeholder="npr. 2 paketa">
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i></button>
+    </div>
+  </form>
+</div>
+
+<!-- Seznam postankov -->
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-list-ol me-2"></i>Vrstni red dostave ({{ stops|length }})</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:60px">#</th>
+          <th>Stranka</th>
+          <th>Naslov</th>
+          <th>Telefon</th>
+          <th>Opomba</th>
+          <th style="width:140px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stops %}
+        <tr class="{% if s.done %}table-light text-muted{% endif %}">
+          <td class="fw-bold text-primary">{{ loop.index }}</td>
+          <td class="{% if s.done %}text-decoration-line-through{% else %}fw-semibold{% endif %}">{{ s.customer }}</td>
+          <td class="small">{{ s.address or '–' }}</td>
+          <td class="small">{{ s.phone or '–' }}</td>
+          <td class="small text-muted">{{ s.note or '' }}</td>
+          <td class="text-end">
+            <div class="d-flex gap-1 justify-content-end">
+              <form method="POST" action="{{ url_for('delivery.move_stop', stop_id=s.id) }}">
+                <input type="hidden" name="dir" value="up">
+                <button class="btn btn-sm btn-outline-secondary" title="Gor"><i class="bi bi-arrow-up"></i></button>
+              </form>
+              <form method="POST" action="{{ url_for('delivery.move_stop', stop_id=s.id) }}">
+                <input type="hidden" name="dir" value="down">
+                <button class="btn btn-sm btn-outline-secondary" title="Dol"><i class="bi bi-arrow-down"></i></button>
+              </form>
+              <form method="POST" action="{{ url_for('delivery.toggle_stop', stop_id=s.id) }}">
+                <button class="btn btn-sm {% if s.done %}btn-outline-success{% else %}btn-outline-secondary{% endif %}" title="Dostavljeno">
+                  <i class="bi {% if s.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('delivery.delete_stop', stop_id=s.id) }}"
+                    onsubmit="return confirm('Odstranim stranko z rute?')">
+                <button class="btn btn-sm btn-outline-danger" title="Izbriši"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-5">
+          <i class="bi bi-geo fs-2 d-block mb-2"></i>Na tej ruti še ni strank.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

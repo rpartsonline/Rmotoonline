@@ -102,6 +102,7 @@ def create_app():
     from routes.vehicles import vehicles_bp
     from routes.admin import admin_bp
     from routes.notes import notes_bp
+    from routes.delivery import delivery_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -110,6 +111,7 @@ def create_app():
     app.register_blueprint(vehicles_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(notes_bp)
+    app.register_blueprint(delivery_bp)
 
     # ── Init DB & default admin ──────────────────────────────────────────────
     with app.app_context():
