@@ -223,12 +223,19 @@ def _handle_new(kind):
         selected = f.getlist("items")
 
         def add_item(description, key):
+            raw_qty = f.get(f"kol_{key}", "1").strip().replace(",", ".")
+            try:
+                qty = float(raw_qty)
+                if qty <= 0:
+                    qty = 1
+            except ValueError:
+                qty = 1
             db.session.add(OrderItem(
                 order_id    = order.id,
                 description = description,
                 bartog_id   = f.get(f"ident_{key}", "").strip(),
                 supplier    = f.get(f"izvor_{key}", "").strip(),
-                quantity    = 1,
+                quantity    = qty,
                 unit        = "kos",
                 status      = "caka",
             ))
