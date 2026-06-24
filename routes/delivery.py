@@ -53,6 +53,7 @@ def add_stop(route_key):
         address=request.form.get("address", "").strip(),
         phone=request.form.get("phone", "").strip(),
         note=request.form.get("note", "").strip(),
+        tires=request.form.get("tires", "").strip(),
         position=maxpos + 1,
     ))
     db.session.commit()

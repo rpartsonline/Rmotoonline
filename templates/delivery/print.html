@@ -45,6 +45,7 @@
         <th>Naslov</th>
         <th>Telefon</th>
         <th>Opomba</th>
+        <th>Pnevm.</th>
         <th class="chk">✓</th>
       </tr>
     </thead>
@@ -56,10 +57,11 @@
         <td class="addr">{{ s.address or '' }}</td>
         <td>{{ s.phone or '' }}</td>
         <td class="note">{{ s.note or '' }}</td>
+        <td>{{ s.tires or '' }}</td>
         <td class="chk"><span class="box"></span></td>
       </tr>
       {% else %}
-      <tr><td colspan="6" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
+      <tr><td colspan="7" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
       {% endfor %}
     </tbody>
   </table>

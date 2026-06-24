@@ -236,7 +236,7 @@ DELIVERY_ROUTES = [
     ("vipava",         "Ruta Vipava"),
     ("selo",           "Ruta Selo"),
     ("kras_planina",   "Ruta Kras + Planina"),
-    ("idrija",         "Ruta Idrija"),
+    ("idrija",         "Ruta Idrija + gora"),
     ("vrhnika",        "Ruta Vrhnika"),
 ]
 DELIVERY_ROUTE_DICT = {k: v for k, v in DELIVERY_ROUTES}
@@ -251,6 +251,7 @@ class DeliveryStop(db.Model):
     address     = db.Column(db.String(250))                  # naslov
     phone       = db.Column(db.String(50))
     note        = db.Column(db.String(300))
+    tires       = db.Column(db.String(50))                   # pnevmatike (število/opis)
     position    = db.Column(db.Integer, default=0)           # vrstni red v ruti
     done        = db.Column(db.Boolean, default=False)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)

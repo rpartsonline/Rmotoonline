@@ -142,6 +142,16 @@ def _ensure_schema(db):
     except Exception as e:
         print(f"⚠️  Migracija preskočena: {e}")
 
+    # delivery_stops.tires
+    try:
+        dcols = [c["name"] for c in inspect(db.engine).get_columns("delivery_stops")]
+        if "tires" not in dcols:
+            db.session.execute(text("ALTER TABLE delivery_stops ADD COLUMN tires VARCHAR(50)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'tires' v tabelo delivery_stops.")
+    except Exception as e:
+        print(f"⚠️  Migracija (tires) preskočena: {e}")
+
 
 def _seed_admin(db, User):
     if not User.query.filter_by(username="admin").first():
