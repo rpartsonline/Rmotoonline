@@ -290,6 +290,8 @@ class WorkHours(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
     user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     work_date = db.Column(db.Date, nullable=False)
+    arrival   = db.Column(db.String(5))            # prihod "HH:MM"
+    departure = db.Column(db.String(5))            # odhod "HH:MM"
     hours     = db.Column(db.Float, default=0)     # redne ure
     overtime  = db.Column(db.Float, default=0)     # nadure
     note      = db.Column(db.String(200))

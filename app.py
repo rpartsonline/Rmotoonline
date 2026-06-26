@@ -155,6 +155,20 @@ def _ensure_schema(db):
     except Exception as e:
         print(f"⚠️  Migracija (tires) preskočena: {e}")
 
+    # work_hours.arrival / departure
+    try:
+        wcols = [c["name"] for c in inspect(db.engine).get_columns("work_hours")]
+        if "arrival" not in wcols:
+            db.session.execute(text("ALTER TABLE work_hours ADD COLUMN arrival VARCHAR(5)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'arrival' v tabelo work_hours.")
+        if "departure" not in wcols:
+            db.session.execute(text("ALTER TABLE work_hours ADD COLUMN departure VARCHAR(5)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'departure' v tabelo work_hours.")
+    except Exception as e:
+        print(f"⚠️  Migracija (work_hours) preskočena: {e}")
+
 
 def _seed_admin(db, User):
     if not User.query.filter_by(username="admin").first():

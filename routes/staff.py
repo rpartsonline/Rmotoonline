@@ -157,8 +157,18 @@ def hours():
         sum_o += o or 0
         rows.append({"day": d, "dow": SL_DOW[dt.weekday()],
                      "weekend": dt.weekday() >= 5,
+                     "arrival": wh.arrival if wh else "",
+                     "departure": wh.departure if wh else "",
                      "hours": h or "", "overtime": o or "",
                      "note": wh.note if wh else ""})
+
+    # ure na 15 min (05:00–22:00)
+    time_options = []
+    for hh in range(5, 23):
+        for mm in (0, 15, 30, 45):
+            time_options.append(f"{hh:02d}:{mm:02d}")
+    # izbor ur/nadur (0–16 po 0.5)
+    hour_options = [x / 2 for x in range(0, 33)]
 
     users = User.query.filter_by(is_active_user=True).order_by(User.full_name).all()
     (py, pm), (ny, nm) = _prev_next(y, m)
@@ -168,6 +178,7 @@ def hours():
                            rows=rows, target=target,
                            sum_h=sum_h, sum_o=sum_o, sum_total=sum_h + sum_o,
                            is_admin=current_user.is_admin, users=users,
+                           time_options=time_options, hour_options=hour_options,
                            prev_y=py, prev_m=pm, next_y=ny, next_m=nm)
 
 
@@ -184,6 +195,8 @@ def save_hours():
 
     days_in_month = calendar.monthrange(y, m)[1]
     for d in range(1, days_in_month + 1):
+        arr = (request.form.get(f"a_{d}", "") or "").strip()
+        dep = (request.form.get(f"d_{d}", "") or "").strip()
         h_raw = (request.form.get(f"h_{d}", "") or "").strip().replace(",", ".")
         o_raw = (request.form.get(f"o_{d}", "") or "").strip().replace(",", ".")
         note = (request.form.get(f"n_{d}", "") or "").strip()
@@ -198,13 +211,14 @@ def save_hours():
 
         dt = date(y, m, d)
         wh = WorkHours.query.filter_by(user_id=target_id, work_date=dt).first()
-        if h == 0 and o == 0 and not note:
+        if h == 0 and o == 0 and not note and not arr and not dep:
             if wh:
                 db.session.delete(wh)
             continue
         if not wh:
             wh = WorkHours(user_id=target_id, work_date=dt)
             db.session.add(wh)
+        wh.arrival, wh.departure = arr or None, dep or None
         wh.hours, wh.overtime, wh.note = h, o, note
 
     db.session.commit()
