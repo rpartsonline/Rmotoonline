@@ -106,6 +106,7 @@
             <th>Stranka</th>
             <th>Status</th>
             <th>Datum</th>
+            {% if current_user.is_admin %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -118,9 +119,17 @@
             <td>{{ o.customer.name }}</td>
             <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
             <td class="text-muted small">{{ o.created_at|sl_date }}</td>
+            {% if current_user.is_admin %}
+            <td class="text-end">
+              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}"
+                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
+                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+            {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="4" class="text-center text-muted py-4">Ni naročil.</td></tr>
+          <tr><td colspan="{% if current_user.is_admin %}5{% else %}4{% endif %}" class="text-center text-muted py-4">Ni naročil.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -147,6 +156,12 @@
             </td>
             <td class="text-end">
               <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
+              {% if current_user.is_admin %}
+              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}" class="d-inline ms-1"
+                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
+                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}

@@ -518,6 +518,10 @@ def delete_order(order_id):
     db.session.delete(order)
     db.session.commit()
     flash(f"{'Povpraševanje' if is_inq else 'Naročilo'} {num} je bilo izbrisano.", "info")
+    # vrni se tja, od koder je bil klic (npr. pregled), sicer na seznam
+    ref = request.referrer
+    if ref and url_for(list_endpoint) not in ref:
+        return redirect(ref)
     return redirect(url_for(list_endpoint))
 
 
