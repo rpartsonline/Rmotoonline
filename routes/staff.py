@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
-from models import db, User, LeaveEntry, WorkHours, leave_color_for
+from models import db, User, LeaveEntry, WorkHours, MonthLock, leave_color_for
 
 staff_bp = Blueprint("staff", __name__, url_prefix="/osebje")
 
@@ -156,10 +156,11 @@ def hours():
         sum_h += h or 0
         sum_o += o or 0
         rows.append({"day": d, "dow": SL_DOW[dt.weekday()],
+                     "dow_idx": dt.weekday(),
                      "weekend": dt.weekday() >= 5,
                      "arrival": wh.arrival if wh else "",
                      "departure": wh.departure if wh else "",
-                     "hours": h or "", "overtime": o or "",
+                     "hours": h or "", "overtime": o if (wh and o) else "",
                      "note": wh.note if wh else ""})
 
     # ure na 15 min (05:00–22:00)
@@ -173,12 +174,16 @@ def hours():
     users = User.query.filter_by(is_active_user=True).order_by(User.full_name).all()
     (py, pm), (ny, nm) = _prev_next(y, m)
 
+    locked = MonthLock.query.filter_by(user_id=target.id, year=y, month=m).first() is not None
+    can_edit = (not locked) or current_user.is_admin
+
     return render_template("staff/hours.html",
                            year=y, month=m, month_name=SL_MONTHS[m],
                            rows=rows, target=target,
                            sum_h=sum_h, sum_o=sum_o, sum_total=sum_h + sum_o,
                            is_admin=current_user.is_admin, users=users,
                            time_options=time_options, hour_options=hour_options,
+                           locked=locked, can_edit=can_edit,
                            prev_y=py, prev_m=pm, next_y=ny, next_m=nm)
 
 
@@ -192,6 +197,12 @@ def save_hours():
     target_id = request.form.get("user_id", type=int)
     if not current_user.is_admin or not target_id:
         target_id = current_user.id
+
+    # zaklenjen mesec lahko spreminja samo admin
+    locked = MonthLock.query.filter_by(user_id=target_id, year=y, month=m).first() is not None
+    if locked and not current_user.is_admin:
+        flash("Ta mesec je zaključen in ga ne moreš več urejati. Obrni se na admina.", "danger")
+        return redirect(url_for("staff.hours", year=y, month=m))
 
     days_in_month = calendar.monthrange(y, m)[1]
     for d in range(1, days_in_month + 1):
@@ -225,3 +236,93 @@ def save_hours():
     flash("Ure shranjene.", "success")
     return redirect(url_for("staff.hours", year=y, month=m,
                             user_id=target_id if current_user.is_admin else None))
+
+
+# ── Zaključi / odkleni mesec (samo admin lahko odklene) ──────────────────────
+@staff_bp.route("/ure/zakljuci", methods=["POST"])
+@login_required
+def lock_month():
+    y = request.form.get("year", type=int)
+    m = request.form.get("month", type=int)
+    target_id = request.form.get("user_id", type=int)
+    if not current_user.is_admin or not target_id:
+        target_id = current_user.id
+
+    existing = MonthLock.query.filter_by(user_id=target_id, year=y, month=m).first()
+    if existing:
+        # odkleniti sme samo admin
+        if not current_user.is_admin:
+            flash("Zaključen mesec lahko odklene samo admin.", "danger")
+            return redirect(url_for("staff.hours", year=y, month=m))
+        db.session.delete(existing)
+        db.session.commit()
+        flash("Mesec odklenjen – urejanje znova mogoče.", "info")
+    else:
+        db.session.add(MonthLock(user_id=target_id, year=y, month=m))
+        db.session.commit()
+        flash("Mesec zaključen in shranjen v arhiv.", "success")
+    return redirect(url_for("staff.hours", year=y, month=m,
+                            user_id=target_id if current_user.is_admin else None))
+
+
+# ── Tisk ur (trenutni mesec) ─────────────────────────────────────────────────
+@staff_bp.route("/ure/print")
+@login_required
+def print_hours():
+    y, m = _ym()
+    if current_user.is_admin and request.args.get("user_id", type=int):
+        target = User.query.get_or_404(request.args.get("user_id", type=int))
+    else:
+        target = current_user
+
+    days_in_month = calendar.monthrange(y, m)[1]
+    existing = {wh.work_date.day: wh for wh in WorkHours.query.filter(
+        WorkHours.user_id == target.id,
+        WorkHours.work_date >= date(y, m, 1),
+        WorkHours.work_date <= date(y, m, days_in_month),
+    ).all()}
+
+    rows = []
+    sum_h = sum_o = 0.0
+    for d in range(1, days_in_month + 1):
+        dt = date(y, m, d)
+        wh = existing.get(d)
+        h = (wh.hours if wh else 0) or 0
+        o = (wh.overtime if wh else 0) or 0
+        sum_h += h; sum_o += o
+        rows.append({"day": d, "dow": SL_DOW[dt.weekday()], "weekend": dt.weekday() >= 5,
+                     "arrival": (wh.arrival if wh else "") or "",
+                     "departure": (wh.departure if wh else "") or "",
+                     "hours": h or "", "overtime": o or "",
+                     "note": (wh.note if wh else "") or ""})
+
+    return render_template("staff/hours_print.html",
+                           year=y, month=m, month_name=SL_MONTHS[m],
+                           target=target, rows=rows,
+                           sum_h=sum_h, sum_o=sum_o, sum_total=sum_h + sum_o)
+
+
+# ── Arhiv (zaključeni meseci) ────────────────────────────────────────────────
+@staff_bp.route("/arhiv")
+@login_required
+def archive():
+    q = MonthLock.query
+    if not current_user.is_admin:
+        q = q.filter_by(user_id=current_user.id)
+    locks = q.order_by(MonthLock.year.desc(), MonthLock.month.desc()).all()
+
+    items = []
+    for lk in locks:
+        days = calendar.monthrange(lk.year, lk.month)[1]
+        whs = WorkHours.query.filter(
+            WorkHours.user_id == lk.user_id,
+            WorkHours.work_date >= date(lk.year, lk.month, 1),
+            WorkHours.work_date <= date(lk.year, lk.month, days),
+        ).all()
+        th = sum((w.hours or 0) for w in whs)
+        to = sum((w.overtime or 0) for w in whs)
+        items.append({"lock": lk, "name": lk.user.full_name if lk.user else "?",
+                      "month_name": SL_MONTHS[lk.month], "year": lk.year, "month": lk.month,
+                      "user_id": lk.user_id, "sum_h": th, "sum_o": to, "sum_total": th + to})
+
+    return render_template("staff/archive.html", items=items, is_admin=current_user.is_admin)

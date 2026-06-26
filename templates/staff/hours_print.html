@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <title>Ure {{ month_name }} {{ year }} – {{ target.full_name }}</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 22px; }
+    .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+    .hdr h1 { font-size: 20px; margin: 0; }
+    .hdr .meta { font-size: 13px; color: #444; text-align: right; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #bbb; padding: 5px 7px; font-size: 13px; text-align: center; }
+    th { background: #eee; text-transform: uppercase; font-size: 11px; }
+    td.note, th.note { text-align: left; }
+    tr.we td { background: #f7f7f7; }
+    tfoot td { font-weight: bold; background: #f0f0f0; }
+    .actions { margin-bottom: 14px; }
+    .btn { font-size: 14px; padding: 8px 16px; border: 1px solid #333; background: #fff; border-radius: 6px; cursor: pointer; }
+    @media print { .actions { display: none; } body { margin: 8mm; } }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button class="btn" onclick="window.print()">🖨 Natisni</button>
+    <button class="btn" onclick="window.close()">Zapri</button>
+  </div>
+
+  <div class="hdr">
+    <h1>Evidenca ur – {{ month_name }} {{ year }}</h1>
+    <div class="meta">
+      Delavec: <strong>{{ target.full_name }}</strong><br>
+      Bartog Ajdovščina · Podpis: ____________
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Dan</th><th>Dan v tednu</th><th>Prihod</th><th>Odhod</th>
+        <th>Ure</th><th>Nadure</th><th class="note">Opomba</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{% if r.weekend %}we{% endif %}">
+        <td>{{ r.day }}.</td>
+        <td>{{ r.dow }}</td>
+        <td>{{ r.arrival }}</td>
+        <td>{{ r.departure }}</td>
+        <td>{% if r.hours %}{{ '%g'|format(r.hours) }}{% endif %}</td>
+        <td>{% if r.overtime %}{{ '%g'|format(r.overtime) }}{% endif %}</td>
+        <td class="note">{{ r.note }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align:right;">Skupaj:</td>
+        <td>{{ '%g'|format(sum_h) }}</td>
+        <td>{{ '%g'|format(sum_o) }}</td>
+        <td class="note">Vse skupaj: {{ '%g'|format(sum_total) }} ur</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
+</body>
+</html>

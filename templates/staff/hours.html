@@ -11,7 +11,31 @@
 {% block content %}
 <div class="page-hdr">
   <h1><i class="bi bi-clock-history me-2 text-primary"></i>Ure — {{ target.full_name }}</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('staff.archive') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-archive me-1"></i>Arhiv
+    </a>
+    <a href="{{ url_for('staff.print_hours', year=year, month=month, user_id=target.id if is_admin else None) }}"
+       target="_blank" class="btn btn-primary btn-sm">
+      <i class="bi bi-printer me-1"></i>Natisni ure
+    </a>
+  </div>
 </div>
+
+{% if locked %}
+<div class="alert {% if is_admin %}alert-warning{% else %}alert-secondary{% endif %} d-flex align-items-center justify-content-between">
+  <span><i class="bi bi-lock-fill me-2"></i>Ta mesec je <strong>zaključen</strong> in shranjen v arhiv.
+    {% if is_admin %}Kot admin ga lahko še urejaš ali odkleneš.{% else %}Urejanje ni več mogoče.{% endif %}
+  </span>
+  {% if is_admin %}
+  <form method="POST" action="{{ url_for('staff.lock_month') }}">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}">
+    {% if is_admin %}<input type="hidden" name="user_id" value="{{ target.id }}">{% endif %}
+    <button class="btn btn-sm btn-outline-dark"><i class="bi bi-unlock me-1"></i>Odkleni mesec</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- Admin: izbira delavca -->
 {% if is_admin %}
@@ -56,36 +80,34 @@
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="{% if r.weekend %}table-light{% endif %}" data-day="{{ r.day }}">
+          <tr class="{% if r.weekend %}table-light{% endif %}" data-day="{{ r.day }}" data-dow="{{ r.dow_idx }}">
             <td class="fw-semibold">
               {{ r.day }}. <span class="text-muted small {% if r.weekend %}text-danger{% endif %}">{{ r.dow }}</span>
             </td>
             <td>
-              <select name="a_{{ r.day }}" class="form-select form-select-sm wh-arr">
+              <select name="a_{{ r.day }}" class="form-select form-select-sm wh-arr" {% if not can_edit %}disabled{% endif %}>
                 <option value="">—</option>
                 {% for t in time_options %}<option value="{{ t }}" {% if r.arrival == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
               </select>
             </td>
             <td>
-              <select name="d_{{ r.day }}" class="form-select form-select-sm wh-dep">
+              <select name="d_{{ r.day }}" class="form-select form-select-sm wh-dep" {% if not can_edit %}disabled{% endif %}>
                 <option value="">—</option>
                 {% for t in time_options %}<option value="{{ t }}" {% if r.departure == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
               </select>
             </td>
             <td>
-              <select name="h_{{ r.day }}" class="form-select form-select-sm wh-h">
+              <select name="h_{{ r.day }}" class="form-select form-select-sm wh-h" {% if not can_edit %}disabled{% endif %}>
                 <option value="">0</option>
                 {% for ho in hour_options %}<option value="{{ ho }}" {% if r.hours == ho %}selected{% endif %}>{{ '%g'|format(ho) }}</option>{% endfor %}
               </select>
             </td>
             <td>
-              <select name="o_{{ r.day }}" class="form-select form-select-sm wh-o">
-                <option value="">0</option>
-                {% for ho in hour_options %}<option value="{{ ho }}" {% if r.overtime == ho %}selected{% endif %}>{{ '%g'|format(ho) }}</option>{% endfor %}
-              </select>
+              <input type="number" step="0.5" name="o_{{ r.day }}" class="form-control form-control-sm wh-o text-center"
+                     value="{% if r.overtime != '' %}{{ '%g'|format(r.overtime) }}{% endif %}" placeholder="0" {% if not can_edit %}disabled{% endif %}>
             </td>
             <td><input type="text" name="n_{{ r.day }}" value="{{ r.note }}"
-                       class="form-control form-control-sm" placeholder=""></td>
+                       class="form-control form-control-sm" placeholder="" {% if not can_edit %}disabled{% endif %}></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -107,18 +129,31 @@
       Nadure: <strong>{{ '%g'|format(sum_o) }}</strong> ·
       Skupaj: <strong>{{ '%g'|format(sum_total) }}</strong>
     </div>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Shrani ure
-    </button>
+    <div class="d-flex gap-2">
+      {% if can_edit %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Shrani ure
+      </button>
+      {% endif %}
+    </div>
   </div>
 </form>
+
+{% if not locked and can_edit %}
+<form method="POST" action="{{ url_for('staff.lock_month') }}" class="mt-2 text-end"
+      onsubmit="return confirm('Zaključim ta mesec? Po zaključku delavec ur ne more več urejati (admin lahko).');">
+  <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}">
+  {% if is_admin %}<input type="hidden" name="user_id" value="{{ target.id }}">{% endif %}
+  <button class="btn btn-outline-success btn-sm"><i class="bi bi-lock me-1"></i>Zaključi mesec (shrani v arhiv)</button>
+</form>
+{% endif %}
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
 (function () {
   function toMin(t) { if (!t) return null; var p = t.split(':'); return parseInt(p[0],10)*60 + parseInt(p[1],10); }
-  function roundHalf(x) { var v = Math.round(x * 2) / 2; if (v < 0) v = 0; if (v > 16) v = 16; return v; }
+  function roundHalf(x) { return Math.round(x * 2) / 2; }
   function setSelect(sel, val) {
     var s = String(val);
     for (var i = 0; i < sel.options.length; i++) {
@@ -126,13 +161,25 @@
     }
     return false;
   }
+  // redni fond ur: pon-pet=8, sob=4, ned=0 (dow: 0=pon … 6=ned)
+  function normForDow(dow) { if (dow === 6) return 0; if (dow === 5) return 4; return 8; }
+
   function recalcRow(tr) {
     var a = toMin(tr.querySelector('.wh-arr').value);
     var d = toMin(tr.querySelector('.wh-dep').value);
-    if (a != null && d != null && d > a) {
-      setSelect(tr.querySelector('.wh-h'), roundHalf((d - a) / 60));
-    }
+    if (a == null || d == null || d <= a) return;
+    var worked = roundHalf((d - a) / 60);
+    var dow = parseInt(tr.getAttribute('data-dow'), 10);
+    var norm = normForDow(dow);
+
+    var regular, overtime;
+    if (worked >= norm) { regular = norm; overtime = roundHalf(worked - norm); }
+    else { regular = worked; overtime = roundHalf(worked - norm); } // primanjkljaj = minus
+
+    setSelect(tr.querySelector('.wh-h'), regular);
+    tr.querySelector('.wh-o').value = overtime;
   }
+
   function recalcTotals() {
     var sh = 0, so = 0;
     document.querySelectorAll('tr[data-day]').forEach(function (tr) {
@@ -145,12 +192,16 @@
     if (to) to.textContent = f(so);
     if (tt) tt.textContent = f(sh + so) + ' ur';
   }
+
   document.querySelectorAll('tr[data-day]').forEach(function (tr) {
-    tr.querySelector('.wh-arr').addEventListener('change', function () { recalcRow(tr); recalcTotals(); });
-    tr.querySelector('.wh-dep').addEventListener('change', function () { recalcRow(tr); recalcTotals(); });
-    tr.querySelector('.wh-h').addEventListener('change', recalcTotals);
-    tr.querySelector('.wh-o').addEventListener('change', recalcTotals);
+    var arr = tr.querySelector('.wh-arr'), dep = tr.querySelector('.wh-dep');
+    if (arr) arr.addEventListener('change', function () { recalcRow(tr); recalcTotals(); });
+    if (dep) dep.addEventListener('change', function () { recalcRow(tr); recalcTotals(); });
+    var h = tr.querySelector('.wh-h'), o = tr.querySelector('.wh-o');
+    if (h) h.addEventListener('change', recalcTotals);
+    if (o) o.addEventListener('input', recalcTotals);
   });
+  recalcTotals();
 })();
 </script>
 {% endblock %}

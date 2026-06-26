@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Arhiv ur{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('staff.hours') }}">Ure</a></li>
+  <li class="breadcrumb-item active">Arhiv</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-archive me-2 text-primary"></i>Arhiv ur</h1>
+  <a href="{{ url_for('staff.hours') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-clock-history me-1"></i>Nazaj na ure
+  </a>
+</div>
+
+<div class="tbl-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          {% if is_admin %}<th>Delavec</th>{% endif %}
+          <th>Mesec</th>
+          <th>Ure</th>
+          <th>Nadure</th>
+          <th>Skupaj</th>
+          <th style="width:160px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          {% if is_admin %}<td class="fw-semibold">{{ it.name }}</td>{% endif %}
+          <td>{{ it.month_name }} {{ it.year }}</td>
+          <td class="text-primary">{{ '%g'|format(it.sum_h) }}</td>
+          <td class="text-warning">{{ '%g'|format(it.sum_o) }}</td>
+          <td class="fw-bold text-success">{{ '%g'|format(it.sum_total) }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('staff.hours', year=it.year, month=it.month, user_id=it.user_id if is_admin else None) }}"
+               class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+            <a href="{{ url_for('staff.print_hours', year=it.year, month=it.month, user_id=it.user_id if is_admin else None) }}"
+               target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-printer"></i></a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="{% if is_admin %}6{% else %}5{% endif %}" class="text-center text-muted py-5">
+          <i class="bi bi-archive fs-2 d-block mb-2"></i>Še ni zaključenih mesecev.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

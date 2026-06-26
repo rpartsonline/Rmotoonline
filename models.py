@@ -301,6 +301,21 @@ class WorkHours(db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "work_date", name="uq_user_day"),)
 
 
+class MonthLock(db.Model):
+    """Zaklenjen mesec – delavec ne more več urejati, admin lahko."""
+    __tablename__ = "month_locks"
+
+    id       = db.Column(db.Integer, primary_key=True)
+    user_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    year     = db.Column(db.Integer, nullable=False)
+    month    = db.Column(db.Integer, nullable=False)
+    locked_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("user_id", "year", "month", name="uq_lock"),)
+
+
 # ── Katalog postavk za novo naročilo ─────────────────────────────────────────
 # Glavne rubrike s podgrupami. Delavec pokljuka, kar potrebuje, in vpiše
 # IDENT (Bartog) ter izvor zaloge. Neoznačeno se v naročilo ne shrani.
