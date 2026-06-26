@@ -50,6 +50,18 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('staff.leave') }}"
+         class="sb-link {% if request.endpoint and request.endpoint.startswith('staff.leave') %}active{% endif %}">
+        <i class="bi bi-calendar2-week"></i><span>Dopusti</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('staff.hours') }}"
+         class="sb-link {% if request.endpoint and 'staff.hours' in request.endpoint or request.endpoint == 'staff.save_hours' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i><span>Ure</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('customers.list_customers') }}"
          class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
         <i class="bi bi-people"></i><span>Stranke</span>

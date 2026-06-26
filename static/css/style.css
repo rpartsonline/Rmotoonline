@@ -287,3 +287,15 @@ body {
 .stat-card-sm { padding: 14px 16px; }
 .stat-card-sm .num { font-size: 1.6rem; }
 .stat-card-sm .badge-status { font-size: .72rem; white-space: normal; text-align: left; }
+
+/* ── Koledar dopustov ─────────────────────────────────────────────────────── */
+.cal-table { table-layout: fixed; }
+.cal-table th { background: #f1f5f9; }
+.cal-cell { height: 84px; vertical-align: top; padding: 4px !important; }
+.cal-empty { background: #fafbfc; }
+.cal-today { outline: 2px solid #3b82f6; outline-offset: -2px; }
+.cal-day-num { font-size: .8rem; font-weight: 700; color: #475569; text-align: right; }
+.cal-leave {
+  font-size: .68rem; color: #fff; font-weight: 700; border-radius: 4px;
+  padding: 1px 4px; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}

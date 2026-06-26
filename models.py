@@ -214,7 +214,8 @@ class OrderStatusLog(db.Model):
 
 
 # ── Beležka (skupna tabla obvestil med zaposlenimi) ───────────────────────────
-NOTE_PEOPLE = ["Alan Daksobler", "Sašo Juretič", "Vid Kenda", "Rok Jerkič"]
+NOTE_PEOPLE = ["Alan Daksobler", "Sašo Juretič", "Vid Kenda", "Rok Jerkič",
+               "Nejc Tominec", "Borut Čermelj"]
 
 
 class Note(db.Model):
@@ -255,6 +256,47 @@ class DeliveryStop(db.Model):
     position    = db.Column(db.Integer, default=0)           # vrstni red v ruti
     done        = db.Column(db.Boolean, default=False)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ── Dopusti (koledar) ─────────────────────────────────────────────────────────
+# Stabilne barve po delavcu (za koledar)
+LEAVE_COLORS = [
+    "#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7",
+    "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#14b8a6",
+]
+
+
+def leave_color_for(user_id):
+    return LEAVE_COLORS[(user_id or 0) % len(LEAVE_COLORS)]
+
+
+class LeaveEntry(db.Model):
+    __tablename__ = "leave_entries"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date   = db.Column(db.Date, nullable=False)
+    note       = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User")
+
+
+# ── Ure (mesečni obrazec po dnevih) ───────────────────────────────────────────
+class WorkHours(db.Model):
+    __tablename__ = "work_hours"
+
+    id        = db.Column(db.Integer, primary_key=True)
+    user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    work_date = db.Column(db.Date, nullable=False)
+    hours     = db.Column(db.Float, default=0)     # redne ure
+    overtime  = db.Column(db.Float, default=0)     # nadure
+    note      = db.Column(db.String(200))
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("user_id", "work_date", name="uq_user_day"),)
 
 
 # ── Katalog postavk za novo naročilo ─────────────────────────────────────────

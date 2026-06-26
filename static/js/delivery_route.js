@@ -223,26 +223,56 @@
   }
 
   // ── Tisk (zemljevid kot slika + seznam) ─────────────────────────────────────
-  function printRoute() {
-    const w = window.open("", "_blank");
+  function buildPrintHtml(mapImg) {
     let rows = stops.map((s, i) => "<tr><td>" + (i + 1) + "</td><td>" + escapeHtml(s.name)
       + "</td><td>" + escapeHtml(s.address) + "</td><td style='width:34px'>&#9744;</td></tr>").join("");
     const summary = ($("dz-summary").textContent || "");
-    w.document.write(
-      "<html><head><meta charset='utf-8'><title>Pot dostave</title><style>"
+    const imgTag = mapImg
+      ? "<img src='" + mapImg + "' style='width:100%;max-width:720px;border:1px solid #ccc;border-radius:8px;margin:10px 0;'>"
+      : "";
+    return "<html><head><meta charset='utf-8'><title>Pot dostave</title><style>"
       + "body{font-family:Arial;margin:24px;} h1{font-size:20px;border-bottom:3px solid #111;padding-bottom:6px;}"
       + "table{width:100%;border-collapse:collapse;margin-top:10px;} th,td{border-bottom:1px solid #ccc;padding:8px;text-align:left;font-size:14px;}"
       + "th{background:#f0f0f0;font-size:12px;text-transform:uppercase;}"
       + ".meta{font-size:13px;color:#444;margin:6px 0;}"
+      + "@media print{ img{ max-width:100% !important; } }"
       + "</style></head><body>"
       + "<h1>Pot dostave – Bartog Ajdovščina</h1>"
       + "<div class='meta'>Start/cilj: " + escapeHtml(HOME.label) + " · Datum: ______ · Šofer: ______</div>"
       + "<div class='meta'>" + escapeHtml(summary) + "</div>"
+      + imgTag
       + "<table><thead><tr><th>#</th><th>Stranka</th><th>Naslov</th><th>✓</th></tr></thead><tbody>"
       + rows + "</tbody></table>"
-      + "<script>setTimeout(function(){window.print();},300);<\/script>"
-      + "</body></html>");
+      + "<script>setTimeout(function(){window.print();},400);<\/script>"
+      + "</body></html>";
+  }
+
+  function openPrint(mapImg) {
+    const w = window.open("", "_blank");
+    w.document.write(buildPrintHtml(mapImg));
     w.document.close();
+  }
+
+  function printRoute() {
+    const btn = $("dz-print");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Pripravljam zemljevid…'; }
+
+    function done() { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-printer me-1"></i>Natisni pot'; } }
+
+    // Poskusi zajeti zemljevid kot sliko (leaflet-image), sicer natisni brez slike
+    if (window.leafletImage && map) {
+      try {
+        window.leafletImage(map, function (err, canvas) {
+          let img = null;
+          if (!err && canvas) { try { img = canvas.toDataURL("image/png"); } catch (e) { img = null; } }
+          openPrint(img);
+          done();
+        });
+        return;
+      } catch (e) { /* fallback */ }
+    }
+    openPrint(null);
+    done();
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────

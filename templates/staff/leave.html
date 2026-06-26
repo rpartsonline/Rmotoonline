@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Dopusti{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Dopusti</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-calendar2-week me-2 text-primary"></i>Dopusti</h1>
+  <a href="{{ url_for('staff.leave_list') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-list-ul me-1"></i>Seznam vnosov
+  </a>
+</div>
+
+<!-- Mesečna navigacija -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <a href="{{ url_for('staff.leave', year=prev_y, month=prev_m) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-chevron-left"></i>
+  </a>
+  <h4 class="mb-0 fw-bold">{{ month_name }} {{ year }}</h4>
+  <a href="{{ url_for('staff.leave', year=next_y, month=next_m) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-chevron-right"></i>
+  </a>
+</div>
+
+<!-- Koledar -->
+<div class="tbl-card mb-3">
+  <table class="table table-bordered text-center align-top mb-0 cal-table">
+    <thead>
+      <tr>
+        {% for d in dow %}<th class="small {% if loop.index0 >= 5 %}text-danger{% endif %}">{{ d }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in weeks %}
+      <tr>
+        {% for day in week %}
+        <td class="cal-cell {% if day == 0 %}cal-empty{% endif %}
+                   {% if day == today.day and month == today.month and year == today.year %}cal-today{% endif %}">
+          {% if day != 0 %}
+          <div class="cal-day-num">{{ day }}</div>
+          {% for p in day_map[day] %}
+          <div class="cal-leave" style="background:{{ p.color }}" title="{{ p.name }}">{{ p.name.split(' ')[0] }}</div>
+          {% endfor %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Legenda -->
+{% if legend %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+  {% for l in legend %}
+  <span class="badge" style="background:{{ l.color }}">{{ l.name }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Dodaj dopust -->
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-plus-circle"></i> Dodaj dopust</div>
+  <form method="POST" action="{{ url_for('staff.add_leave') }}" class="row g-2 align-items-end">
+    {% if current_user.is_admin %}
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Delavec</label>
+      <select name="user_id" class="form-select">
+        {% for u in users %}<option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% else %}
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Delavec</label>
+      <input type="text" class="form-control" value="{{ current_user.full_name }}" disabled>
+    </div>
+    {% endif %}
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Od</label>
+      <input type="date" name="start_date" class="form-control" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Do</label>
+      <input type="date" name="end_date" class="form-control" required>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Opomba</label>
+      <input type="text" name="note" class="form-control" placeholder="npr. letni">
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i></button>
+    </div>
+  </form>
+  <div class="form-text mt-1">Vsak delavec lahko vpiše samo svoj dopust. Admin lahko vpiše za kogarkoli.</div>
+</div>
+{% endblock %}

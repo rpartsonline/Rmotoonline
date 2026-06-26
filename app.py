@@ -103,6 +103,7 @@ def create_app():
     from routes.admin import admin_bp
     from routes.notes import notes_bp
     from routes.delivery import delivery_bp
+    from routes.staff import staff_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -112,12 +113,14 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(notes_bp)
     app.register_blueprint(delivery_bp)
+    app.register_blueprint(staff_bp)
 
     # ── Init DB & default admin ──────────────────────────────────────────────
     with app.app_context():
         db.create_all()
         _ensure_schema(db)
         _seed_admin(db, User)
+        _seed_staff(db, User)
 
     return app
 
@@ -160,6 +163,27 @@ def _seed_admin(db, User):
         db.session.add(admin)
         db.session.commit()
         print("✅  Admin uporabnik ustvarjen (geslo v ADMIN_PASSWORD env var).")
+
+
+def _seed_staff(db, User):
+    """Ustvari prijave za sodelavce, če še ne obstajajo. Začetno geslo: Bartog123!"""
+    staff = [
+        ("saso",  "Sašo Juretič"),
+        ("alan",  "Alan Daksobler"),
+        ("vid",   "Vid Kenda"),
+        ("nejc",  "Nejc Tominec"),
+        ("borut", "Borut Čermelj"),
+    ]
+    created = []
+    for username, full_name in staff:
+        if not User.query.filter_by(username=username).first():
+            u = User(username=username, full_name=full_name, is_admin=False)
+            u.set_password(os.environ.get("STAFF_DEFAULT_PASSWORD", "Bartog123!"))
+            db.session.add(u)
+            created.append(username)
+    if created:
+        db.session.commit()
+        print(f"✅  Ustvarjeni uporabniki: {', '.join(created)} (začetno geslo Bartog123!).")
 
 
 app = create_app()
