@@ -37,7 +37,7 @@
     <thead>
       <tr>
         <th>Dan</th><th>Dan v tednu</th><th>Prihod</th><th>Odhod</th>
-        <th>Ure</th><th>Nadure</th><th class="note">Opomba</th>
+        <th>Oddelano</th><th>Ure</th><th>Nadure</th><th class="note">Opomba</th>
       </tr>
     </thead>
     <tbody>
@@ -47,6 +47,7 @@
         <td>{{ r.dow }}</td>
         <td>{{ r.arrival }}</td>
         <td>{{ r.departure }}</td>
+        <td>{{ r.worked }}</td>
         <td>{% if r.hours %}{{ '%g'|format(r.hours) }}{% endif %}</td>
         <td>{% if r.overtime %}{{ '%g'|format(r.overtime) }}{% endif %}</td>
         <td class="note">{{ r.note }}</td>
@@ -55,7 +56,7 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="4" style="text-align:right;">Skupaj:</td>
+        <td colspan="5" style="text-align:right;">Skupaj:</td>
         <td>{{ '%g'|format(sum_h) }}</td>
         <td>{{ '%g'|format(sum_o) }}</td>
         <td class="note">Vse skupaj: {{ '%g'|format(sum_total) }} ur</td>

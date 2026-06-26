@@ -155,11 +155,23 @@ def hours():
         o = wh.overtime if wh else 0
         sum_h += h or 0
         sum_o += o or 0
+        # oddelano (iz prihod/odhod), če obstaja
+        worked = ""
+        if wh and wh.arrival and wh.departure:
+            try:
+                ah, am = map(int, wh.arrival.split(":"))
+                dh, dm = map(int, wh.departure.split(":"))
+                diff = (dh * 60 + dm) - (ah * 60 + am)
+                if diff > 0:
+                    worked = round(diff / 60 * 2) / 2
+            except (ValueError, AttributeError):
+                worked = ""
         rows.append({"day": d, "dow": SL_DOW[dt.weekday()],
                      "dow_idx": dt.weekday(),
                      "weekend": dt.weekday() >= 5,
                      "arrival": wh.arrival if wh else "",
                      "departure": wh.departure if wh else "",
+                     "worked": (f"{worked:g} h" if worked != "" else ""),
                      "hours": h or "", "overtime": o if (wh and o) else "",
                      "note": wh.note if wh else ""})
 
@@ -290,9 +302,20 @@ def print_hours():
         h = (wh.hours if wh else 0) or 0
         o = (wh.overtime if wh else 0) or 0
         sum_h += h; sum_o += o
+        worked = ""
+        if wh and wh.arrival and wh.departure:
+            try:
+                ah, am = map(int, wh.arrival.split(":"))
+                dh, dm = map(int, wh.departure.split(":"))
+                diff = (dh * 60 + dm) - (ah * 60 + am)
+                if diff > 0:
+                    worked = f"{round(diff / 60 * 2) / 2:g} h"
+            except (ValueError, AttributeError):
+                worked = ""
         rows.append({"day": d, "dow": SL_DOW[dt.weekday()], "weekend": dt.weekday() >= 5,
                      "arrival": (wh.arrival if wh else "") or "",
                      "departure": (wh.departure if wh else "") or "",
+                     "worked": worked,
                      "hours": h or "", "overtime": o or "",
                      "note": (wh.note if wh else "") or ""})
 

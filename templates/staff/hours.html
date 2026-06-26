@@ -73,6 +73,7 @@
             <th style="width:90px">Dan</th>
             <th style="width:110px">Prihod</th>
             <th style="width:110px">Odhod</th>
+            <th style="width:90px">Oddelano</th>
             <th style="width:110px">Ure</th>
             <th style="width:110px">Nadure</th>
             <th>Opomba</th>
@@ -96,6 +97,7 @@
                 {% for t in time_options %}<option value="{{ t }}" {% if r.departure == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
               </select>
             </td>
+            <td class="text-center fw-bold text-primary wh-worked">{{ r.worked or '' }}</td>
             <td>
               <select name="h_{{ r.day }}" class="form-select form-select-sm wh-h" {% if not can_edit %}disabled{% endif %}>
                 <option value="">0</option>
@@ -113,7 +115,7 @@
         </tbody>
         <tfoot>
           <tr class="fw-bold border-top">
-            <td colspan="3" class="text-end">Skupaj:</td>
+            <td colspan="4" class="text-end">Skupaj:</td>
             <td class="text-primary" id="sum-h">{{ '%g'|format(sum_h) }}</td>
             <td class="text-warning" id="sum-o">{{ '%g'|format(sum_o) }}</td>
             <td>Vse skupaj: <span class="text-success" id="sum-t">{{ '%g'|format(sum_total) }} ur</span></td>
@@ -167,8 +169,10 @@
   function recalcRow(tr) {
     var a = toMin(tr.querySelector('.wh-arr').value);
     var d = toMin(tr.querySelector('.wh-dep').value);
-    if (a == null || d == null || d <= a) return;
+    var workedCell = tr.querySelector('.wh-worked');
+    if (a == null || d == null || d <= a) { if (workedCell) workedCell.textContent = ''; return; }
     var worked = roundHalf((d - a) / 60);
+    if (workedCell) workedCell.textContent = (Math.round(worked * 100) / 100) + ' h';
     var dow = parseInt(tr.getAttribute('data-dow'), 10);
     var norm = normForDow(dow);
 
