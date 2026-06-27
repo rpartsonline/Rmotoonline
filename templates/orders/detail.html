@@ -217,7 +217,19 @@
 
     <!-- Status update -->
     <div class="card-plain mb-3">
-      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Posodobi status</div>
+      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Status</div>
+      {% if current_user.role == 'kupec' %}
+      <!-- Kupec: samo pogled statusa -->
+      <div class="text-center p-3">
+        {% if order.status == 'naroceno' %}
+        <div class="mb-2"><i class="bi bi-check-circle-fill text-success" style="font-size:2.4rem;"></i></div>
+        {% endif %}
+        <span class="badge bg-{{ order.status_info.color }}" style="font-size:1rem;">{{ order.status_info.label }}</span>
+        {% if order.status == 'naroceno' %}
+        <div class="text-success small mt-2">Vaše naročilo je naročeno.</div>
+        {% endif %}
+      </div>
+      {% else %}
       <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}">
         <div class="mb-2">
           <select name="status" id="status-select" class="form-select">
@@ -252,6 +264,7 @@
           <i class="bi bi-check-lg me-1"></i>Posodobi status
         </button>
       </form>
+      {% endif %}
     </div>
 
     {% if kind == 'povprasevanje' and order.status == 'narocena_caka' and order.delivery_date %}

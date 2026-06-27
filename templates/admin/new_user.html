@@ -36,12 +36,21 @@
                  placeholder="Vsaj 6 znakov" required minlength="6">
           <div class="form-text">Zaposleni naj geslo spremenijo ob prvi prijavi.</div>
         </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Vrsta uporabnika</label>
+          <select name="role" class="form-select">
+            <option value="zaposleni" selected>Zaposleni (obdeluje naročila, spreminja status)</option>
+            <option value="kupec">Kupec (vidi samo svoja naročila, status samo gleda)</option>
+            <option value="admin">Admin (vse pravice + brisanje)</option>
+          </select>
+          <div class="form-text">Kupec vidi le svoja oddana naročila/povpraševanja in jih ne more urejati po statusu.</div>
+        </div>
         <div class="mb-4 form-check">
           <input type="checkbox" name="is_admin" class="form-check-input" id="isAdmin">
           <label class="form-check-label" for="isAdmin">
             Skrbniški dostop (admin)
           </label>
-          <div class="form-text">Admini lahko brišejo naročila in upravljajo uporabnike.</div>
+          <div class="form-text">Lahko pustiš prazno, če si zgoraj izbral „Admin".</div>
         </div>
         <div class="d-flex gap-2">
           <button type="submit" class="btn btn-primary">

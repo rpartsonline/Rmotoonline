@@ -29,6 +29,9 @@
       <a href="{{ url_for('orders.list_orders') }}"
          class="sb-link {% if request.endpoint in ['orders.list_orders', 'orders.new_order'] %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
+        {% if current_user.role == 'kupec' and kupec_notif_count %}
+        <span class="badge bg-success rounded-pill ms-auto">{{ kupec_notif_count }}</span>
+        {% endif %}
       </a>
     </li>
     <li>
@@ -37,6 +40,7 @@
         <i class="bi bi-chat-left-text"></i><span>Povpraševanja</span>
       </a>
     </li>
+    {% if current_user.role != 'kupec' %}
     <li>
       <a href="{{ url_for('notes.list_notes') }}"
          class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
@@ -67,6 +71,7 @@
         <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
+    {% endif %}
 
     {% if current_user.is_admin %}
     <li class="sb-section">Admin</li>
@@ -140,6 +145,8 @@
   });
 </script>
 
+<!-- Plavajoči oblački (samo zaposleni/admin) -->
+{% if current_user.role != 'kupec' %}
 <!-- Plavajoč oblaček: nova naročila -->
 <a href="{{ url_for('orders.list_orders', status='novo') }}" id="new-orders-badge"
    class="new-orders-badge" title="Nova naročila"
@@ -157,12 +164,14 @@
   <span class="nob-text">Dobava materiala</span>
   <span class="nob-count" id="delivery-count">{{ delivery_alert_count }}</span>
 </a>
+{% endif %}
 
 <script>
   (function () {
     const url = "{{ url_for('main.new_orders_count') }}";
     const badge = document.getElementById('new-orders-badge');
     const cnt = document.getElementById('new-orders-count');
+    if (!badge || !cnt) return;
     async function poll() {
       try {
         const r = await fetch(url, { cache: 'no-store' });
@@ -178,6 +187,7 @@
     const url = "{{ url_for('main.delivery_alert') }}";
     const badge = document.getElementById('delivery-badge');
     const cnt = document.getElementById('delivery-count');
+    if (!badge || !cnt) return;
     async function poll() {
       try {
         const r = await fetch(url, { cache: 'no-store' });

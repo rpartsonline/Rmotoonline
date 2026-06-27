@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, jsonify
-from flask_login import login_required
+from flask import Blueprint, render_template, jsonify, redirect, url_for
+from flask_login import login_required, current_user
 from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, Note, NOTE_PEOPLE, INQUIRY_STATUSES
 
 main_bp = Blueprint("main", __name__)
@@ -39,6 +39,9 @@ def _today_utc_range():
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
+    # Kupec nima skupnega pregleda – preusmerimo na njegova naročila
+    if getattr(current_user, "role", "") == "kupec":
+        return redirect(url_for("orders.list_orders"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end

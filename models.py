@@ -73,6 +73,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin      = db.Column(db.Boolean, default=False)
     is_active_user= db.Column(db.Boolean, default=True)
+    role          = db.Column(db.String(20), default="zaposleni")  # admin|zaposleni|kupec
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     orders = db.relationship("Order", backref="employee", lazy=True)
@@ -155,6 +156,7 @@ class Order(db.Model):
     ordered_at   = db.Column(db.DateTime)    # ko je naročeno
     completed_at = db.Column(db.DateTime)    # ko je zaključeno
     delivery_date = db.Column(db.Date)       # predviden prihod materiala (povpraševanja)
+    notify_customer = db.Column(db.Boolean, default=False)  # nova obvestilo za kupca (npr. naročeno)
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")

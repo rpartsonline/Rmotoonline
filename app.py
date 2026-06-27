@@ -88,10 +88,20 @@ def create_app():
             deliv_red = any(o.delivery_date <= today for o in due)
         except Exception:
             pass
+        # Števec novih obvestil za kupca (naročila, ki so prešla na „naročeno")
+        kupec_notif = 0
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and getattr(current_user, "role", "") == "kupec":
+                kupec_notif = Order.query.filter_by(
+                    employee_id=current_user.id, notify_customer=True).count()
+        except Exception:
+            pass
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
+            "kupec_notif_count": kupec_notif,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
@@ -115,12 +125,28 @@ def create_app():
     app.register_blueprint(delivery_bp)
     app.register_blueprint(staff_bp)
 
+    # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
+    @app.before_request
+    def _restrict_kupci():
+        from flask import request, redirect, url_for, flash
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return
+        if getattr(current_user, "role", "") != "kupec":
+            return
+        ep = request.endpoint or ""
+        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "static")):
+            return
+        flash("Do te strani nimaš dostopa.", "danger")
+        return redirect(url_for("orders.list_orders"))
+
     # ── Init DB & default admin ──────────────────────────────────────────────
     with app.app_context():
         db.create_all()
         _ensure_schema(db)
         _seed_admin(db, User)
         _seed_staff(db, User)
+        _seed_kupec(db, User)
 
     return app
 
@@ -169,6 +195,26 @@ def _ensure_schema(db):
     except Exception as e:
         print(f"⚠️  Migracija (work_hours) preskočena: {e}")
 
+    # users.role
+    try:
+        ucols = [c["name"] for c in inspect(db.engine).get_columns("users")]
+        if "role" not in ucols:
+            db.session.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'zaposleni'"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'role' v tabelo users.")
+    except Exception as e:
+        print(f"⚠️  Migracija (users.role) preskočena: {e}")
+
+    # orders.notify_customer
+    try:
+        ocols = [c["name"] for c in inspect(db.engine).get_columns("orders")]
+        if "notify_customer" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN notify_customer BOOLEAN DEFAULT 0"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'notify_customer' v tabelo orders.")
+    except Exception as e:
+        print(f"⚠️  Migracija (orders.notify_customer) preskočena: {e}")
+
 
 def _seed_admin(db, User):
     if not User.query.filter_by(username="admin").first():
@@ -198,6 +244,17 @@ def _seed_staff(db, User):
     if created:
         db.session.commit()
         print(f"✅  Ustvarjeni uporabniki: {', '.join(created)} (začetno geslo Bartog123!).")
+
+
+def _seed_kupec(db, User):
+    """Ustvari kupca 'Bartog Ajdovščina', če še ne obstaja."""
+    if not User.query.filter_by(username="bartog").first():
+        u = User(username="bartog", full_name="Bartog Ajdovščina",
+                 is_admin=False, role="kupec")
+        u.set_password(os.environ.get("KUPEC_DEFAULT_PASSWORD", "Bartog123!"))
+        db.session.add(u)
+        db.session.commit()
+        print("✅  Ustvarjen kupec 'bartog' (Bartog Ajdovščina, geslo Bartog123!).")
 
 
 app = create_app()

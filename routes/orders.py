@@ -90,9 +90,14 @@ def _render_list(kind):
 
     q = Order.query.filter_by(kind=kind)
 
+    # Kupec vidi samo svoja naročila/povpraševanja
+    is_kupec = getattr(current_user, "role", "") == "kupec"
+    if is_kupec:
+        q = q.filter_by(employee_id=current_user.id)
+
     if status_filter:
         q = q.filter_by(status=status_filter)
-    if customer_filter:
+    if customer_filter and not is_kupec:
         q = q.filter_by(customer_id=int(customer_filter))
     if date_from_str:
         try:
@@ -111,12 +116,25 @@ def _render_list(kind):
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
 
+    # Kupec si je ogledal seznam → obvestila „naročeno" označimo kot prebrana
+    if is_kupec:
+        changed = False
+        for o in orders:
+            if o.notify_customer:
+                o.notify_customer = False
+                changed = True
+        if changed:
+            db.session.commit()
+
     # Razčlenitev po statusih (za pregled na vrhu seznama)
     breakdown = []
     for key, label, color in cfg["statuses"]:
+        bq = Order.query.filter_by(kind=kind, status=key)
+        if is_kupec:
+            bq = bq.filter_by(employee_id=current_user.id)
         breakdown.append({
             "key": key, "label": label, "color": color,
-            "count": Order.query.filter_by(kind=kind, status=key).count(),
+            "count": bq.count(),
         })
 
     return render_template(
@@ -159,23 +177,40 @@ def _handle_new(kind):
         f = request.form
 
         # ── Stranka ──────────────────────────────────────────────────────────
-        customer_id = f.get("customer_id", "").strip()
-        if not customer_id or customer_id == "new":
+        is_kupec = getattr(current_user, "role", "") == "kupec"
+        if is_kupec:
+            # Kupec ne vidi baze strank – vpiše samo ime končne stranke
             name = f.get("new_customer_name", "").strip()
             if not name:
-                flash("Ime stranke je obvezno.", "danger")
+                flash("Vpiši ime stranke.", "danger")
                 return _render_new_order_form(kind)
             customer = Customer(
                 name    = name,
                 phone   = f.get("new_customer_phone", "").strip(),
-                email   = f.get("new_customer_email", "").strip(),
-                address = f.get("new_customer_address", "").strip(),
+                email   = "",
+                address = "",
             )
             db.session.add(customer)
             db.session.flush()
             customer_id = customer.id
         else:
-            customer_id = int(customer_id)
+            customer_id = f.get("customer_id", "").strip()
+            if not customer_id or customer_id == "new":
+                name = f.get("new_customer_name", "").strip()
+                if not name:
+                    flash("Ime stranke je obvezno.", "danger")
+                    return _render_new_order_form(kind)
+                customer = Customer(
+                    name    = name,
+                    phone   = f.get("new_customer_phone", "").strip(),
+                    email   = f.get("new_customer_email", "").strip(),
+                    address = f.get("new_customer_address", "").strip(),
+                )
+                db.session.add(customer)
+                db.session.flush()
+                customer_id = customer.id
+            else:
+                customer_id = int(customer_id)
 
         # ── Vozilo ───────────────────────────────────────────────────────────
         existing_id = f.get("existing_vehicle_id", "").strip()
@@ -329,6 +364,17 @@ def _render_new_order_form(kind="narocilo"):
 @login_required
 def order_detail(order_id):
     order = Order.query.get_or_404(order_id)
+
+    # Kupec lahko odpre samo svoja naročila
+    if getattr(current_user, "role", "") == "kupec":
+        if order.employee_id != current_user.id:
+            flash("Do tega naročila nimaš dostopa.", "danger")
+            return redirect(url_for("orders.list_orders"))
+        # ogled → obvestilo prebrano
+        if order.notify_customer:
+            order.notify_customer = False
+            db.session.commit()
+
     cfg = _kind_cfg(order.kind or "narocilo")
     return render_template(
         "orders/detail.html",
@@ -349,6 +395,12 @@ def order_detail(order_id):
 @login_required
 def update_status(order_id):
     order = Order.query.get_or_404(order_id)
+
+    # Kupec ne sme spreminjati statusa
+    if getattr(current_user, "role", "") == "kupec":
+        flash("Statusa ne moreš spreminjati.", "danger")
+        return redirect(url_for("orders.order_detail", order_id=order_id))
+
     new_status  = request.form.get("status")
     valid_keys  = [s[0] for s in _kind_cfg(order.kind or "narocilo")["statuses"]]
 
@@ -383,6 +435,12 @@ def update_status(order_id):
         order.ordered_at = datetime.utcnow()
     if new_status == "zakljuceno" and not order.completed_at:
         order.completed_at = datetime.utcnow()
+
+    # Ko gre na „Naročeno" → obvesti kupca (zelena kljukica) + (kasneje) SMS stranki
+    if new_status == "naroceno":
+        order.notify_customer = True
+        # TODO SMS: ko vklopimo SMS, tukaj pošljemo sporočilo stranki
+        #   "Vaše naročilo je naročeno. Dostavimo ga v čim krajšem možnem času."
 
     order.status     = new_status
     order.updated_at = datetime.utcnow()

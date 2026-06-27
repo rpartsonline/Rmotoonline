@@ -19,6 +19,18 @@
 <div class="form-section">
   <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
 
+  {% if current_user.role == 'kupec' %}
+  <div class="row g-2">
+    <div class="col-md-8">
+      <label class="form-label small fw-semibold">Ime stranke *</label>
+      <input type="text" name="new_customer_name" class="form-control" placeholder="Ime in priimek / podjetje" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small">Telefon</label>
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="040 …">
+    </div>
+  </div>
+  {% else %}
   <div class="mb-3">
     <label class="form-label small fw-semibold">Izberi obstoječo stranko</label>
     <select name="customer_id" id="customer-select" class="form-select">
@@ -53,6 +65,7 @@
       <input type="text" name="new_customer_address" class="form-control" placeholder="Ulica, kraj">
     </div>
   </div>
+  {% endif %}
 </div>
 
 <!-- ── 2. VOZILO ──────────────────────────────────────────────────────────── -->
@@ -502,7 +515,7 @@ async function loadVehicles(customerId, preselId='') {
   });
 });
 
-custSel.addEventListener('change', () => {
+custSel && custSel.addEventListener('change', () => {
   const val = custSel.value;
   if (val === 'new') {
     newCustF.style.display = '';
@@ -519,20 +532,21 @@ custSel.addEventListener('change', () => {
 const orderForm = document.getElementById('order-form');
 if (orderForm) {
   orderForm.addEventListener('submit', (e) => {
-    const isNew = custSel.value === 'new';
     const nameEl = document.querySelector('[name="new_customer_name"]');
     const name = nameEl ? nameEl.value.trim() : '';
+    const isNew = custSel ? custSel.value === 'new' : true;  // kupec nima izbirnika
     if (isNew && !name) {
       e.preventDefault();
-      newCustF.style.display = '';
+      if (newCustF) newCustF.style.display = '';
       if (nameEl) { nameEl.focus(); nameEl.classList.add('is-invalid'); }
-      alert('Vpiši ime stranke (ali izberi obstoječo) – vnosi se ne bodo izgubili.');
+      alert('Vpiši ime stranke – vnosi se ne bodo izgubili.');
     }
   });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  if (!custSel) return;  // kupec: ni izbirnika strank
   if (PRESEL_CUST && custSel.value !== 'new') {
     newCustF.style.display = 'none';
     loadVehicles(PRESEL_CUST, PRESEL_VEH);

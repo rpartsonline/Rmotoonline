@@ -31,7 +31,10 @@ def new_user():
         username  = request.form.get("username",  "").strip()
         full_name = request.form.get("full_name", "").strip()
         password  = request.form.get("password",  "")
-        is_admin  = bool(request.form.get("is_admin"))
+        role      = request.form.get("role", "zaposleni")
+        if role not in ("zaposleni", "kupec", "admin"):
+            role = "zaposleni"
+        is_admin  = (role == "admin") or bool(request.form.get("is_admin"))
 
         if not username or not full_name or not password:
             flash("Vsa polja so obvezna.", "danger")
@@ -45,7 +48,7 @@ def new_user():
             flash("Uporabniško ime je že zasedeno.", "danger")
             return render_template("admin/new_user.html")
 
-        user = User(username=username, full_name=full_name, is_admin=is_admin)
+        user = User(username=username, full_name=full_name, is_admin=is_admin, role=role)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
