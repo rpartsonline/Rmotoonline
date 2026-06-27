@@ -163,7 +163,90 @@
       b.addEventListener("click", () => openScanner("barcode")));
     document.querySelectorAll('[data-vs="scan-ocr"]').forEach((b) =>
       b.addEventListener("click", () => openScanner("ocr")));
+
+    // Fotografiraj VIN iz datoteke (telefonska kamera) + potrditev
+    const photoInput = $(cfg.vin) ? document.getElementById("nv_vin_photo") : null;
+    if (photoInput) {
+      photoInput.addEventListener("change", function (e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) readVinFromPhoto(file, cfg, status, decode);
+        photoInput.value = "";  // dovoli ponovno isto datoteko
+      });
+    }
   };
+
+  // Branje VIN iz fotografije (ostra slika iz telefonske kamere)
+  async function readVinFromPhoto(file, cfg, status, decode) {
+    status("Berem fotografijo… (nekaj sekund)", "info");
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch (e) {
+      status("Slike ni bilo mogoče odpreti. Poskusi znova.", "danger");
+      return;
+    }
+    // Pomanjšamo na razumno širino (hitrost), a ohranimo ostrino
+    const maxW = 1600;
+    const scale = Math.min(1, maxW / bitmap.width);
+    const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+
+    let base;
+    try { base = ctx.getImageData(0, 0, w, h); } catch (e) { base = null; }
+
+    function applyThreshold(lo, hi) {
+      if (!base) return;
+      const img = ctx.createImageData(w, h), s = base.data, d = img.data;
+      for (let i = 0; i < s.length; i += 4) {
+        let g = 0.3 * s[i] + 0.59 * s[i + 1] + 0.11 * s[i + 2];
+        g = g < lo ? 0 : g > hi ? 255 : (g - lo) * (255 / Math.max(1, hi - lo));
+        d[i] = d[i + 1] = d[i + 2] = Math.max(0, Math.min(255, g)); d[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    const passes = [
+      { lo: 110, hi: 150, psm: "6" },
+      { lo: 95,  hi: 165, psm: "6" },
+      { lo: 120, hi: 140, psm: "11" },
+      { lo: 100, hi: 160, psm: "3" },
+    ];
+    const found = [];
+    for (const p of passes) {
+      applyThreshold(p.lo, p.hi);
+      try {
+        const { data: { text } } = await Tesseract.recognize(c, "eng", {
+          tessedit_char_whitelist: "ABCDEFGHJKLMNPRSTUVWXYZ0123456789",
+          tessedit_pageseg_mode: p.psm,
+        });
+        const vin = bestVin(text);
+        if (vin) {
+          found.push(vin);
+          if (vinChecksumValid(vin)) break;
+        }
+      } catch (e) {}
+    }
+
+    const valid = found.find(vinChecksumValid);
+    const best = valid || found[0] || "";
+    if (!best) {
+      status("VIN ni prepoznan. Poskusi z bolj ostro sliko, več svetlobe in poravnano številko.", "danger");
+      return;
+    }
+    // Zahtevaj potrditev: vpiši v polje, da uporabnik preveri in po potrebi popravi
+    if (cfg && cfg.vin) {
+      const el2 = document.getElementById(cfg.vin);
+      if (el2) { el2.value = best; el2.focus(); el2.select && el2.select(); }
+    }
+    if (valid) {
+      status("VIN prebran in preverjen. Preveri točnost in klikni „Razčleni“.", "success");
+    } else {
+      status("VIN prebran, a kontrolna številka ne ustreza – natančno preveri vsak znak, nato „Razčleni“.", "warning");
+    }
+  }
 
   // ── Skener ────────────────────────────────────────────────────────────────
   function el(id) { return document.getElementById(id); }

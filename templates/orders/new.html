@@ -93,16 +93,14 @@
         <i class="bi bi-search me-1"></i>Razčleni
       </button>
     </div>
-    <div class="d-flex gap-2 mt-2 flex-wrap">
-      <button type="button" class="btn btn-primary btn-sm" data-vs="scan-barcode">
-        <i class="bi bi-upc-scan me-1"></i>Skeniraj identifikacijsko številko / VIN s kamero
-      </button>
-      <button type="button" class="btn btn-outline-secondary btn-sm" data-vs="scan-ocr">
-        <i class="bi bi-camera me-1"></i>Fotografiraj identifikacijsko številko / VIN
-      </button>
+    <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
+      <label class="btn btn-primary btn-sm mb-0">
+        <i class="bi bi-camera me-1"></i>Fotografiraj identifikacijsko številko
+        <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" hidden>
+      </label>
     </div>
     <div id="nv_status" class="small mt-2"></div>
-    <div class="form-text">Skeniraj kodo na nalepki vrat (ali v zatičku motornega prostora) ali fotografiraj VIN. Podatki se izpolnijo samodejno.</div>
+    <div class="form-text">Slikaj identifikacijsko številko (npr. s prometnega dovoljenja). Rezultat boš lahko pred uporabo preveril in popravil.</div>
   </div>
 
   <!-- Osnova -->
