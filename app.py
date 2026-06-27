@@ -30,6 +30,13 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    # Mapa za naložene slike (Render Disk prek DATA_DIR, sicer lokalno)
+    _data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+    upload_dir = os.path.join(_data_dir, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    app.config["UPLOAD_FOLDER"] = upload_dir
+    app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB skupaj
+
     # ── Extensions ──────────────────────────────────────────────────────────
     from models import db, User
     db.init_app(app)

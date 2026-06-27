@@ -19,12 +19,14 @@
   </div>
 
   <ul class="sb-nav">
+    {% if current_user.role != 'kupec' %}
     <li>
       <a href="{{ url_for('main.dashboard') }}"
          class="sb-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
         <i class="bi bi-speedometer2"></i><span>Pregled</span>
       </a>
     </li>
+    {% endif %}
     <li>
       <a href="{{ url_for('orders.list_orders') }}"
          class="sb-link {% if request.endpoint in ['orders.list_orders', 'orders.new_order'] %}active{% endif %}">

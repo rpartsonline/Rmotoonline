@@ -175,6 +175,17 @@ class Order(db.Model):
         return f"<Order {self.order_number}>"
 
 
+class OrderImage(db.Model):
+    __tablename__ = "order_images"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    order_id   = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
+    filename   = db.Column(db.String(255), nullable=False)  # shranjeno ime datoteke
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    order = db.relationship("Order", backref=db.backref("images", lazy=True, cascade="all, delete-orphan"))
+
+
 class OrderItem(db.Model):
     __tablename__ = "order_items"
 

@@ -40,6 +40,7 @@
 {% endif %}
 
 <!-- ── Filters ────────────────────────────────────────────────────────────── -->
+{% if current_user.role != 'kupec' %}
 <div class="card-plain mb-3">
   <form method="GET" class="row g-2 align-items-end">
     <div class="col-md-3">
@@ -83,6 +84,7 @@
     </div>
   </form>
 </div>
+{% endif %}
 
 <!-- ── Table ─────────────────────────────────────────────────────────────── -->
 <div class="tbl-card">

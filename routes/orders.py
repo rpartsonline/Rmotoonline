@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, abort
 from flask_login import login_required, current_user
 from models import (
-    db, Order, OrderItem, OrderStatusLog,
+    db, Order, OrderItem, OrderStatusLog, OrderImage,
     Customer, Vehicle,
     ORDER_STATUSES, STATUS_DICT, ITEM_STATUSES, ITEM_STATUS_DICT,
     ORDER_SOURCES, ITEM_UNITS, ENGINE_TYPES, TRANSMISSIONS,
@@ -14,6 +17,40 @@ from models import (
 from routes.vehicles import CAR_MAKES
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
+
+ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
+
+
+def _save_order_images(order, files):
+    """Shrani naložene slike v UPLOAD_FOLDER in zabeleži v bazo."""
+    if not files:
+        return
+    folder = current_app.config.get("UPLOAD_FOLDER")
+    if not folder:
+        return
+    for fs in files:
+        if not fs or not fs.filename:
+            continue
+        ext = os.path.splitext(fs.filename)[1].lower()
+        if ext not in ALLOWED_IMG_EXT:
+            continue
+        fname = f"order{order.id}_{uuid.uuid4().hex}{ext}"
+        try:
+            fs.save(os.path.join(folder, secure_filename(fname)))
+            db.session.add(OrderImage(order_id=order.id, filename=fname))
+        except Exception as e:
+            print(f"⚠️  Slika ni shranjena: {e}")
+
+
+@orders_bp.route("/image/<int:image_id>")
+@login_required
+def order_image(image_id):
+    img = OrderImage.query.get_or_404(image_id)
+    # kupec lahko vidi samo slike svojih naročil
+    if getattr(current_user, "role", "") == "kupec" and img.order.employee_id != current_user.id:
+        abort(403)
+    folder = current_app.config.get("UPLOAD_FOLDER")
+    return send_from_directory(folder, secure_filename(img.filename))
 
 
 # ── Pomožno: razlikovanje naročilo / povpraševanje ─────────────────────────────
@@ -354,6 +391,9 @@ def _handle_new(kind):
                 order_id=order.id, description=desc, bartog_id=ident,
                 supplier=izvor, quantity=1, unit="kos", status="caka",
             ))
+
+        # ── Naložene slike (iskani nadomestni del) ───────────────────────────
+        _save_order_images(order, request.files.getlist("order_images"))
 
         db.session.commit()
         what = "Povpraševanje" if kind == "povprasevanje" else "Naročilo"

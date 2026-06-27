@@ -146,6 +146,21 @@
     </div>
     {% endif %}
 
+    <!-- Naložene slike -->
+    {% if order.images %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-images"></i> Slike iskanega dela ({{ order.images|length }})</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for img in order.images %}
+        <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank">
+          <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+               style="height:120px; width:auto; border-radius:8px; border:1px solid #e5eaf2; object-fit:cover;">
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Postavke (urejanje) -->
     <form method="POST" action="{{ url_for('orders.save_items', order_id=order.id) }}">
     <div class="tbl-card">
