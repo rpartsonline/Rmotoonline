@@ -84,3 +84,41 @@ def toggle_user(user_id):
         status = "aktiviran" if user.is_active_user else "deaktiviran"
         flash(f"Uporabnik {user.username} je bil {status}.", "success")
     return redirect(url_for("admin.users"))
+
+
+import secrets
+
+
+@admin_bp.route("/users/<int:user_id>/qr", methods=["POST"])
+@admin_required
+def make_qr(user_id):
+    """Ustvari (ali na novo) token za hitro prijavo prek QR – samo za kupce."""
+    user = User.query.get_or_404(user_id)
+    if user.role != "kupec":
+        flash("QR prijava je na voljo samo za končne kupce.", "danger")
+        return redirect(url_for("admin.users"))
+    user.login_token = secrets.token_urlsafe(24)
+    db.session.commit()
+    flash(f"QR koda za {user.full_name} je pripravljena.", "success")
+    return redirect(url_for("admin.user_qr", user_id=user.id))
+
+
+@admin_bp.route("/users/<int:user_id>/qr/revoke", methods=["POST"])
+@admin_required
+def revoke_qr(user_id):
+    user = User.query.get_or_404(user_id)
+    user.login_token = None
+    db.session.commit()
+    flash(f"QR prijava za {user.full_name} je preklicana.", "info")
+    return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/users/<int:user_id>/qr")
+@admin_required
+def user_qr(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role != "kupec" or not user.login_token:
+        flash("Za tega uporabnika ni QR kode. Najprej jo ustvari.", "danger")
+        return redirect(url_for("admin.users"))
+    quick_url = url_for("auth.quick_login", token=user.login_token, _external=True)
+    return render_template("admin/user_qr.html", user=user, quick_url=quick_url)

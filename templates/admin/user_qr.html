@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}QR prijava{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('admin.users') }}">Uporabniki</a></li>
+  <li class="breadcrumb-item active">QR prijava</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-qr-code me-2 text-primary"></i>QR prijava – {{ user.full_name }}</h1>
+  <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Nazaj
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card-plain text-center p-4" id="qr-print-area">
+      <h4 class="fw-bold mb-1">Bartog Ajdovščina</h4>
+      <p class="text-muted small mb-3">Skeniraj za vstop v naročila</p>
+      <div id="qrcode" class="d-inline-block p-3 bg-white rounded" style="border:1px solid #e5eaf2;"></div>
+      <div class="small text-muted mt-3">{{ user.full_name }}</div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button onclick="window.print()" class="btn btn-primary btn-sm">
+        <i class="bi bi-printer me-1"></i>Natisni QR
+      </button>
+      <form method="POST" action="{{ url_for('admin.revoke_qr', user_id=user.id) }}"
+            onsubmit="return confirm('Prekličem to QR prijavo? Stara koda ne bo več delovala.');">
+        <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Prekliči QR</button>
+      </form>
+      <form method="POST" action="{{ url_for('admin.make_qr', user_id=user.id) }}"
+            onsubmit="return confirm('Ustvarim novo QR kodo? Stara ne bo več delovala.');">
+        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Nova koda</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card-plain p-3">
+      <div class="form-section-title mb-2"><i class="bi bi-info-circle"></i> Kako deluje</div>
+      <ol class="small mb-3" style="line-height:1.7;">
+        <li>Natisni QR kodo ali jo pošlji kupcu.</li>
+        <li>Kupec jo skenira s telefonom – takoj je prijavljen, brez gesla.</li>
+        <li>Če koda uide iz rok, klikni <strong>Prekliči QR</strong> ali <strong>Nova koda</strong> – stara takoj preneha delovati.</li>
+      </ol>
+      <label class="form-label small fw-semibold">Povezava (za skeniranje / pošiljanje)</label>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" id="quick-url" value="{{ quick_url }}" readonly>
+        <button class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('quick-url').value); this.innerHTML='<i class=\'bi bi-check\'></i>';">
+          <i class="bi bi-clipboard"></i>
+        </button>
+      </div>
+      <div class="alert alert-warning small mt-3 mb-0">
+        <i class="bi bi-shield-exclamation me-1"></i>
+        Kdorkoli ima to povezavo, lahko vstopi kot ta kupec. Hrani jo varno; ob sumu prekliči kodo.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  new QRCode(document.getElementById("qrcode"), {
+    text: "{{ quick_url }}",
+    width: 220, height: 220,
+    colorDark: "#0f172a", colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+</script>
+<style>
+  @media print {
+    .sidebar, .page-hdr, .breadcrumb, .col-lg-7, .d-flex.gap-2 { display: none !important; }
+    #qr-print-area { border: none !important; }
+  }
+</style>
+{% endblock %}

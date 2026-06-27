@@ -209,6 +209,10 @@ def _ensure_schema(db):
             db.session.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'zaposleni'"))
             db.session.commit()
             print("✅  Dodan stolpec 'role' v tabelo users.")
+        if "login_token" not in ucols:
+            db.session.execute(text("ALTER TABLE users ADD COLUMN login_token VARCHAR(64)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'login_token' v tabelo users.")
     except Exception as e:
         print(f"⚠️  Migracija (users.role) preskočena: {e}")
 

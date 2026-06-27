@@ -74,6 +74,7 @@ class User(UserMixin, db.Model):
     is_admin      = db.Column(db.Boolean, default=False)
     is_active_user= db.Column(db.Boolean, default=True)
     role          = db.Column(db.String(20), default="zaposleni")  # admin|zaposleni|kupec
+    login_token   = db.Column(db.String(64))   # za prijavo prek QR povezave (samo kupci)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     orders = db.relationship("Order", backref="employee", lazy=True)

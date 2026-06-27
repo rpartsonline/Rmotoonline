@@ -64,6 +64,17 @@
                   data-bs-target="#resetModal{{ u.id }}">
             <i class="bi bi-key me-1"></i>Ponastavi
           </button>
+          {% if u.role == 'kupec' %}
+          {% if u.login_token %}
+          <a href="{{ url_for('admin.user_qr', user_id=u.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-qr-code me-1"></i>QR
+          </a>
+          {% else %}
+          <form method="POST" action="{{ url_for('admin.make_qr', user_id=u.id) }}" class="d-inline">
+            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-qr-code me-1"></i>Ustvari QR</button>
+          </form>
+          {% endif %}
+          {% endif %}
         </td>
         <td>
           {% if u.id != current_user.id %}
