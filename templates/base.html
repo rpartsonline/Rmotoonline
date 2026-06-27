@@ -14,8 +14,10 @@
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
-    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Bartog Ajdovščina" class="sb-logo">
-    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+    <a href="{{ url_for('main.dashboard') }}" class="sb-brand-link" title="Začetna stran">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Bartog Ajdovščina" class="sb-logo">
+      <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+    </a>
   </div>
 
   <ul class="sb-nav">

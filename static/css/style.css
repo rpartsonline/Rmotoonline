@@ -299,3 +299,7 @@ body {
   font-size: .68rem; color: #fff; font-weight: 700; border-radius: 4px;
   padding: 1px 4px; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+
+/* Logo kot povezava na začetno stran */
+.sb-brand-link { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.sb-brand-link:hover { opacity: .85; }
