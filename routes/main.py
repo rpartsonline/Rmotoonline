@@ -39,9 +39,9 @@ def _today_utc_range():
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    # Kupec nima skupnega pregleda – preusmerimo na njegova naročila
+    # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
-        return redirect(url_for("orders.list_orders"))
+        return redirect(url_for("main.kupec_home"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
@@ -93,6 +93,22 @@ def dashboard():
         recent_orders=recent_orders,
         pending_orders=pending_orders,
     )
+
+
+@main_bp.route("/dobrodosli")
+@login_required
+def kupec_home():
+    if getattr(current_user, "role", "") != "kupec":
+        return redirect(url_for("main.dashboard"))
+    recent = (Order.query
+              .filter_by(employee_id=current_user.id)
+              .order_by(Order.created_at.desc()).limit(5).all())
+    open_count = Order.query.filter_by(
+        employee_id=current_user.id, kind="narocilo", status="novo").count()
+    notif = Order.query.filter_by(
+        employee_id=current_user.id, notify_customer=True).count()
+    return render_template("kupec_home.html",
+                           recent=recent, open_count=open_count, notif=notif)
 
 
 @main_bp.route("/api/new-orders-count")

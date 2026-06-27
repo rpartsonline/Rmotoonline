@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Dobrodošli{% endblock %}
+
+{% block content %}
+<div class="kh-wrap">
+
+  <!-- Pozdrav -->
+  <div class="kh-hero">
+    <div class="kh-badge"><i class="bi bi-tools me-1"></i>Bartog · R-MotoShop Ajdovščina</div>
+    <h1 class="kh-title">Pozdravljeni, {{ current_user.full_name.split(' ')[0] }}!</h1>
+    <p class="kh-sub">
+      Veseli smo vašega obiska. Naročite nadomestne dele ali pošljite povpraševanje –
+      poskrbeli bomo, da boste hitro na cesti.
+    </p>
+    {% if notif %}
+    <a href="{{ url_for('orders.list_orders') }}" class="kh-flash">
+      <i class="bi bi-check-circle-fill me-2"></i>
+      Imate {{ notif }} {% if notif == 1 %}naročilo, ki je{% else %}naročila, ki so{% endif %} pravkar šlo v dobavo – poglejte podrobnosti.
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Glavni dejanji -->
+  <div class="kh-cards">
+    <a href="{{ url_for('orders.new_order') }}" class="kh-card kh-card-order">
+      <div class="kh-card-icon"><i class="bi bi-bag-plus"></i></div>
+      <div class="kh-card-body">
+        <h2>Novo naročilo</h2>
+        <p>Naročite nadomestne dele in pnevmatike za vaše vozilo.</p>
+      </div>
+      <i class="bi bi-arrow-right kh-card-go"></i>
+    </a>
+
+    <a href="{{ url_for('orders.new_inquiry') }}" class="kh-card kh-card-inq">
+      <div class="kh-card-icon"><i class="bi bi-chat-dots"></i></div>
+      <div class="kh-card-body">
+        <h2>Novo povpraševanje</h2>
+        <p>Niste prepričani, kateri del? Vprašajte nas in svetovali vam bomo.</p>
+      </div>
+      <i class="bi bi-arrow-right kh-card-go"></i>
+    </a>
+  </div>
+
+  <!-- Zadnja naročila -->
+  <div class="kh-recent">
+    <div class="kh-recent-head">
+      <span><i class="bi bi-clock-history me-2"></i>Vaša zadnja naročila</span>
+      <a href="{{ url_for('orders.list_orders') }}" class="kh-all">Vsa naročila →</a>
+    </div>
+    {% if recent %}
+    <div class="kh-list">
+      {% for o in recent %}
+      <a href="{{ url_for('orders.order_detail', order_id=o.id) }}" class="kh-row">
+        <span class="kh-num">{{ o.order_number }}</span>
+        <span class="kh-cust">{{ o.customer.name }}</span>
+        <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
+        {% if o.notify_customer and o.status == 'naroceno' %}
+        <i class="bi bi-check-circle-fill text-success ms-1"></i>
+        {% endif %}
+        <span class="kh-date">{{ o.created_at|sl_date }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="kh-empty">
+      <i class="bi bi-inbox d-block mb-2"></i>
+      Še nimate naročil. Začnite z gumbom <strong>Novo naročilo</strong> zgoraj.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>
+  .kh-wrap { max-width: 880px; margin: 0 auto; padding: 8px 0 40px; }
+
+  /* Hero */
+  .kh-hero {
+    background: linear-gradient(135deg, #1e293b 0%, #2563eb 100%);
+    border-radius: 20px; padding: 38px 34px; color: #fff;
+    box-shadow: 0 14px 40px rgba(37,99,235,.28); margin-bottom: 22px;
+  }
+  .kh-badge {
+    display: inline-block; background: rgba(255,255,255,.16);
+    padding: 5px 12px; border-radius: 30px; font-size: .8rem; font-weight: 700;
+    letter-spacing: .02em; margin-bottom: 14px;
+  }
+  .kh-title { font-size: 2.1rem; font-weight: 800; margin: 0 0 8px; letter-spacing: -.02em; }
+  .kh-sub { font-size: 1.05rem; opacity: .92; margin: 0; max-width: 560px; line-height: 1.5; }
+  .kh-flash {
+    display: inline-flex; align-items: center; margin-top: 18px;
+    background: #16a34a; color: #fff; text-decoration: none;
+    padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: .95rem;
+  }
+  .kh-flash:hover { color: #fff; background: #15803d; }
+
+  /* Cards */
+  .kh-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 26px; }
+  .kh-card {
+    display: flex; align-items: center; gap: 16px; text-decoration: none;
+    background: #fff; border: 1px solid #e7ecf3; border-radius: 16px;
+    padding: 24px 22px; color: #0f172a; transition: transform .15s, box-shadow .15s, border-color .15s;
+    position: relative;
+  }
+  .kh-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(15,23,42,.10); }
+  .kh-card-icon {
+    flex: 0 0 56px; height: 56px; width: 56px; border-radius: 14px;
+    display: grid; place-items: center; font-size: 1.7rem; color: #fff;
+  }
+  .kh-card-order:hover { border-color: #2563eb; }
+  .kh-card-order .kh-card-icon { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+  .kh-card-inq:hover { border-color: #0891b2; }
+  .kh-card-inq .kh-card-icon { background: linear-gradient(135deg,#06b6d4,#0891b2); }
+  .kh-card-body h2 { font-size: 1.2rem; font-weight: 800; margin: 0 0 3px; }
+  .kh-card-body p { font-size: .9rem; color: #64748b; margin: 0; line-height: 1.4; }
+  .kh-card-go { margin-left: auto; font-size: 1.3rem; color: #cbd5e1; transition: transform .15s, color .15s; }
+  .kh-card:hover .kh-card-go { color: #2563eb; transform: translateX(4px); }
+
+  /* Recent */
+  .kh-recent { background: #fff; border: 1px solid #e7ecf3; border-radius: 16px; overflow: hidden; }
+  .kh-recent-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid #eef2f7; font-weight: 700; color: #0f172a;
+  }
+  .kh-all { font-size: .88rem; font-weight: 600; color: #2563eb; text-decoration: none; }
+  .kh-list { display: flex; flex-direction: column; }
+  .kh-row {
+    display: flex; align-items: center; gap: 12px; padding: 13px 20px;
+    text-decoration: none; color: #0f172a; border-bottom: 1px solid #f1f5f9;
+  }
+  .kh-row:last-child { border-bottom: 0; }
+  .kh-row:hover { background: #f8fafc; }
+  .kh-num { font-weight: 700; font-family: ui-monospace, monospace; font-size: .9rem; }
+  .kh-cust { flex: 1; color: #475569; }
+  .kh-date { color: #94a3b8; font-size: .85rem; }
+  .kh-empty { padding: 38px 20px; text-align: center; color: #94a3b8; }
+  .kh-empty .bi { font-size: 2rem; }
+
+  @media (max-width: 640px) {
+    .kh-cards { grid-template-columns: 1fr; }
+    .kh-title { font-size: 1.7rem; }
+    .kh-hero { padding: 28px 22px; }
+    .kh-cust { display: none; }
+  }
+</style>
+{% endblock %}

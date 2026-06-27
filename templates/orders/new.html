@@ -194,20 +194,21 @@
 {% endif %}
 
 <!-- ── 4. POSTAVKE ───────────────────────────────────────────────────────── -->
+{% if not (current_user.role == 'kupec' and kind != 'povprasevanje') %}
 <div class="form-section">
   {% if kind == 'povprasevanje' %}
   <div class="form-section-title"><i class="bi bi-list-check"></i> Povpraševanje za nadomestne dele</div>
   <p class="text-muted small mb-3">
     Vpiši nadomestne dele, za katere povprašuješ. Pri vsaki vrstici lahko vpišeš tudi kataloško / IDENT in izvor.
   </p>
-  {% else %}
+  {% elif current_user.role != 'kupec' %}
   <div class="form-section-title"><i class="bi bi-list-check"></i> Postavke naročila</div>
   <p class="text-muted small mb-3">
     Pokljukaj, kar potrebuješ. Pri označeni postavki vpiši <strong>IDENT (Bartog)</strong> in <strong>izvor zaloge</strong> (npr. TQ, 5). Neoznačeno se v naročilo ne shrani.
   </p>
   {% endif %}
 
-  {% if kind != 'povprasevanje' %}
+  {% if kind != 'povprasevanje' and current_user.role != 'kupec' %}
   <!-- Uvoz iz Bartog košarice (slika) -->
   <div class="bi-importer mb-3">
     <div class="form-section-title mb-2"><i class="bi bi-clipboard-data"></i> Uvoz iz slike (Bartog košarica)</div>
@@ -371,6 +372,7 @@
     <div class="cat-items" id="ostali-list"></div>
   </div>
 </div>
+{% endif %}
 
 <!-- ── Submit ────────────────────────────────────────────────────────────── -->
 <div class="d-flex gap-2">
