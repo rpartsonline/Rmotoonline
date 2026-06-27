@@ -26,8 +26,8 @@
       <input type="text" name="new_customer_name" class="form-control" placeholder="Ime in priimek / podjetje" required>
     </div>
     <div class="col-md-4">
-      <label class="form-label small">Telefon</label>
-      <input type="text" name="new_customer_phone" class="form-control" placeholder="040 …">
+      <label class="form-label small fw-semibold">Telefon *</label>
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="040 …" required>
     </div>
   </div>
   {% else %}
@@ -528,18 +528,38 @@ custSel && custSel.addEventListener('change', () => {
   }
 });
 
-// Prepreči oddajo (in s tem brisanje vnosov), če stranka ni izpolnjena
+// Prepreči oddajo (in s tem brisanje vnosov), če obvezna polja niso izpolnjena
 const orderForm = document.getElementById('order-form');
+const ORDER_KIND = "{{ kind }}";
 if (orderForm) {
   orderForm.addEventListener('submit', (e) => {
-    const nameEl = document.querySelector('[name="new_customer_name"]');
-    const name = nameEl ? nameEl.value.trim() : '';
-    const isNew = custSel ? custSel.value === 'new' : true;  // kupec nima izbirnika
-    if (isNew && !name) {
+    const usingExisting = custSel && custSel.value && custSel.value !== 'new';
+    const nameEl  = document.querySelector('[name="new_customer_name"]');
+    const phoneEl = document.querySelector('[name="new_customer_phone"]');
+    const name  = nameEl  ? nameEl.value.trim()  : '';
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const problems = [];
+
+    if (!usingExisting) {
+      if (!name)  problems.push('ime in priimek stranke');
+      if (!phone) problems.push('telefon stranke');
+    }
+
+    // znamka vozila obvezna samo pri naročilih
+    if (ORDER_KIND !== 'povprasevanje') {
+      const exVeh = document.getElementById('existing_vehicle_id');
+      const brandEl = document.getElementById('nv_brand');
+      const hasExisting = exVeh && exVeh.value && /\d/.test(exVeh.value);
+      const hasBrand = brandEl && brandEl.value.trim();
+      if (!hasExisting && !hasBrand) problems.push('znamka vozila');
+    }
+
+    if (problems.length) {
       e.preventDefault();
-      if (newCustF) newCustF.style.display = '';
-      if (nameEl) { nameEl.focus(); nameEl.classList.add('is-invalid'); }
-      alert('Vpiši ime stranke – vnosi se ne bodo izgubili.');
+      if (!usingExisting && newCustF) newCustF.style.display = '';
+      if (!name && nameEl) { nameEl.focus(); nameEl.classList.add('is-invalid'); }
+      else if (!phone && phoneEl) { phoneEl.focus(); phoneEl.classList.add('is-invalid'); }
+      alert('Manjkajo obvezni podatki: ' + problems.join(', ') + '. Vnosi se ne bodo izgubili.');
     }
   });
 }

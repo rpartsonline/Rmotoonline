@@ -175,9 +175,41 @@ def _handle_new(kind):
     cfg = _kind_cfg(kind)
     if request.method == "POST":
         f = request.form
+        is_kupec = getattr(current_user, "role", "") == "kupec"
+
+        # ── Obvezna polja (ime, telefon vedno; znamka vozila samo pri naročilih) ──
+        errors = []
+        existing_cust = f.get("customer_id", "").strip()
+        using_existing_cust = (not is_kupec) and existing_cust and existing_cust != "new"
+
+        if using_existing_cust:
+            _c = Customer.query.get(int(existing_cust)) if existing_cust.isdigit() else None
+            if not _c:
+                errors.append("Izbrana stranka ni veljavna.")
+            else:
+                if not (_c.name or "").strip():
+                    errors.append("Izbrana stranka nima imena.")
+                if not (_c.phone or "").strip():
+                    errors.append("Izbrana stranka nima telefona – dopolni jo ali vpiši novo.")
+        else:
+            if not f.get("new_customer_name", "").strip():
+                errors.append("Ime in priimek stranke sta obvezna.")
+            if not f.get("new_customer_phone", "").strip():
+                errors.append("Telefon stranke je obvezen.")
+
+        # Znamka vozila obvezna SAMO pri naročilih
+        if kind == "narocilo":
+            has_existing_veh = f.get("existing_vehicle_id", "").strip().isdigit()
+            has_new_brand = bool(f.get("new_vehicle_brand", "").strip())
+            if not (has_existing_veh or has_new_brand):
+                errors.append("Znamka vozila je obvezna.")
+
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return _render_new_order_form(kind)
 
         # ── Stranka ──────────────────────────────────────────────────────────
-        is_kupec = getattr(current_user, "role", "") == "kupec"
         if is_kupec:
             # Kupec ne vidi baze strank – vpiše samo ime končne stranke
             name = f.get("new_customer_name", "").strip()

@@ -112,8 +112,17 @@
                class="order-num text-decoration-none">{{ o.order_number }}</a>
           </td>
           <td>
+            {% if o.employee and o.employee.role == 'kupec' %}
+            <div class="small text-info fw-semibold mb-1">
+              <i class="bi bi-shop me-1"></i>Končni kupec: {{ o.employee.full_name }}
+            </div>
+            {% endif %}
+            {% if current_user.role == 'kupec' %}
+            <span class="text-dark fw-semibold">{{ o.customer.name }}</span>
+            {% else %}
             <a href="{{ url_for('customers.customer_detail', customer_id=o.customer_id) }}"
                class="text-decoration-none text-dark">{{ o.customer.name }}</a>
+            {% endif %}
             {% if o.customer.phone %}
             <div class="small text-muted">{{ o.customer.phone }}</div>
             {% endif %}
@@ -151,10 +160,18 @@
             <span><i class="bi bi-clock me-1"></i>{{ o.created_at|sl_time }}</span>
           </td>
           <td>
-            <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-eye"></i>
-            </a>
+            <div class="d-flex gap-1 justify-content-end">
+              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                 class="btn btn-sm btn-outline-primary" title="Ogled">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if current_user.is_admin %}
+              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}"
+                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
+                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% else %}

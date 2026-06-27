@@ -45,13 +45,23 @@
         <div class="card-plain h-100">
           <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
           <div class="info-grid">
+            {% if order.employee and order.employee.role == 'kupec' %}
+            <div class="info-row">
+              <label>Končni kupec</label>
+              <span class="text-info fw-semibold"><i class="bi bi-shop me-1"></i>{{ order.employee.full_name }}</span>
+            </div>
+            {% endif %}
             <div class="info-row">
               <label>Ime</label>
               <span>
+                {% if current_user.role == 'kupec' %}
+                <span class="text-dark fw-semibold">{{ order.customer.name }}</span>
+                {% else %}
                 <a href="{{ url_for('customers.customer_detail', customer_id=order.customer_id) }}"
                    class="text-decoration-none text-dark fw-semibold">
                   {{ order.customer.name }}
                 </a>
+                {% endif %}
               </span>
             </div>
             <div class="info-row">
