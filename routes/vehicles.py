@@ -212,16 +212,63 @@ _vision_quota = {"day": None, "count": 0}
 
 
 def _vin_cleanup(text):
-    """Iz besedila izlušči najboljši VIN kandidat (17 znakov, brez I/O/Q)."""
-    s = (text or "").upper().replace("I", "1").replace("O", "0").replace("Q", "0")
-    s = re.sub(r"[^A-Z0-9]", "", s)
-    best = ""
-    for i in range(0, max(0, len(s) - 16)):
-        w = s[i:i + 17]
-        if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w):
-            best = w
-            break
-    return best
+    """Iz besedila Vision izlušči pravi VIN (17 znakov), ne napisa poleg."""
+    if not text:
+        return ""
+
+    raw_upper = text.upper()
+
+    # Slovenske/oznake besede, ki NISO VIN (da ne zajamemo napisa)
+    bad_words = ("IDENTIFIKAC", "STEVILKA", "ŠTEVILKA", "VOZILO", "LETO",
+                 "IZDELAVE", "SEDEZ", "SEDEŽ", "PROMETN", "DOVOLJENJ")
+
+    def vin_substitute(s):
+        return s.replace("I", "1").replace("O", "0").replace("Q", "0")
+
+    def has_letter_and_digit(s):
+        return any(c.isalpha() for c in s) and any(c.isdigit() for c in s)
+
+    candidates = []
+
+    # 1) Najprej po vrsticah – išči vrstico, ki je videti kot VIN
+    for line in raw_upper.splitlines():
+        # preskoči vrstice z očitnimi napisi
+        if any(w in line for w in bad_words):
+            continue
+        compact = re.sub(r"[^A-Z0-9]", "", vin_substitute(line))
+        # drsno okno 17 znakov
+        for i in range(0, max(0, len(compact) - 16)):
+            w = compact[i:i + 17]
+            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and has_letter_and_digit(w):
+                candidates.append(w)
+
+    # 2) Če nič, poskusi čez cel niz (zadnja možnost)
+    if not candidates:
+        compact = re.sub(r"[^A-Z0-9]", "", vin_substitute(raw_upper))
+        for i in range(0, max(0, len(compact) - 16)):
+            w = compact[i:i + 17]
+            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and has_letter_and_digit(w):
+                candidates.append(w)
+
+    if not candidates:
+        return ""
+
+    # Ocenjevanje: VIN ima običajno mešanico črk in števk (ne samo eno).
+    def score(v):
+        digits = sum(c.isdigit() for c in v)
+        letters = 17 - digits
+        s = 0
+        # želimo vsaj nekaj števk in nekaj črk (pravi VIN), kaznujemo skrajnosti
+        if 2 <= digits <= 14:
+            s += 5
+        if 2 <= letters <= 15:
+            s += 5
+        # kontrolna številka (če ustreza, močno povečaj)
+        # (severnoameriški standard; pri EU vozilih ni vedno, a če ustreza, je skoraj gotovo VIN)
+        return s
+
+    candidates.sort(key=score, reverse=True)
+    return candidates[0]
 
 
 @vehicles_bp.route("/api/vin-ocr", methods=["POST"])
