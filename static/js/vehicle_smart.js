@@ -164,13 +164,60 @@
     document.querySelectorAll('[data-vs="scan-ocr"]').forEach((b) =>
       b.addEventListener("click", () => openScanner("ocr")));
 
-    // Fotografiraj VIN iz datoteke (telefonska kamera) + potrditev
-    const photoInput = $(cfg.vin) ? document.getElementById("nv_vin_photo") : null;
-    if (photoInput) {
-      photoInput.addEventListener("change", function (e) {
-        const file = e.target.files && e.target.files[0];
-        if (file) readVinFromPhoto(file, cfg, status, decode);
-        photoInput.value = "";  // dovoli ponovno isto datoteko
+    // VIN: čiščenje + živo preverjanje 17 znakov
+    const vinEl = cfg.vin ? document.getElementById(cfg.vin) : null;
+    const lenEl = document.getElementById("nv_vin_len");
+    function cleanVin(raw) {
+      return (raw || "")
+        .toUpperCase()
+        .replace(/[IOQ]/g, (m) => ({ I: "1", O: "0", Q: "0" }[m]))  // pogoste zamenjave
+        .replace(/[^A-HJ-NPR-Z0-9]/g, "")  // VIN nima I,O,Q + odstrani presledke/ločila
+        .slice(0, 17);
+    }
+    function updateVinLen() {
+      if (!vinEl || !lenEl) return;
+      const n = vinEl.value.length;
+      if (n === 0) { lenEl.textContent = ""; return; }
+      if (n === 17) {
+        const ok = vinChecksumValid(vinEl.value);
+        lenEl.innerHTML = ok
+          ? '<span class="text-success">✓ 17 znakov</span>'
+          : '<span class="text-warning">17 znakov (preveri točnost)</span>';
+      } else {
+        lenEl.innerHTML = '<span class="text-danger">' + n + '/17 znakov</span>';
+      }
+    }
+    if (vinEl) {
+      vinEl.addEventListener("input", () => {
+        const pos = vinEl.selectionStart;
+        vinEl.value = cleanVin(vinEl.value);
+        try { vinEl.setSelectionRange(pos, pos); } catch (e) {}
+        updateVinLen();
+      });
+      updateVinLen();
+    }
+
+    // Gumb „Prilepi VIN" (telefonova prepoznava besedila → odložišče)
+    const pasteBtn = document.getElementById("nv_vin_paste");
+    if (pasteBtn && vinEl) {
+      pasteBtn.addEventListener("click", async () => {
+        try {
+          const txt = await navigator.clipboard.readText();
+          const vin = cleanVin(txt);
+          if (vin.length >= 11) {
+            vinEl.value = vin;
+            updateVinLen();
+            status(vin.length === 17
+              ? "VIN prilepljen. Preveri točnost in klikni „Razčleni“."
+              : "Prilepljeno " + vin.length + " znakov – VIN mora imeti 17. Preveri.", vin.length === 17 ? "success" : "warning");
+            vinEl.focus();
+          } else {
+            status("V odložišču ni videti VIN številke. Kopiraj VIN (17 znakov) in poskusi znova.", "danger");
+          }
+        } catch (e) {
+          status("Brskalnik ni dovolil branja odložišča. Pritisni v polje VIN in prilepi ročno (dolg pritisk → Prilepi).", "warning");
+          vinEl.focus();
+        }
       });
     }
   };
