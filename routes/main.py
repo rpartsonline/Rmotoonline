@@ -111,6 +111,16 @@ def kupec_home():
                            recent=recent, open_count=open_count, notif=notif)
 
 
+@main_bp.route("/sw.js")
+def service_worker():
+    from flask import send_from_directory, current_app
+    import os
+    resp = send_from_directory(os.path.join(current_app.root_path, "static"), "sw.js")
+    resp.headers["Content-Type"] = "application/javascript"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
+
+
 @main_bp.route("/api/new-orders-count")
 @login_required
 def new_orders_count():

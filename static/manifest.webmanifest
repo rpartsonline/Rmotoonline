@@ -1,0 +1,16 @@
+{
+  "name": "Bartog Ajdovščina",
+  "short_name": "Bartog",
+  "description": "Naročila in povpraševanja – Bartog Ajdovščina",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#1e293b",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/static/img/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/img/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/img/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

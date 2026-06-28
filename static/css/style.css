@@ -303,3 +303,11 @@ body {
 /* Logo kot povezava na začetno stran */
 .sb-brand-link { display: flex; align-items: center; gap: 8px; text-decoration: none; }
 .sb-brand-link:hover { opacity: .85; }
+
+/* Urnik dostave – časovni čipi */
+.delivery-time-chip {
+  display: inline-flex; align-items: center;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1e3a8a; font-weight: 700; font-size: .95rem;
+  padding: 8px 16px; border-radius: 10px; border: 1px solid #bfdbfe;
+}
