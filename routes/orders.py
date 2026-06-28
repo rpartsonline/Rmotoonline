@@ -9,6 +9,7 @@ from models import (
     Customer, Vehicle,
     ORDER_STATUSES, STATUS_DICT, ITEM_STATUSES, ITEM_STATUS_DICT,
     ORDER_SOURCES, ITEM_UNITS, ENGINE_TYPES, TRANSMISSIONS,
+    DELIVERY_URGENCY, DELIVERY_URGENCY_DICT,
     ORDER_ITEM_CATALOG, ITEM_CATALOG_MAP,
     TIRE_WIDTHS, TIRE_ASPECTS, TIRE_DIAMETERS,
     TIRE_SEASONS, TIRE_BRANDS, MOTO_TIRE_BRANDS, AGRO_TIRE_BRANDS, TRUCK_TIRE_BRANDS,
@@ -241,6 +242,11 @@ def _handle_new(kind):
             if not (has_existing_veh or has_new_brand):
                 errors.append("Znamka vozila je obvezna.")
 
+        # Kupec mora pri naročilu izbrati nujnost dostave
+        if is_kupec and kind == "narocilo":
+            if f.get("delivery_urgency", "") not in DELIVERY_URGENCY_DICT:
+                errors.append("Izberi, kdaj potrebuješ nadomestne dele.")
+
         if errors:
             for e in errors:
                 flash(e, "danger")
@@ -319,6 +325,7 @@ def _handle_new(kind):
             status       = cfg["initial_status"],
             source       = f.get("source", "klic"),
             notes        = f.get("notes", "").strip(),
+            delivery_urgency = (f.get("delivery_urgency") if f.get("delivery_urgency") in DELIVERY_URGENCY_DICT else None),
         )
         db.session.add(order)
         db.session.flush()
@@ -410,6 +417,7 @@ def _render_new_order_form(kind="narocilo"):
         customers    = Customer.query.order_by(Customer.name).all(),
         sources      = ORDER_SOURCES,
         item_catalog = ORDER_ITEM_CATALOG,
+        delivery_urgency = DELIVERY_URGENCY,
         car_makes    = CAR_MAKES,
         engine_types = ENGINE_TYPES,
         transmissions = TRANSMISSIONS,
@@ -455,6 +463,7 @@ def order_detail(order_id):
         item_statuses= ITEM_STATUSES,
         item_units   = ITEM_UNITS,
         STATUS_DICT  = cfg["status_dict"],
+        delivery_urgency_label = DELIVERY_URGENCY_DICT.get(order.delivery_urgency, ""),
         kind         = cfg["kind"],
         page_title   = cfg["page_title"],
         list_url     = url_for(cfg["list_endpoint"]),

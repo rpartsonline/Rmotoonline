@@ -188,6 +188,11 @@
              placeholder="Npr. stranka pokliče ko je pripravljeno…">
     </div>
   </div>
+  <div class="mt-3">
+    <label class="form-label small fw-semibold"><i class="bi bi-images me-1"></i>Slike iskanega nadomestnega dela</label>
+    <input type="file" name="order_images" class="form-control" accept="image/*" multiple>
+    <div class="form-text">Lahko priložiš eno ali več slik (npr. star del, tablica vozila, koda).</div>
+  </div>
 </div>
 {% endif %}
 
@@ -372,8 +377,22 @@
   </div>
 </div>
 
-<!-- ── Urnik dostave (informativno) ─────────────────────────────────────────── -->
+<!-- ── Dostava ──────────────────────────────────────────────────────────────── -->
 {% if kind != 'povprasevanje' %}
+{% if current_user.role == 'kupec' %}
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-truck"></i> Kdaj potrebuješ nadomestne dele? *</div>
+  <p class="text-muted small mb-2">Izberi eno možnost (obvezno).</p>
+  <div class="urgency-options">
+    {% for key, label in delivery_urgency %}
+    <label class="urgency-opt">
+      <input type="radio" name="delivery_urgency" value="{{ key }}" required>
+      <span><i class="bi bi-check-circle me-1"></i>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
 <div class="form-section">
   <div class="form-section-title"><i class="bi bi-truck"></i> Urnik dostave</div>
   <p class="text-muted small mb-2">Odhodi dostave iz Bartog Ajdovščine (pon–pet):</p>
@@ -386,6 +405,7 @@
   </div>
   <div class="form-text mt-2">Informativno – okvirni časi odhodov razvoza.</div>
 </div>
+{% endif %}
 {% endif %}
 
 <!-- ── Submit ────────────────────────────────────────────────────────────── -->
@@ -589,6 +609,12 @@ if (orderForm) {
       const hasExisting = exVeh && exVeh.value && /\d/.test(exVeh.value);
       const hasBrand = brandEl && brandEl.value.trim();
       if (!hasExisting && !hasBrand) problems.push('znamka vozila');
+    }
+
+    // kupec mora pri naročilu izbrati nujnost dostave
+    if (window.IS_KUPEC === true && ORDER_KIND !== 'povprasevanje') {
+      const urg = document.querySelector('input[name="delivery_urgency"]:checked');
+      if (!urg) problems.push('kdaj potrebuješ nadomestne dele');
     }
 
     if (problems.length) {

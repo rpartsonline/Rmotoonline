@@ -311,3 +311,18 @@ body {
   color: #1e3a8a; font-weight: 700; font-size: .95rem;
   padding: 8px 16px; border-radius: 10px; border: 1px solid #bfdbfe;
 }
+
+/* Nujnost dostave – izbira kupca */
+.urgency-options { display: flex; flex-direction: column; gap: 10px; }
+.urgency-opt { cursor: pointer; margin: 0; }
+.urgency-opt input { position: absolute; opacity: 0; }
+.urgency-opt span {
+  display: block; padding: 14px 18px; border-radius: 12px;
+  border: 2px solid #e5eaf2; background: #fff; font-weight: 600; color: #334155;
+  transition: all .15s;
+}
+.urgency-opt span:hover { border-color: #bfdbfe; background: #f8fafc; }
+.urgency-opt input:checked + span {
+  border-color: #2563eb; background: linear-gradient(135deg,#eff6ff,#dbeafe); color: #1e3a8a;
+}
+.urgency-opt input:checked + span .bi { color: #2563eb; }

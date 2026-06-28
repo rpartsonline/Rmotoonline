@@ -57,6 +57,14 @@ ITEM_STATUSES = [
 ITEM_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ITEM_STATUSES}
 
 ORDER_SOURCES = ["klic", "whatsapp", "email", "osebno", "drugo"]
+
+# Nujnost dostave (izbere končni kupec – Bartog)
+DELIVERY_URGENCY = [
+    ("takoj",     "Nadomestne dele potrebujem takoj"),
+    ("takoj_pop", "Nadomestne dele potrebujem takoj – lahko s popoldansko dostavo"),
+    ("jutri",     "Nadomestne dele potrebujem jutri"),
+]
+DELIVERY_URGENCY_DICT = {k: v for k, v in DELIVERY_URGENCY}
 ENGINE_TYPES  = ["bencin", "diesel", "hibrid", "elektro", "plin", "drugo"]
 TRANSMISSIONS = ["ročni", "avtomatski", "poluavtomatski"]
 ITEM_UNITS    = ["kos", "komplet", "liter", "par", "set", "ura"]
@@ -158,6 +166,7 @@ class Order(db.Model):
     completed_at = db.Column(db.DateTime)    # ko je zaključeno
     delivery_date = db.Column(db.Date)       # predviden prihod materiala (povpraševanja)
     notify_customer = db.Column(db.Boolean, default=False)  # nova obvestilo za kupca (npr. naročeno)
+    delivery_urgency = db.Column(db.String(20))  # kupčeva nujnost: takoj | takoj_pop | jutri
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")

@@ -138,6 +138,16 @@
       </div>
     </div>
 
+    <!-- Nujnost dostave (kupec) -->
+    {% if order.delivery_urgency %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Želja kupca glede dostave</div>
+      <p class="mb-0 fw-semibold text-primary">
+        <i class="bi bi-clock-history me-1"></i>{{ delivery_urgency_label }}
+      </p>
+    </div>
+    {% endif %}
+
     <!-- Opomba -->
     {% if order.notes %}
     <div class="card-plain mb-3">
