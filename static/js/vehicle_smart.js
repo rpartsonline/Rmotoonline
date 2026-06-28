@@ -164,65 +164,32 @@
     document.querySelectorAll('[data-vs="scan-ocr"]').forEach((b) =>
       b.addEventListener("click", () => openScanner("ocr")));
 
-    // VIN: čiščenje + živo preverjanje 17 znakov
+    // Fotografiraj VIN iz datoteke (telefonska kamera) + potrditev
+    const photoInput = cfg.vin ? document.getElementById("nv_vin_photo") : null;
+    if (photoInput) {
+      photoInput.addEventListener("change", function (e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) readVinFromPhoto(file, cfg, status, decode);
+        photoInput.value = "";  // dovoli ponovno isto datoteko
+      });
+    }
+
+    // VIN nima črk I, O, Q – ob tipkanju samodejno popravimo (O→0, I→1, Q→0)
     const vinEl = cfg.vin ? document.getElementById(cfg.vin) : null;
-    const lenEl = document.getElementById("nv_vin_len");
-    function cleanVin(raw) {
-      return (raw || "")
-        .toUpperCase()
-        .replace(/[IOQ]/g, (m) => ({ I: "1", O: "0", Q: "0" }[m]))  // pogoste zamenjave
-        .replace(/[^A-HJ-NPR-Z0-9]/g, "")  // VIN nima I,O,Q + odstrani presledke/ločila
-        .slice(0, 17);
-    }
-    function updateVinLen() {
-      if (!vinEl || !lenEl) return;
-      const n = vinEl.value.length;
-      if (n === 0) { lenEl.textContent = ""; return; }
-      if (n === 17) {
-        const ok = vinChecksumValid(vinEl.value);
-        lenEl.innerHTML = ok
-          ? '<span class="text-success">✓ 17 znakov</span>'
-          : '<span class="text-warning">17 znakov (preveri točnost)</span>';
-      } else {
-        lenEl.innerHTML = '<span class="text-danger">' + n + '/17 znakov</span>';
-      }
-    }
     if (vinEl) {
       vinEl.addEventListener("input", () => {
         const pos = vinEl.selectionStart;
-        vinEl.value = cleanVin(vinEl.value);
-        try { vinEl.setSelectionRange(pos, pos); } catch (e) {}
-        updateVinLen();
-      });
-      updateVinLen();
-    }
-
-    // Gumb „Prilepi VIN" (telefonova prepoznava besedila → odložišče)
-    const pasteBtn = document.getElementById("nv_vin_paste");
-    if (pasteBtn && vinEl) {
-      pasteBtn.addEventListener("click", async () => {
-        try {
-          const txt = await navigator.clipboard.readText();
-          const vin = cleanVin(txt);
-          if (vin.length >= 11) {
-            vinEl.value = vin;
-            updateVinLen();
-            status(vin.length === 17
-              ? "VIN prilepljen. Preveri točnost in klikni „Razčleni“."
-              : "Prilepljeno " + vin.length + " znakov – VIN mora imeti 17. Preveri.", vin.length === 17 ? "success" : "warning");
-            vinEl.focus();
-          } else {
-            status("V odložišču ni videti VIN številke. Kopiraj VIN (17 znakov) in poskusi znova.", "danger");
-          }
-        } catch (e) {
-          status("Brskalnik ni dovolil branja odložišča. Pritisni v polje VIN in prilepi ročno (dolg pritisk → Prilepi).", "warning");
-          vinEl.focus();
+        const fixed = vinEl.value.toUpperCase()
+          .replace(/I/g, "1").replace(/O/g, "0").replace(/Q/g, "0");
+        if (fixed !== vinEl.value) {
+          vinEl.value = fixed;
+          try { vinEl.setSelectionRange(pos, pos); } catch (e) {}
         }
       });
     }
   };
 
-  // Branje VIN iz fotografije (ostra slika iz telefonske kamere)
+  // Branje VIN iz fotografije (ostra slika iz telefonske kamere) + potrditev
   async function readVinFromPhoto(file, cfg, status, decode) {
     status("Berem fotografijo… (nekaj sekund)", "info");
     let bitmap;
@@ -232,7 +199,6 @@
       status("Slike ni bilo mogoče odpreti. Poskusi znova.", "danger");
       return;
     }
-    // Pomanjšamo na razumno širino (hitrost), a ohranimo ostrino
     const maxW = 1600;
     const scale = Math.min(1, maxW / bitmap.width);
     const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
@@ -283,7 +249,6 @@
       status("VIN ni prepoznan. Poskusi z bolj ostro sliko, več svetlobe in poravnano številko.", "danger");
       return;
     }
-    // Zahtevaj potrditev: vpiši v polje, da uporabnik preveri in po potrebi popravi
     if (cfg && cfg.vin) {
       const el2 = document.getElementById(cfg.vin);
       if (el2) { el2.value = best; el2.focus(); el2.select && el2.select(); }
@@ -294,6 +259,7 @@
       status("VIN prebran, a kontrolna številka ne ustreza – natančno preveri vsak znak, nato „Razčleni“.", "warning");
     }
   }
+
 
   // ── Skener ────────────────────────────────────────────────────────────────
   function el(id) { return document.getElementById(id); }
@@ -329,7 +295,7 @@
 
   async function openScanner(mode) {
     const cam = VS._cam; cam.mode = mode;
-    el("scan-title").textContent = mode === "barcode" ? "Skeniraj identifikacijsko številko / VIN" : "Fotografiraj identifikacijsko številko / VIN";
+    el("scan-title").textContent = mode === "barcode" ? "Skeniraj VIN kodo" : "Fotografiraj VIN";
     el("scan-capture").style.display = mode === "ocr" ? "" : "none";
     if (!cam.modal) cam.modal = new bootstrap.Modal(el("scanModal"));
     cam.modal.show();
@@ -404,59 +370,33 @@
     const v = el("scan-video"), c = el("scan-canvas");
     if (!v.videoWidth) return;
     // Izrežemo samo področje vodila (sredinski pas) in ga povečamo
-    const gw = 0.88, gh = 0.22, scale = 3;
+    const gw = 0.88, gh = 0.22, scale = 2.5;
     const sx = v.videoWidth * (1 - gw) / 2, sy = v.videoHeight * (1 - gh) / 2;
     const sw = v.videoWidth * gw, sh = v.videoHeight * gh;
     c.width = sw * scale; c.height = sh * scale;
     const ctx = c.getContext("2d");
     ctx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
-
-    // Osnovna sivinska slika
-    let base;
-    try { base = ctx.getImageData(0, 0, c.width, c.height); } catch (e) { base = null; }
-
-    el("scan-msg").textContent = "Berem VIN… (nekaj sekund)";
-
-    // Pripravi različico z danim pragom (binarizacija)
-    function applyThreshold(lo, hi) {
-      if (!base) return;
-      const img = ctx.createImageData(base.width, base.height);
-      const s = base.data, d = img.data;
-      for (let i = 0; i < s.length; i += 4) {
-        let g = 0.3 * s[i] + 0.59 * s[i + 1] + 0.11 * s[i + 2];
-        g = g < lo ? 0 : g > hi ? 255 : (g - lo) * (255 / Math.max(1, hi - lo));
+    // Sivine + kontrast (prag) za boljše prepoznavanje
+    try {
+      const img = ctx.getImageData(0, 0, c.width, c.height), d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        let g = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+        g = g < 105 ? 0 : g > 155 ? 255 : (g - 105) * (255 / 50);
         d[i] = d[i + 1] = d[i + 2] = Math.max(0, Math.min(255, g));
-        d[i + 3] = 255;
       }
       ctx.putImageData(img, 0, 0);
-    }
-
-    // Več poskusov: različni pragovi + način postavitve (PSM 7 = vrstica, 6 = blok)
-    const passes = [
-      { lo: 105, hi: 155, psm: "7" },
-      { lo: 90,  hi: 170, psm: "7" },
-      { lo: 120, hi: 140, psm: "6" },
-    ];
-    const found = [];
-    for (const p of passes) {
-      applyThreshold(p.lo, p.hi);
-      try {
-        const { data: { text } } = await Tesseract.recognize(c, "eng", {
-          tessedit_char_whitelist: "ABCDEFGHJKLMNPRSTUVWXYZ0123456789",
-          tessedit_pageseg_mode: p.psm,
-        });
-        const vin = bestVin(text);
-        if (vin) {
-          found.push(vin);
-          if (vinChecksumValid(vin)) { foundVin(vin); return; }  // takoj, če je preverjen
-        }
-      } catch (e) {}
-    }
-    if (found.length) {
-      foundVin(found[0]);  // ni preverjen s kontrolno številko, a najboljši kandidat
-      el("scan-msg").textContent = "VIN prebran (preveri točnost).";
-    } else {
-      el("scan-msg").textContent = "VIN ni prepoznan. Poskusi bližje, bolj ostro in z več svetlobe.";
+    } catch (e) {}
+    el("scan-msg").textContent = "Berem VIN… (nekaj sekund)";
+    try {
+      const { data: { text } } = await Tesseract.recognize(c, "eng", {
+        tessedit_char_whitelist: "ABCDEFGHJKLMNPRSTUVWXYZ0123456789",
+        tessedit_pageseg_mode: "7",
+      });
+      const vin = bestVin(text);
+      if (vin) foundVin(vin);
+      else el("scan-msg").textContent = "VIN ni prepoznan. Poskusi bližje, bolj ostro in z več svetlobe.";
+    } catch (e) {
+      el("scan-msg").textContent = "Napaka pri branju. Poskusi znova ali vpiši ročno.";
     }
   }
 
