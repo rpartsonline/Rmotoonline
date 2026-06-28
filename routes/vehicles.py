@@ -200,3 +200,74 @@ def api_decode_vin(vin):
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 502
+
+
+# ── Branje VIN iz slike prek Google Cloud Vision (z dnevno omejitvijo) ─────────
+import os
+import re
+import base64
+from datetime import date
+
+_vision_quota = {"day": None, "count": 0}
+
+
+def _vin_cleanup(text):
+    """Iz besedila izlušči najboljši VIN kandidat (17 znakov, brez I/O/Q)."""
+    s = (text or "").upper().replace("I", "1").replace("O", "0").replace("Q", "0")
+    s = re.sub(r"[^A-Z0-9]", "", s)
+    best = ""
+    for i in range(0, max(0, len(s) - 16)):
+        w = s[i:i + 17]
+        if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w):
+            best = w
+            break
+    return best
+
+
+@vehicles_bp.route("/api/vin-ocr", methods=["POST"])
+@login_required
+def api_vin_ocr():
+    api_key = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
+    if not api_key:
+        return jsonify({"ok": False, "error": "no_key"}), 200  # rezerva (Tesseract) na strani odjemalca
+
+    # Dnevna varnostna omejitev (privzeto 200 poizvedb/dan)
+    try:
+        limit = int(os.environ.get("VISION_DAILY_LIMIT", "200"))
+    except ValueError:
+        limit = 200
+    today = date.today().isoformat()
+    if _vision_quota["day"] != today:
+        _vision_quota["day"] = today
+        _vision_quota["count"] = 0
+    if _vision_quota["count"] >= limit:
+        return jsonify({"ok": False, "error": "daily_limit"}), 200
+
+    data = request.get_json(silent=True) or {}
+    img_b64 = (data.get("image") or "").split(",")[-1]  # odstrani "data:image/...;base64,"
+    if not img_b64:
+        return jsonify({"ok": False, "error": "no_image"}), 400
+
+    payload = json.dumps({
+        "requests": [{
+            "image": {"content": img_b64},
+            "features": [{"type": "TEXT_DETECTION"}],
+        }]
+    }).encode()
+
+    url = f"https://vision.googleapis.com/v1/images:annotate?key={urllib.parse.quote(api_key)}"
+    try:
+        req = urllib.request.Request(url, data=payload,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            res = json.loads(r.read().decode())
+        _vision_quota["count"] += 1
+        anno = (res.get("responses") or [{}])[0]
+        text = (anno.get("fullTextAnnotation") or {}).get("text", "") \
+            or (anno.get("textAnnotations") or [{}])[0].get("description", "")
+        vin = _vin_cleanup(text)
+        if vin:
+            return jsonify({"ok": True, "vin": vin})
+        return jsonify({"ok": False, "error": "no_vin", "raw": text[:200]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502

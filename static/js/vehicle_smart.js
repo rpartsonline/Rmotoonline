@@ -189,16 +189,62 @@
     }
   };
 
-  // Branje VIN iz fotografije (ostra slika iz telefonske kamere) + potrditev
+  // Branje VIN iz fotografije: najprej Google Vision (točno), sicer Tesseract (rezerva)
   async function readVinFromPhoto(file, cfg, status, decode) {
     status("Berem fotografijo… (nekaj sekund)", "info");
-    let bitmap;
+
+    // Pripravimo pomanjšano sliko (hitrejši prenos)
+    let dataUrl = null;
     try {
-      bitmap = await createImageBitmap(file);
-    } catch (e) {
-      status("Slike ni bilo mogoče odpreti. Poskusi znova.", "danger");
-      return;
+      const bmp = await createImageBitmap(file);
+      const maxW = 1600;
+      const sc = Math.min(1, maxW / bmp.width);
+      const w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc);
+      const cc = document.createElement("canvas");
+      cc.width = w; cc.height = h;
+      cc.getContext("2d").drawImage(bmp, 0, 0, w, h);
+      dataUrl = cc.toDataURL("image/jpeg", 0.9);
+    } catch (e) {}
+
+    // 1) Poskusi Google Vision
+    if (dataUrl) {
+      try {
+        const resp = await fetch("/vehicles/api/vin-ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: dataUrl }),
+        });
+        const j = await resp.json();
+        if (j.ok && j.vin) {
+          setVinResult(j.vin, cfg, status, true);
+          return;
+        }
+        if (j.error === "daily_limit") {
+          status("Dnevna meja branja je dosežena. Vpiši VIN ročno.", "warning");
+          return;
+        }
+        // če ni ključa ali ni našel VIN-a → gremo na Tesseract rezervo
+      } catch (e) {}
     }
+
+    // 2) Rezerva: Tesseract (lokalno v brskalniku, manj zanesljiv)
+    await readVinTesseract(file, cfg, status);
+  }
+
+  function setVinResult(vin, cfg, status, validatedSource) {
+    if (cfg && cfg.vin) {
+      const el2 = document.getElementById(cfg.vin);
+      if (el2) { el2.value = vin; el2.focus(); el2.select && el2.select(); }
+    }
+    const ok = vinChecksumValid(vin);
+    if (ok) status("VIN prebran in preverjen. Preveri točnost in klikni „Razčleni“.", "success");
+    else status("VIN prebran – natančno preveri vsak znak, nato „Razčleni“.", "warning");
+  }
+
+  async function readVinTesseract(file, cfg, status) {
+    let bitmap;
+    try { bitmap = await createImageBitmap(file); }
+    catch (e) { status("Slike ni bilo mogoče odpreti. Poskusi znova.", "danger"); return; }
     const maxW = 1600;
     const scale = Math.min(1, maxW / bitmap.width);
     const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
@@ -206,10 +252,8 @@
     c.width = w; c.height = h;
     const ctx = c.getContext("2d");
     ctx.drawImage(bitmap, 0, 0, w, h);
-
     let base;
     try { base = ctx.getImageData(0, 0, w, h); } catch (e) { base = null; }
-
     function applyThreshold(lo, hi) {
       if (!base) return;
       const img = ctx.createImageData(w, h), s = base.data, d = img.data;
@@ -220,12 +264,10 @@
       }
       ctx.putImageData(img, 0, 0);
     }
-
     const passes = [
       { lo: 110, hi: 150, psm: "6" },
-      { lo: 95,  hi: 165, psm: "6" },
+      { lo: 95, hi: 165, psm: "6" },
       { lo: 120, hi: 140, psm: "11" },
-      { lo: 100, hi: 160, psm: "3" },
     ];
     const found = [];
     for (const p of passes) {
@@ -236,28 +278,13 @@
           tessedit_pageseg_mode: p.psm,
         });
         const vin = bestVin(text);
-        if (vin) {
-          found.push(vin);
-          if (vinChecksumValid(vin)) break;
-        }
+        if (vin) { found.push(vin); if (vinChecksumValid(vin)) break; }
       } catch (e) {}
     }
-
     const valid = found.find(vinChecksumValid);
     const best = valid || found[0] || "";
-    if (!best) {
-      status("VIN ni prepoznan. Poskusi z bolj ostro sliko, več svetlobe in poravnano številko.", "danger");
-      return;
-    }
-    if (cfg && cfg.vin) {
-      const el2 = document.getElementById(cfg.vin);
-      if (el2) { el2.value = best; el2.focus(); el2.select && el2.select(); }
-    }
-    if (valid) {
-      status("VIN prebran in preverjen. Preveri točnost in klikni „Razčleni“.", "success");
-    } else {
-      status("VIN prebran, a kontrolna številka ne ustreza – natančno preveri vsak znak, nato „Razčleni“.", "warning");
-    }
+    if (!best) { status("VIN ni prepoznan. Poskusi z bolj ostro sliko in več svetlobe.", "danger"); return; }
+    setVinResult(best, cfg, status, false);
   }
 
 
