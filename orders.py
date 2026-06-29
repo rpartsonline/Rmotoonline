@@ -19,6 +19,47 @@ from routes.vehicles import CAR_MAKES
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
+
+# ── SMS helper (Infobip) ──────────────────────────────────────────────────────
+
+def send_sms(telefon, sporocilo):
+    if not telefon:
+        return False
+    telefon = telefon.replace(" ", "").replace("-", "")
+    if telefon.startswith("0"):
+        telefon = "386" + telefon[1:]
+    telefon = telefon.replace("+", "")
+    api_key  = os.environ.get("INFOBIP_API_KEY")
+    base_url = os.environ.get("INFOBIP_BASE_URL")
+    sender   = os.environ.get("INFOBIP_SENDER", "38651300548")
+    if not api_key or not base_url:
+        print("SMS ni poslan – manjka INFOBIP_API_KEY ali INFOBIP_BASE_URL")
+        return False
+    try:
+        import http.client, json as _json
+        conn = http.client.HTTPSConnection(base_url)
+        payload = _json.dumps({
+            "messages": [{
+                "destinations": [{"to": telefon}],
+                "sender": sender,
+                "content": {"text": sporocilo}
+            }]
+        })
+        headers = {
+            "Authorization": f"App {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        conn.request("POST", "/sms/3/messages", payload, headers)
+        res = conn.getresponse()
+        data = res.read()
+        print(f"SMS status: {res.status}, odgovor: {data.decode('utf-8')[:200]}")
+        return res.status == 200
+    except Exception as e:
+        print(f"SMS izjema: {e}")
+        return False
+
+
 ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
 
 
@@ -517,11 +558,18 @@ def update_status(order_id):
     if new_status == "zakljuceno" and not order.completed_at:
         order.completed_at = datetime.utcnow()
 
-    # Ko gre na „Naročeno" → obvesti kupca (zelena kljukica) + (kasneje) SMS stranki
+    # Ko gre na „Naročeno" → obvesti kupca + SMS
     if new_status == "naroceno":
         order.notify_customer = True
-        # TODO SMS: ko vklopimo SMS, tukaj pošljemo sporočilo stranki
-        #   "Vaše naročilo je naročeno. Dostavimo ga v čim krajšem možnem času."
+        telefon = order.customer.phone if order.customer else None
+        if telefon:
+            send_sms(telefon,
+                "Pozdravljeni! Vaše naročilo je bilo uspešno obdelano. "
+                "Naročene nadomestne dele lahko prevzamete osebno ali pa "
+                "vam jih dostavimo v okviru naših rednih dostavnih terminov.\n"
+                "Hvala za vaše zaupanje!\n"
+                "Ekipa Bartog Ajdovščina"
+            )
 
     order.status     = new_status
     order.updated_at = datetime.utcnow()
