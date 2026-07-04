@@ -82,12 +82,34 @@ def edit_customer(customer_id):
 @login_required
 def delete_customer(customer_id):
     from flask_login import current_user
+    from models import Order, OrderItem, OrderStatusLog, OrderImage
+    import os
+
     if not current_user.is_admin:
         flash("Samo admin lahko izbriše stranko.", "danger")
         return redirect(url_for("customers.list_customers"))
+
     customer = Customer.query.get_or_404(customer_id)
     name = customer.name
+
+    # Izbriši vsa naročila stranke in vse kar je z njimi povezano
+    orders = Order.query.filter_by(customer_id=customer_id).all()
+    for order in orders:
+        OrderStatusLog.query.filter_by(order_id=order.id).delete()
+        OrderItem.query.filter_by(order_id=order.id).delete()
+        # Izbriši slike iz diska
+        from flask import current_app
+        folder = current_app.config.get("UPLOAD_FOLDER", "")
+        for img in order.images:
+            try:
+                from werkzeug.utils import secure_filename
+                os.remove(os.path.join(folder, secure_filename(img.filename)))
+            except Exception:
+                pass
+            db.session.delete(img)
+        db.session.delete(order)
+
     db.session.delete(customer)
     db.session.commit()
-    flash(f"Stranka {name} je bila izbrisana.", "success")
+    flash(f"Stranka {name} in vsa njena naročila so bila izbrisana.", "success")
     return redirect(url_for("customers.list_customers"))
