@@ -1,7 +1,5 @@
-# Shrani to kot: routes/import_customers.py
-# Po uspešnem uvozu IZBRIŠI to datoteko!
-
-from flask import Blueprint, flash, redirect, url_for
+# routes/import_customers.py - IZBRIŠI po uvozu!
+from flask import Blueprint, redirect, url_for
 from flask_login import login_required, current_user
 from models import db, Customer
 
@@ -5018,27 +5016,32 @@ CUSTOMERS_DATA = [
   }
 ]
 
-@import_bp.route('/uvozi-stranke', methods=['GET', 'POST'])
+@import_bp.route('/uvozi-stranke', methods=['GET'])
 @login_required
 def uvozi_stranke():
     if not current_user.is_admin:
         return 'Samo admin.', 403
     uvozenih = 0
-    preskocenih = 0
+    posodobljenih = 0
     for c in CUSTOMERS_DATA:
         existing = Customer.query.filter(Customer.name.ilike(c['name'])).first()
         if existing:
-            preskocenih += 1
-            continue
-        customer = Customer(
-            customer_code = c['code'],
-            name          = c['name'],
-            address       = c['address'],
-            postal        = c['postal'],
-            phone         = c['phone'],
-            email         = c['email'],
-        )
-        db.session.add(customer)
-        uvozenih += 1
+            existing.customer_code = c['code'] or existing.customer_code
+            existing.address = c['address'] or existing.address
+            existing.postal = c['postal'] or existing.postal
+            existing.phone = c['phone'] or existing.phone
+            existing.email = c['email'] or existing.email
+            posodobljenih += 1
+        else:
+            customer = Customer(
+                customer_code=c['code'], name=c['name'],
+                address=c['address'], postal=c['postal'],
+                phone=c['phone'], email=c['email'],
+            )
+            db.session.add(customer)
+            uvozenih += 1
     db.session.commit()
-    return f'<h2>Uvoz zaključen!</h2><p>Uvoženih: {uvozenih}</p><p>Preskočenih (že obstajajo): {preskocenih}</p><a href="/customers/">Pojdi na stranke</a>'
+    return (f'<h2>Uvoz zaključen!</h2>'
+            f'<p>Novih: {uvozenih}</p>'
+            f'<p>Posodobljenih: {posodobljenih}</p>'
+            f'<a href="/customers/">Pojdi na stranke</a>')

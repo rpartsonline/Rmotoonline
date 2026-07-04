@@ -5,6 +5,32 @@
 <ol class="breadcrumb mb-0 small">
   <li class="breadcrumb-item active">Stranke</li>
 </ol>
+<script>
+(function() {
+  const input = document.getElementById('live-search');
+  const clearBtn = document.getElementById('clear-search');
+  const countEl = document.getElementById('search-count');
+  const rows = document.querySelectorAll('.customer-row');
+  const totalHeader = document.querySelector('.tbl-header-title');
+  const total = rows.length;
+  function filter(val) {
+    const q = val.toLowerCase().trim();
+    let visible = 0;
+    rows.forEach(function(row) {
+      const match = !q || row.dataset.search.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (totalHeader) totalHeader.textContent = visible + ' strank';
+    countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
+    clearBtn.style.display = q ? '' : 'none';
+  }
+  if (input) {
+    input.addEventListener('input', function() { filter(this.value); });
+    clearBtn.addEventListener('click', function() { input.value = ''; filter(''); input.focus(); });
+  }
+})();
+</script>
 {% endblock %}
 
 {% block content %}
@@ -21,8 +47,7 @@
     <div class="position-relative flex-grow-1" style="max-width:480px;">
       <i class="bi bi-search position-absolute" style="left:10px;top:50%;transform:translateY(-50%);color:#aaa;"></i>
       <input type="text" id="live-search" class="form-control form-control-sm ps-4"
-             placeholder="Išči po imenu, telefonu, e-pošti ali šifri…"
-             value="{{ search }}" autocomplete="off">
+             placeholder="Išči po imenu, telefonu, e-pošti ali šifri…" autocomplete="off">
     </div>
     <span id="search-count" class="text-muted small"></span>
     <button type="button" id="clear-search" class="btn btn-sm btn-outline-secondary" style="display:none;">
@@ -39,9 +64,11 @@
     <table class="table table-hover">
       <thead>
         <tr>
+          <th>Šifra</th>
           <th>Ime</th>
           <th>Telefon</th>
           <th>E-pošta</th>
+          <th>Pošta</th>
           <th>Vozil</th>
           <th>Naročil</th>
           <th>Od</th>
@@ -50,8 +77,8 @@
       </thead>
       <tbody>
         {% for c in customers %}
-        <tr class="customer-row" data-search="{{ c.name|lower }} {{ c.phone or '' }} {{ c.email or '' }} {{ c.customer_code or '' }}">
-        <tr>
+        <tr class="customer-row" data-search="{{ (c.name or '')|lower }} {{ c.phone or '' }} {{ c.email or '' }} {{ c.customer_code or '' }} {{ c.postal or '' }}">
+          <td class="small text-muted">{{ c.customer_code or '–' }}</td>
           <td>
             <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}"
                class="fw-semibold text-decoration-none text-dark">{{ c.name }}</a>
@@ -62,6 +89,7 @@
             {% else %}–{% endif %}
           </td>
           <td class="small text-muted">{{ c.email or '–' }}</td>
+          <td class="small text-muted">{{ c.postal or '–' }}</td>
           <td class="text-center">
             <span class="badge bg-light text-dark border">{{ c.vehicles|length }}</span>
           </td>
@@ -70,29 +98,22 @@
           </td>
           <td class="small text-muted">{{ c.created_at|sl_date }}</td>
           <td>
+            {% if current_user.is_admin %}
             <div class="d-flex gap-1">
-              <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}"
-                 class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-eye"></i>
-              </a>
-              {% if current_user.is_admin %}
-              <a href="{{ url_for('customers.edit_customer', customer_id=c.id) }}"
-                 class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="POST" action="{{ url_for('customers.delete_customer', customer_id=c.id) }}"
-                    onsubmit="return confirm('Izbriši stranko {{ c.name }}? Tega ni mogoče razveljaviti!')">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  <i class="bi bi-trash"></i>
-                </button>
+              <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+              <a href="{{ url_for('customers.edit_customer', customer_id=c.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+              <form method="POST" action="{{ url_for('customers.delete_customer', customer_id=c.id) }}" onsubmit="return confirm('Izbriši stranko {{ c.name }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
               </form>
-              {% endif %}
             </div>
+            {% else %}
+            <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            {% endif %}
           </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="7" class="text-center text-muted py-5">
+          <td colspan="9" class="text-center text-muted py-5">
             <i class="bi bi-people fs-2 d-block mb-2"></i>
             Ni strank. <a href="{{ url_for('customers.new_customer') }}">Dodaj prvo stranko →</a>
           </td>
@@ -103,37 +124,3 @@
   </div>
 </div>
 {% endblock %}
-
-<script>
-(function() {
-  const input = document.getElementById('live-search');
-  const clearBtn = document.getElementById('clear-search');
-  const countEl = document.getElementById('search-count');
-  const rows = document.querySelectorAll('.customer-row');
-  const totalHeader = document.querySelector('.tbl-header-title');
-  const total = rows.length;
-
-  function filter(val) {
-    const q = val.toLowerCase().trim();
-    let visible = 0;
-    rows.forEach(function(row) {
-      const match = !q || row.dataset.search.includes(q);
-      row.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-    totalHeader.textContent = visible + ' strank';
-    countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
-    clearBtn.style.display = q ? '' : 'none';
-  }
-
-  input.addEventListener('input', function() { filter(this.value); });
-  clearBtn.addEventListener('click', function() {
-    input.value = '';
-    filter('');
-    input.focus();
-  });
-
-  // Ob nalaganju strani filtriraj če je že kaj v polju
-  if (input.value) filter(input.value);
-})();
-</script>
