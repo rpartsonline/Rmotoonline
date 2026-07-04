@@ -83,6 +83,7 @@ class User(UserMixin, db.Model):
     is_active_user= db.Column(db.Boolean, default=True)
     role          = db.Column(db.String(20), default="zaposleni")  # admin|zaposleni|kupec
     login_token   = db.Column(db.String(64))   # za prijavo prek QR povezave (samo kupci)
+    linked_customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)  # poveže kupca s stranko
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     orders = db.relationship("Order", backref="employee", lazy=True)
@@ -100,15 +101,13 @@ class User(UserMixin, db.Model):
 class Customer(db.Model):
     __tablename__ = "customers"
 
-    id              = db.Column(db.Integer, primary_key=True)
-    customer_code   = db.Column(db.String(50))
-    name            = db.Column(db.String(200), nullable=False)
-    phone           = db.Column(db.String(50))
-    email           = db.Column(db.String(120))
-    address         = db.Column(db.String(300))
-    postal          = db.Column(db.String(100))
-    notes           = db.Column(db.Text)
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(200), nullable=False)
+    phone      = db.Column(db.String(50))
+    email      = db.Column(db.String(120))
+    address    = db.Column(db.String(300))
+    notes      = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     vehicles = db.relationship("Vehicle", backref="customer", lazy=True, cascade="all, delete-orphan")
     orders   = db.relationship("Order",   backref="customer", lazy=True)

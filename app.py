@@ -123,6 +123,7 @@ def create_app():
     from routes.staff import staff_bp
     from routes.complaints import complaints_bp
     from routes.import_customers import import_bp
+    from routes.create_accounts import create_acc_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -135,6 +136,7 @@ def create_app():
     app.register_blueprint(staff_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(import_bp)
+    app.register_blueprint(create_acc_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -242,13 +244,21 @@ def _ensure_schema(db):
         if "customer_code" not in ccols:
             db.session.execute(text("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(50)"))
             db.session.commit()
-            print("✅  Dodan stolpec 'customer_code' v tabelo customers.")
         if "postal" not in ccols:
             db.session.execute(text("ALTER TABLE customers ADD COLUMN postal VARCHAR(100)"))
             db.session.commit()
-            print("✅  Dodan stolpec 'postal' v tabelo customers.")
     except Exception as e:
         print(f"⚠️  Migracija (customers) preskočena: {e}")
+
+    # users.linked_customer_id
+    try:
+        ucols = [c["name"] for c in inspect(db.engine).get_columns("users")]
+        if "linked_customer_id" not in ucols:
+            db.session.execute(text("ALTER TABLE users ADD COLUMN linked_customer_id INTEGER"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'linked_customer_id' v tabelo users.")
+    except Exception as e:
+        print(f"⚠️  Migracija (users.linked_customer_id) preskočena: {e}")
 
 
 def _seed_admin(db, User):
