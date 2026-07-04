@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
-from models import db, DeliveryStop, DELIVERY_ROUTES, DELIVERY_ROUTE_DICT
+from models import db, DeliveryStop, Customer, DELIVERY_ROUTES, DELIVERY_ROUTE_DICT
 
 delivery_bp = Blueprint("delivery", __name__, url_prefix="/dostava")
 
@@ -33,7 +33,8 @@ def route_view(route_key):
                            route_key=route_key,
                            route_label=_route_label(route_key),
                            routes=DELIVERY_ROUTES,
-                           stops=stops)
+                           stops=stops,
+                           customers=Customer.query.order_by(Customer.name).all())
 
 
 @delivery_bp.route("/<route_key>/add", methods=["POST"])

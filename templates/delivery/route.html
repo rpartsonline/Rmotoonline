@@ -31,15 +31,24 @@
   <form method="POST" action="{{ url_for('delivery.add_stop', route_key=route_key) }}" class="row g-2 align-items-end">
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Stranka *</label>
-      <input type="text" name="customer" class="form-control" placeholder="Ime stranke" required>
+      <div class="position-relative">
+        <input type="text" id="del-customer-search" class="form-control"
+               placeholder="Začni pisati ime stranke…" autocomplete="off" required>
+        <div id="del-customer-dropdown"
+             style="display:none; position:absolute; z-index:1000; width:100%;
+                    background:#fff; border:1px solid #dee2e6; border-radius:6px;
+                    max-height:220px; overflow-y:auto;
+                    box-shadow:0 4px 12px rgba(0,0,0,0.1); top:100%; left:0;"></div>
+      </div>
+      <input type="hidden" name="customer" id="del-customer-hidden" required>
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Naslov</label>
-      <input type="text" name="address" class="form-control" placeholder="Ulica, kraj">
+      <input type="text" name="address" id="del-address" class="form-control" placeholder="Ulica, kraj">
     </div>
     <div class="col-md-2">
       <label class="form-label small fw-semibold">Telefon</label>
-      <input type="text" name="phone" class="form-control" placeholder="040…">
+      <input type="text" name="phone" id="del-phone" class="form-control" placeholder="040…">
     </div>
     <div class="col-md-2">
       <label class="form-label small fw-semibold">Škatle</label>
@@ -178,3 +187,59 @@
 <script src="{{ url_for('static', filename='js/delivery_route.js') }}"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if (window.DeliveryRoute) DeliveryRoute.init(); });</script>
 {% endblock %}
+
+<script>
+// Live search za stranke pri dostavi
+const DEL_CUSTOMERS = [
+  {% for c in customers %}
+  {id: {{c.id}}, name: {{c.name|tojson}}, address: {{((c.address or '') + ' ' + (c.postal or ''))|trim|tojson}}, phone: {{(c.phone or '')|tojson}}},
+  {% endfor %}
+];
+
+(function() {
+  const inp = document.getElementById('del-customer-search');
+  const drop = document.getElementById('del-customer-dropdown');
+  const hidden = document.getElementById('del-customer-hidden');
+  const addrField = document.getElementById('del-address');
+  const phoneField = document.getElementById('del-phone');
+
+  function showDrop(items) {
+    drop.innerHTML = '';
+    if (!items.length) {
+      drop.innerHTML = '<div class="px-3 py-2 text-muted small">Ni zadetkov</div>';
+    }
+    items.slice(0, 25).forEach(function(c) {
+      const div = document.createElement('div');
+      div.className = 'px-3 py-2'; div.style.cursor = 'pointer';
+      div.innerHTML = '<strong>' + c.name + '</strong>' + (c.phone ? ' <span class="text-muted small">· ' + c.phone + '</span>' : '');
+      div.addEventListener('mouseover', function() { this.style.background='#f0f4ff'; });
+      div.addEventListener('mouseout', function() { this.style.background=''; });
+      div.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        inp.value = c.name;
+        hidden.value = c.name;
+        drop.style.display = 'none';
+        if (addrField && c.address) addrField.value = c.address;
+        if (phoneField && c.phone) phoneField.value = c.phone;
+      });
+      drop.appendChild(div);
+    });
+    drop.style.display = 'block';
+  }
+
+  if (inp) {
+    inp.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      hidden.value = this.value;
+      if (!q) { drop.style.display = 'none'; return; }
+      const res = DEL_CUSTOMERS.filter(c =>
+        c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))
+      );
+      showDrop(res);
+    });
+    inp.addEventListener('blur', function() {
+      setTimeout(function() { drop.style.display = 'none'; }, 200);
+    });
+  }
+})();
+</script>
