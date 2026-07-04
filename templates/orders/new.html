@@ -20,6 +20,19 @@
   <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
 
   {% if current_user.role == 'kupec' %}
+  {% if current_user.linked_customer_id %}
+  {# Mehanik z vezano stranko - zaklenjeno #}
+  <input type="hidden" name="customer_id" value="{{ current_user.linked_customer_id }}">
+  <div class="row g-2">
+    <div class="col-md-8">
+      <label class="form-label small fw-semibold">Ime stranke</label>
+      <input type="text" class="form-control" value="{{ current_user.full_name }}" readonly disabled
+             style="background:#f8f9fa; cursor:not-allowed;">
+    </div>
+  </div>
+  <div class="mt-2 small text-muted"><i class="bi bi-lock-fill me-1"></i>Vaši podatki so samodejno nastavljeni.</div>
+  {% else %}
+  {# Mehanik brez vezane stranke - lahko vpiše #}
   <div class="row g-2">
     <div class="col-md-8">
       <label class="form-label small fw-semibold">Ime stranke *</label>
@@ -30,6 +43,7 @@
       <input type="text" name="new_customer_phone" class="form-control" placeholder="040 …" required>
     </div>
   </div>
+  {% endif %}
   {% else %}
   <div class="mb-3">
     <label class="form-label small fw-semibold">Izberi obstoječo stranko</label>
