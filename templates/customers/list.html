@@ -68,6 +68,7 @@
           <th>Ime</th>
           <th>Telefon</th>
           <th>E-pošta</th>
+          <th>Naslov</th>
           <th>Pošta</th>
           <th>Vozil</th>
           <th>Naročil</th>
@@ -89,6 +90,7 @@
             {% else %}–{% endif %}
           </td>
           <td class="small text-muted">{{ c.email or '–' }}</td>
+          <td class="small text-muted">{{ c.address or '–' }}</td>
           <td class="small text-muted">{{ c.postal or '–' }}</td>
           <td class="text-center">
             <span class="badge bg-light text-dark border">{{ c.vehicles|length }}</span>
@@ -113,7 +115,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="9" class="text-center text-muted py-5">
+          <td colspan="10" class="text-center text-muted py-5">
             <i class="bi bi-people fs-2 d-block mb-2"></i>
             Ni strank. <a href="{{ url_for('customers.new_customer') }}">Dodaj prvo stranko →</a>
           </td>
