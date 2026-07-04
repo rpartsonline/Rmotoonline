@@ -15,18 +15,20 @@
   </a>
 </div>
 
-<!-- Search -->
+<!-- Live Search -->
 <div class="card-plain mb-3">
-  <form method="GET" class="d-flex gap-2">
-    <input type="text" name="search" class="form-control form-control-sm"
-           placeholder="Išči po imenu, telefonu ali e-pošti…" value="{{ search }}" style="max-width:380px">
-    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-    {% if search %}
-    <a href="{{ url_for('customers.list_customers') }}" class="btn btn-sm btn-outline-secondary">
+  <div class="d-flex gap-2 align-items-center">
+    <div class="position-relative flex-grow-1" style="max-width:480px;">
+      <i class="bi bi-search position-absolute" style="left:10px;top:50%;transform:translateY(-50%);color:#aaa;"></i>
+      <input type="text" id="live-search" class="form-control form-control-sm ps-4"
+             placeholder="Išči po imenu, telefonu, e-pošti ali šifri…"
+             value="{{ search }}" autocomplete="off">
+    </div>
+    <span id="search-count" class="text-muted small"></span>
+    <button type="button" id="clear-search" class="btn btn-sm btn-outline-secondary" style="display:none;">
       <i class="bi bi-x-lg"></i>
-    </a>
-    {% endif %}
-  </form>
+    </button>
+  </div>
 </div>
 
 <div class="tbl-card">
@@ -48,6 +50,7 @@
       </thead>
       <tbody>
         {% for c in customers %}
+        <tr class="customer-row" data-search="{{ c.name|lower }} {{ c.phone or '' }} {{ c.email or '' }} {{ c.customer_code or '' }}">
         <tr>
           <td>
             <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}"
@@ -100,3 +103,37 @@
   </div>
 </div>
 {% endblock %}
+
+<script>
+(function() {
+  const input = document.getElementById('live-search');
+  const clearBtn = document.getElementById('clear-search');
+  const countEl = document.getElementById('search-count');
+  const rows = document.querySelectorAll('.customer-row');
+  const totalHeader = document.querySelector('.tbl-header-title');
+  const total = rows.length;
+
+  function filter(val) {
+    const q = val.toLowerCase().trim();
+    let visible = 0;
+    rows.forEach(function(row) {
+      const match = !q || row.dataset.search.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    totalHeader.textContent = visible + ' strank';
+    countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
+    clearBtn.style.display = q ? '' : 'none';
+  }
+
+  input.addEventListener('input', function() { filter(this.value); });
+  clearBtn.addEventListener('click', function() {
+    input.value = '';
+    filter('');
+    input.focus();
+  });
+
+  // Ob nalaganju strani filtriraj če je že kaj v polju
+  if (input.value) filter(input.value);
+})();
+</script>
