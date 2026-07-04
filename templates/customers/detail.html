@@ -70,7 +70,7 @@
         </a>
       </div>
       <table class="table table-sm">
-        <thead><tr><th>Vozilo</th><th>VIN</th><th>Motor</th><th>Registrska</th><th></th></tr></thead>
+        <thead><tr><th>Vozilo</th><th>VIN</th><th>Motor</th><th></th></tr></thead>
         <tbody>
           {% for v in customer.vehicles %}
           <tr>
@@ -81,7 +81,7 @@
               {% if v.engine_displacement %} {{ v.engine_displacement }}l{% endif %}
               {% if v.engine_power_kw %} / {{ v.engine_power_kw }}kW{% endif %}
             </td>
-            <td class="small">{{ v.registration or '–' }}</td>
+            
             <td>
               <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
                  class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
