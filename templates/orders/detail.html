@@ -289,8 +289,10 @@
                 </div>
               </td>
               <td>
-                <input type="text" name="supplier[]" class="form-control form-control-sm"
-                       value="{{ item.supplier or '' }}" placeholder="Izvor">
+                <input type="text" name="supplier[]" class="form-control form-control-sm item-supplier"
+                       value="{{ item.supplier or '' }}" placeholder="Izvor"
+                       list="izvor-opcije-{{ kind }}" autocomplete="off"
+                       style="min-width:180px;">
               </td>
               <td>
                 <select name="status[]" class="form-select form-select-sm">
@@ -468,7 +470,7 @@ function addItemRow() {
     '<td><input type="text" name="new_description[]" class="form-control form-control-sm" placeholder="Naziv artikla / dela"></td>' +
     '<td><input type="text" name="new_bartog[]" class="form-control form-control-sm" placeholder="IDENT"></td>' +
     '<td><div class="d-flex gap-1"><input type="text" name="new_quantity[]" value="1" class="form-control form-control-sm" style="width:56px"><select name="new_unit[]" class="form-select form-select-sm" style="width:auto">' + UNIT_OPTIONS + '</select></div></td>' +
-    '<td><input type="text" name="new_supplier[]" class="form-control form-control-sm" placeholder="Izvor"></td>' +
+    '<td><input type="text" name="new_supplier[]" class="form-control form-control-sm item-supplier" placeholder="Izvor" list="izvor-opcije-{{ kind }}" autocomplete="off" style="min-width:180px;"></td>' +
     '<td><span class="badge bg-light text-dark border">novo</span></td>' +
     '<td><input type="text" name="new_notes[]" class="form-control form-control-sm" placeholder="Opomba"></td>' +
     '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" title="Odstrani" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x-lg"></i></button></td>';
@@ -508,3 +510,60 @@ function addItemRow() {
 })();
 </script>
 {% endblock %}
+
+<!-- Datalist za Izvor - Naročila -->
+<datalist id="izvor-opcije-narocilo">
+  <option value="5">
+  <option value="Šiška">
+  <option value="TQ">
+  <option value="CER">
+  <option value="Zaloga v Ajdovščini">
+  <option value="Voza">
+  <option value="Autopartner">
+  <option value="Kelly">
+  <option value="GMT">
+  <option value="Euroton">
+  <option value="Ciak">
+  <option value="Profi">
+  <option value="Autoroma">
+  <option value="B&F">
+  <option value="Intercars">
+</datalist>
+
+<!-- Datalist za Izvor - Povpraševanja -->
+<datalist id="izvor-opcije-povprasevanje">
+  <option value="Catacea">
+  <option value="Rosnaky - elektrika">
+  <option value="produktni@bartog.si">
+  <option value="janez.naraks@selmar.si">
+  <option value="Moto@bartog.si">
+  <option value="Tovorni@bartog.si">
+  <option value="Agro@bartog.si">
+  <option value="Aleksander.njezic@bartog.si - akumulatorji">
+  <option value="boris.cvelbar@bartog.si - olje">
+  <option value="brigita.sustarsic@bartog.si - pnevmatike">
+  <option value="Mojca.zaplatar@bartog.si - moto gume">
+</datalist>
+
+<script>
+// Sinhronizacija statusa naročila → vse postavke
+(function() {
+  const orderStatusSel = document.getElementById('status-select');
+  if (!orderStatusSel) return;
+  const statusMap = {
+    'novo': 'caka', 'v_obdelavi': 'caka',
+    'naroceno': 'naroceno', 'narocena_caka': 'naroceno', 'v_dostavi': 'naroceno',
+    'prejeto': 'prejeto', 'zakljuceno': 'prejeto', 'preklicano': 'caka',
+  };
+  orderStatusSel.addEventListener('change', function() {
+    const mapped = statusMap[this.value];
+    if (!mapped) return;
+    if (!confirm('Posodobi status vseh postavk na "' + this.options[this.selectedIndex].text + '"?')) return;
+    document.querySelectorAll('select[name="status[]"]').forEach(function(sel) {
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === mapped) { sel.selectedIndex = i; break; }
+      }
+    });
+  });
+})();
+</script>

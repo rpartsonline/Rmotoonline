@@ -33,11 +33,13 @@ def new_customer():
             return render_template("customers/new.html", customer=None)
 
         customer = Customer(
-            name    = name,
-            phone   = request.form.get("phone",   "").strip(),
-            email   = request.form.get("email",   "").strip(),
-            address = request.form.get("address", "").strip(),
-            notes   = request.form.get("notes",   "").strip(),
+            name          = name,
+            customer_code = request.form.get("customer_code", "").strip(),
+            phone         = request.form.get("phone",   "").strip(),
+            email         = request.form.get("email",   "").strip(),
+            address       = request.form.get("address", "").strip(),
+            postal        = request.form.get("postal",  "").strip(),
+            notes         = request.form.get("notes",   "").strip(),
         )
         db.session.add(customer)
         db.session.commit()
@@ -59,11 +61,13 @@ def customer_detail(customer_id):
 def edit_customer(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     if request.method == "POST":
-        customer.name    = request.form.get("name",    "").strip()
-        customer.phone   = request.form.get("phone",   "").strip()
-        customer.email   = request.form.get("email",   "").strip()
-        customer.address = request.form.get("address", "").strip()
-        customer.notes   = request.form.get("notes",   "").strip()
+        customer.name          = request.form.get("name",          "").strip()
+        customer.customer_code = request.form.get("customer_code", "").strip()
+        customer.phone         = request.form.get("phone",         "").strip()
+        customer.email         = request.form.get("email",         "").strip()
+        customer.address       = request.form.get("address",       "").strip()
+        customer.postal        = request.form.get("postal",        "").strip()
+        customer.notes         = request.form.get("notes",         "").strip()
         if not customer.name:
             flash("Ime stranke je obvezno.", "danger")
         else:
@@ -72,3 +76,18 @@ def edit_customer(customer_id):
             return redirect(url_for("customers.customer_detail", customer_id=customer.id))
 
     return render_template("customers/new.html", customer=customer)
+
+
+@customers_bp.route("/<int:customer_id>/delete", methods=["POST"])
+@login_required
+def delete_customer(customer_id):
+    from flask_login import current_user
+    if not current_user.is_admin:
+        flash("Samo admin lahko izbriše stranko.", "danger")
+        return redirect(url_for("customers.list_customers"))
+    customer = Customer.query.get_or_404(customer_id)
+    name = customer.name
+    db.session.delete(customer)
+    db.session.commit()
+    flash(f"Stranka {name} je bila izbrisana.", "success")
+    return redirect(url_for("customers.list_customers"))

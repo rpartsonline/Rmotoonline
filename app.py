@@ -121,7 +121,6 @@ def create_app():
     from routes.notes import notes_bp
     from routes.delivery import delivery_bp
     from routes.staff import staff_bp
-    from routes.complaints import complaints_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -132,7 +131,6 @@ def create_app():
     app.register_blueprint(notes_bp)
     app.register_blueprint(delivery_bp)
     app.register_blueprint(staff_bp)
-    app.register_blueprint(complaints_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -233,6 +231,20 @@ def _ensure_schema(db):
             print("✅  Dodan stolpec 'delivery_urgency' v tabelo orders.")
     except Exception as e:
         print(f"⚠️  Migracija (orders.notify_customer) preskočena: {e}")
+
+    # customers.customer_code / postal
+    try:
+        ccols = [c["name"] for c in inspect(db.engine).get_columns("customers")]
+        if "customer_code" not in ccols:
+            db.session.execute(text("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(50)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'customer_code' v tabelo customers.")
+        if "postal" not in ccols:
+            db.session.execute(text("ALTER TABLE customers ADD COLUMN postal VARCHAR(100)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'postal' v tabelo customers.")
+    except Exception as e:
+        print(f"⚠️  Migracija (customers) preskočena: {e}")
 
 
 def _seed_admin(db, User):

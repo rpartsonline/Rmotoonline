@@ -31,6 +31,12 @@
     <div class="form-section">
       <form method="POST" action="{% if customer %}{{ url_for('customers.edit_customer', customer_id=customer.id) }}{% else %}{{ url_for('customers.new_customer') }}{% endif %}">
         <div class="mb-3">
+          <label class="form-label fw-semibold">Šifra stranke</label>
+          <input type="text" name="customer_code" class="form-control"
+                 value="{{ customer.customer_code if customer else '' }}"
+                 placeholder="npr. S-0001">
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold">Ime in priimek / Podjetje *</label>
           <input type="text" name="name" class="form-control"
                  value="{{ customer.name if customer else '' }}"
@@ -52,7 +58,13 @@
           <label class="form-label fw-semibold">Naslov</label>
           <input type="text" name="address" class="form-control"
                  value="{{ customer.address if customer else '' }}"
-                 placeholder="Ul. 1, 1000 Ljubljana">
+                 placeholder="Ul. 1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Pošta</label>
+          <input type="text" name="postal" class="form-control"
+                 value="{{ customer.postal if customer else '' }}"
+                 placeholder="1000 Ljubljana">
         </div>
         <div class="mb-4">
           <label class="form-label fw-semibold">Opomba</label>
