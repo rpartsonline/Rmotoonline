@@ -95,6 +95,49 @@ def order_image(image_id):
     return send_from_directory(folder, secure_filename(img.filename))
 
 
+@orders_bp.route("/<int:order_id>/add_images", methods=["POST"])
+@login_required
+def add_images(order_id):
+    """Doda slike obstoječemu naročilu (AJAX, za delavce)."""
+    order = Order.query.get_or_404(order_id)
+    files = request.files.getlist("images")
+    added = []
+    folder = current_app.config.get("UPLOAD_FOLDER")
+    for fs in files:
+        if not fs or not fs.filename:
+            continue
+        ext = os.path.splitext(fs.filename)[1].lower()
+        if ext not in ALLOWED_IMG_EXT:
+            continue
+        fname = f"order{order.id}_{uuid.uuid4().hex}{ext}"
+        try:
+            fs.save(os.path.join(folder, secure_filename(fname)))
+            img = OrderImage(order_id=order.id, filename=fname)
+            db.session.add(img)
+            db.session.flush()
+            added.append({"id": img.id, "url": url_for("orders.order_image", image_id=img.id)})
+        except Exception as e:
+            print(f"⚠️  Slika ni shranjena: {e}")
+    db.session.commit()
+    return jsonify({"images": added})
+
+
+@orders_bp.route("/image/<int:image_id>/delete", methods=["POST"])
+@login_required
+def delete_image(image_id):
+    """Izbriše sliko naročila (AJAX)."""
+    img = OrderImage.query.get_or_404(image_id)
+    folder = current_app.config.get("UPLOAD_FOLDER")
+    try:
+        import os as _os
+        _os.remove(_os.path.join(folder, secure_filename(img.filename)))
+    except Exception:
+        pass
+    db.session.delete(img)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 # ── Pomožno: razlikovanje naročilo / povpraševanje ─────────────────────────────
 
 def _kind_cfg(kind):

@@ -138,6 +138,81 @@
       </div>
     </div>
 
+    <!-- Uvoz slike (delavci) -->
+    {% if current_user.role != 'kupec' %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-image"></i> Dodaj sliko naročila</div>
+      <div id="staff-drop-zone"
+           style="border:2px dashed #b0c4de; border-radius:10px; padding:24px; text-align:center; cursor:pointer; background:#f8fafc;"
+           onclick="document.getElementById('staff-img-input').click()"
+           ondragover="event.preventDefault()"
+           ondrop="handleStaffDrop(event)">
+        <i class="bi bi-image" style="font-size:2rem; color:#aab8cc;"></i>
+        <p class="mb-0 mt-2 text-muted small">Klikni za nalaganje slike ali <strong>prilepi (Ctrl+V)</strong></p>
+      </div>
+      <input type="file" id="staff-img-input" accept="image/*" style="display:none" multiple onchange="uploadStaffImages(this.files)">
+      {% if order.images %}
+      <div class="d-flex flex-wrap gap-2 mt-3" id="staff-images-list">
+        {% for img in order.images %}
+        <div class="position-relative" id="img-wrap-{{ img.id }}">
+          <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank">
+            <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+                 style="height:100px; width:auto; border-radius:8px; border:1px solid #e5eaf2; object-fit:cover;">
+          </a>
+          <button type="button" onclick="deleteStaffImage({{ img.id }})"
+                  style="position:absolute;top:-8px;right:-8px;border-radius:50%;width:22px;height:22px;padding:0;font-size:12px;line-height:1;"
+                  class="btn btn-danger btn-sm">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="d-flex flex-wrap gap-2 mt-3" id="staff-images-list"></div>
+      {% endif %}
+    </div>
+    <script>
+    // Paste (Ctrl+V)
+    document.addEventListener('paste', function(e) {
+      var items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      var files = [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) files.push(items[i].getAsFile());
+      }
+      if (files.length) uploadStaffImages(files);
+    });
+    // Drag & drop
+    function handleStaffDrop(e) {
+      e.preventDefault();
+      uploadStaffImages(e.dataTransfer.files);
+    }
+    // Upload
+    function uploadStaffImages(files) {
+      var fd = new FormData();
+      for (var i = 0; i < files.length; i++) fd.append('images', files[i]);
+      fetch('{{ url_for("orders.add_images", order_id=order.id) }}', {method:'POST', body:fd})
+        .then(r => r.json())
+        .then(data => {
+          var list = document.getElementById('staff-images-list');
+          data.images.forEach(function(img) {
+            var div = document.createElement('div');
+            div.className = 'position-relative';
+            div.id = 'img-wrap-' + img.id;
+            div.innerHTML = '<a href="' + img.url + '" target="_blank"><img src="' + img.url + '" style="height:100px;width:auto;border-radius:8px;border:1px solid #e5eaf2;object-fit:cover;"></a>' +
+              '<button type="button" onclick="deleteStaffImage(' + img.id + ')" style="position:absolute;top:-8px;right:-8px;border-radius:50%;width:22px;height:22px;padding:0;font-size:12px;line-height:1;" class="btn btn-danger btn-sm">&times;</button>';
+            list.appendChild(div);
+          });
+        });
+    }
+    // Delete
+    function deleteStaffImage(imgId) {
+      if (!confirm('Izbriši sliko?')) return;
+      fetch('{{ url_for("orders.delete_image", image_id=0) }}'.replace('0', imgId), {method:'POST'})
+        .then(r => r.json())
+        .then(data => { if (data.ok) document.getElementById('img-wrap-' + imgId).remove(); });
+    }
+    </script>
+    {% endif %}
+
     <!-- Nujnost dostave (kupec) -->
     {% if order.delivery_urgency %}
     <div class="card-plain mb-3">
