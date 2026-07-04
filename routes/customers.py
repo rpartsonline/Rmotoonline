@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy import or_
-from models import db, Customer
+from models import db, Customer, User
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
 
@@ -59,7 +59,8 @@ def new_customer():
 @login_required
 def customer_detail(customer_id):
     customer = Customer.query.get_or_404(customer_id)
-    return render_template("customers/detail.html", customer=customer)
+    linked_user = User.query.filter_by(linked_customer_id=customer_id).first()
+    return render_template("customers/detail.html", customer=customer, linked_user=linked_user)
 
 
 @customers_bp.route("/<int:customer_id>/edit", methods=["GET", "POST"])
@@ -127,3 +128,66 @@ def delete_customer(customer_id):
     db.session.commit()
     flash(f"Stranka {name} in vsa njena naročila so bila izbrisana.", "success")
     return redirect(url_for("customers.list_customers"))
+
+
+@customers_bp.route("/<int:customer_id>/ustvari-racun", methods=["POST"])
+@login_required
+def create_account(customer_id):
+    if not current_user.is_admin:
+        flash("Samo admin.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    customer = Customer.query.get_or_404(customer_id)
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    if not username or not password:
+        flash("Uporabniško ime in geslo sta obvezna.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    if len(password) < 6:
+        flash("Geslo mora imeti vsaj 6 znakov.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    if User.query.filter_by(username=username).first():
+        flash("Uporabniško ime je že zasedeno.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    user = User(
+        username=username,
+        full_name=customer.name,
+        is_admin=False,
+        role="kupec",
+        linked_customer_id=customer_id
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    flash(f"Račun '{username}' za stranko {customer.name} je bil ustvarjen.", "success")
+    return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+
+
+@customers_bp.route("/<int:customer_id>/reset-geslo", methods=["POST"])
+@login_required
+def reset_account_password(customer_id):
+    if not current_user.is_admin:
+        flash("Samo admin.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    user = User.query.filter_by(linked_customer_id=customer_id).first_or_404()
+    password = request.form.get("new_password", "").strip()
+    if len(password) < 6:
+        flash("Geslo mora imeti vsaj 6 znakov.", "danger")
+    else:
+        user.set_password(password)
+        db.session.commit()
+        flash(f"Geslo za '{user.username}' je bilo ponastavljeno.", "success")
+    return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+
+
+@customers_bp.route("/<int:customer_id>/izbrisi-racun", methods=["POST"])
+@login_required
+def delete_account(customer_id):
+    if not current_user.is_admin:
+        flash("Samo admin.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+    user = User.query.filter_by(linked_customer_id=customer_id).first()
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        flash("Račun je bil izbrisan.", "success")
+    return redirect(url_for("customers.customer_detail", customer_id=customer_id))
