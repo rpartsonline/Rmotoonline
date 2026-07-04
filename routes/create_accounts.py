@@ -1,17 +1,9 @@
 # routes/create_accounts.py - IZBRIŠI po ustvaritvi računov!
-import unicodedata, re
 from flask import Blueprint
 from flask_login import login_required, current_user
 from models import db, User, Customer
 
 create_acc_bp = Blueprint('create_accounts', __name__, url_prefix='/admin')
-
-def _username(name):
-    n = unicodedata.normalize('NFKD', name)
-    n = ''.join(c for c in n if not unicodedata.combining(c))
-    n = n.lower()
-    n = re.sub(r'[^a-z0-9]+', '_', n).strip('_')[:40]
-    return n
 
 @create_acc_bp.route('/ustvari-racune')
 @login_required
@@ -28,8 +20,9 @@ def ustvari_racune():
         if User.query.filter_by(linked_customer_id=c.id).first():
             preskocenih += 1
             continue
-        base = _username(c.name)
-        username = base
+        # Username = točno ime stranke, dodamo _2 _3 če je podvojeno
+        username = c.name.strip()
+        base = username
         i = 2
         while username in used_usernames:
             username = f'{base}_{i}'
@@ -43,7 +36,7 @@ def ustvari_racune():
             db.session.add(u)
             ustvarjenih += 1
         except Exception as e:
-            napake.append(str(e))
+            napake.append(f'{c.name}: {e}')
     db.session.commit()
     err_html = '<br>'.join(napake[:5]) if napake else 'Ni napak'
     return (f'<h2>Računi ustvarjeni!</h2>'
