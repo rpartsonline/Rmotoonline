@@ -32,6 +32,12 @@ def new_customer():
             flash("Ime stranke je obvezno.", "danger")
             return render_template("customers/new.html", customer=None)
 
+        # Preveri podvojeno ime
+        existing = Customer.query.filter(Customer.name.ilike(name)).first()
+        if existing:
+            flash(f"Stranka z imenom '{name}' že obstaja.", "danger")
+            return render_template("customers/new.html", customer=None)
+
         customer = Customer(
             name          = name,
             customer_code = request.form.get("customer_code", "").strip(),
@@ -71,9 +77,17 @@ def edit_customer(customer_id):
         if not customer.name:
             flash("Ime stranke je obvezno.", "danger")
         else:
-            db.session.commit()
-            flash("Podatki stranke so bili posodobljeni.", "success")
-            return redirect(url_for("customers.customer_detail", customer_id=customer.id))
+            # Preveri podvojeno ime (razen pri isti stranki)
+            existing = Customer.query.filter(
+                Customer.name.ilike(customer.name),
+                Customer.id != customer.id
+            ).first()
+            if existing:
+                flash(f"Stranka z imenom '{customer.name}' že obstaja.", "danger")
+            else:
+                db.session.commit()
+                flash("Podatki stranke so bili posodobljeni.", "success")
+                return redirect(url_for("customers.customer_detail", customer_id=customer.id))
 
     return render_template("customers/new.html", customer=customer)
 
