@@ -20,16 +20,20 @@
   <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
 
   {% if current_user.role == 'kupec' %}
-  <div class="row g-2">
-    <div class="col-md-8">
-      <label class="form-label small fw-semibold">Ime stranke *</label>
-      <input type="text" name="new_customer_name" class="form-control" placeholder="Ime in priimek / podjetje" required>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label small fw-semibold">Telefon *</label>
-      <input type="text" name="new_customer_phone" class="form-control" placeholder="040 …" required>
+  <!-- Mehanik: stranka je zaklenjena na njegov račun -->
+  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:#f0f4ff; border:1px solid #c7d7f8;">
+    <i class="bi bi-person-fill text-primary fs-4"></i>
+    <div>
+      <div class="fw-bold">{{ current_user.full_name }}</div>
+      <div class="small text-muted">Stranka je določena z vašim računom in je ni mogoče spremeniti.</div>
     </div>
   </div>
+  {% if current_user.linked_customer_id %}
+  <input type="hidden" name="customer_id" id="customer-select" value="{{ current_user.linked_customer_id }}">
+  {% else %}
+  <input type="hidden" name="customer_id" id="customer-select" value="new">
+  <input type="hidden" name="new_customer_name" value="{{ current_user.full_name }}">
+  {% endif %}
   {% else %}
   <div class="mb-3">
     <label class="form-label small fw-semibold">Izberi obstoječo stranko ali vpiši novo</label>
@@ -54,7 +58,7 @@
 
   <!-- Nova stranka polja -->
   <div id="new-customer-fields" class="row g-2"
-       style="{% if preselected_customer %}display:none{% endif %}">
+       style="{% if preselected_customer or current_user.role == 'kupec' %}display:none{% endif %}">
     <div class="col-md-6">
       <label class="form-label small">Ime in priimek / Podjetje *</label>
       <input type="text" name="new_customer_name" class="form-control" placeholder="Janez Novak">
