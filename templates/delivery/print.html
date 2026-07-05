@@ -3,37 +3,36 @@
 <head>
   <meta charset="utf-8">
   <title>{{ route_label }} – dostava</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
-
-    .hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 8px; margin-bottom: 16px; }
+    .hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 8px; margin-bottom: 12px; }
     .hdr h1 { font-size: 22px; margin: 0; }
     .hdr .meta { font-size: 13px; color: #444; text-align: right; }
-
     .hdr-right { display: flex; align-items: flex-start; gap: 16px; }
     .qr-box { text-align: center; }
     .qr-box canvas, .qr-box img { display: block; }
     .qr-box .qr-label { font-size: 10px; color: #555; margin-top: 3px; }
-
+    #route-map { height: 320px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 12px; }
+    #map-status { font-size: 12px; color: #666; margin-bottom: 6px; min-height: 18px; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #ccc; font-size: 13px; vertical-align: top; }
+    th, td { text-align: left; padding: 8px 7px; border-bottom: 1px solid #ccc; font-size: 13px; vertical-align: top; }
     th { background: #f0f0f0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
     .num  { width: 36px; font-weight: 700; }
     .chk  { width: 34px; text-align: center; }
     .box  { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; }
     .cust { font-weight: 700; }
-    .addr { color: #333; }
     .note { color: #666; font-size: 11px; }
-
     .actions { margin-bottom: 16px; }
-    .btn { font-size: 14px; padding: 8px 16px; border: 1px solid #333; background: #fff; border-radius: 6px; cursor: pointer; }
-
+    .btn { font-size: 14px; padding: 8px 16px; border: 1px solid #333; background: #fff; border-radius: 6px; cursor: pointer; margin-right: 6px; }
     @media print {
       .actions { display: none; }
       body { margin: 8mm; }
       tr { page-break-inside: avoid; }
+      #route-map { height: 260px; }
     }
   </style>
 </head>
@@ -46,22 +45,23 @@
   <div class="hdr">
     <div>
       <h1>{{ route_label }}</h1>
-      <div style="font-size:13px; color:#444; margin-top:4px;">
-        Skupaj postankov: {{ stops|length }}
-      </div>
+      <div id="route-summary" style="font-size:13px; color:#444; margin-top:4px;">Nalagam pot…</div>
     </div>
     <div class="hdr-right">
       <div class="meta">
         Bartog Ajdovščina · Dostava<br>
         Datum: ____________&nbsp;&nbsp;Šofer: ____________
       </div>
-      <!-- ENA QR koda za celo ruto -->
       <div class="qr-box">
         <div id="route-qr"></div>
         <div class="qr-label">Google Maps – celotna ruta</div>
       </div>
     </div>
   </div>
+
+  <!-- Zemljevid -->
+  <div id="map-status">🔍 Iščem naslove na zemljevidu…</div>
+  <div id="route-map"></div>
 
   <table>
     <thead>
@@ -80,7 +80,7 @@
       <tr>
         <td class="num">{{ loop.index }}</td>
         <td class="cust">{{ s.customer }}</td>
-        <td class="addr">{{ s.address or '' }}</td>
+        <td>{{ s.address or '' }}</td>
         <td>{{ s.phone or '' }}</td>
         <td class="note">{{ s.note or '' }}</td>
         <td>{{ s.tires or '' }}</td>
@@ -92,40 +92,123 @@
     </tbody>
   </table>
 
-  <!-- Naslovi postankov za Google Maps -->
   <script>
-  var STOP_ADDRESSES = [
+  var HOME = { lat: 45.8869, lon: 13.9089, label: "Bartog Ajdovščina" };
+  var NOMINATIM = "https://nominatim.openstreetmap.org/search";
+  var OSRM = "https://router.project-osrm.org/route/v1/driving/";
+
+  var STOP_DATA = [
     {% for s in stops %}
-    {% if s.address %}"{{ s.address | replace('"', '') | replace('\n', ' ') }}",{% endif %}
+    { name: {{s.customer|tojson}}, address: {{(s.address or '')|tojson}} },
     {% endfor %}
   ];
+  var STOP_ADDRESSES = STOP_DATA.filter(function(s){ return s.address; });
 
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // QR koda za celo ruto
   window.addEventListener('load', function() {
-    // Sestavi Google Maps URL z vsemi postanki
     var start = 'Bartog+Ajdov%C5%A1%C4%8Dina,+Slovenija';
-    var parts  = [start];
-    STOP_ADDRESSES.forEach(function(addr) {
-      parts.push(encodeURIComponent(addr + ', Slovenija'));
+    var parts = [start];
+    STOP_ADDRESSES.forEach(function(s){
+      parts.push(encodeURIComponent(s.address + ', Slovenija'));
     });
-    parts.push(start); // konec = nazaj v Ajdovščino
+    parts.push(start);
     var mapsUrl = 'https://www.google.com/maps/dir/' + parts.join('/');
-
-    // Generiraj ENO QR kodo
     new QRCode(document.getElementById('route-qr'), {
-      text: mapsUrl,
-      width: 90,
-      height: 90,
-      correctLevel: QRCode.CorrectLevel.M
+      text: mapsUrl, width: 85, height: 85, correctLevel: QRCode.CorrectLevel.M
     });
 
-    // Gumb tisk
+    // Gumb tisk – počaka na zemljevid
     document.getElementById('btn-print').addEventListener('click', function() {
       window.print();
     });
 
-    // Samodejni tisk po 600ms
-    setTimeout(function() { window.print(); }, 600);
+    // Naloži zemljevid + nariši pot
+    if (STOP_ADDRESSES.length > 0) {
+      buildMap();
+    } else {
+      document.getElementById('map-status').textContent = 'Ni naslovov za prikaz na zemljevidu.';
+      document.getElementById('route-map').style.display = 'none';
+      setTimeout(function(){ window.print(); }, 600);
+    }
   });
+
+  async function geocode(q) {
+    var url = NOMINATIM + "?format=json&limit=1&countrycodes=si&q=" + encodeURIComponent(q);
+    try {
+      var res = await fetch(url, { headers: { Accept: "application/json" } });
+      var data = await res.json();
+      if (data && data.length) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    } catch(e) {}
+    return null;
+  }
+
+  async function buildMap() {
+    var mapEl = document.getElementById('route-map');
+    var statusEl = document.getElementById('map-status');
+    var summaryEl = document.getElementById('route-summary');
+
+    // Inicializiraj Leaflet
+    var map = L.map(mapEl);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    // Geokodiranje
+    var geocoded = [];
+    for (var i = 0; i < STOP_ADDRESSES.length; i++) {
+      statusEl.textContent = '🔍 Geokodiranje ' + (i+1) + '/' + STOP_ADDRESSES.length + ': ' + STOP_ADDRESSES[i].address;
+      var g = await geocode(STOP_ADDRESSES[i].address);
+      if (g) geocoded.push({ name: STOP_ADDRESSES[i].name, address: STOP_ADDRESSES[i].address, lat: g.lat, lon: g.lon });
+      if (i < STOP_ADDRESSES.length - 1) await sleep(1100);
+    }
+
+    if (!geocoded.length) {
+      statusEl.textContent = '⚠️ Nobenega naslova nisem našel na zemljevidu.';
+      document.getElementById('route-map').style.display = 'none';
+      summaryEl.textContent = 'Start/cilj: Bartog Ajdovščina';
+      setTimeout(function(){ window.print(); }, 600);
+      return;
+    }
+
+    // Markerji
+    L.marker([HOME.lat, HOME.lon]).addTo(map)
+      .bindPopup('Start/cilj: ' + HOME.label).openPopup();
+    geocoded.forEach(function(s, i) {
+      L.marker([s.lat, s.lon]).addTo(map)
+        .bindPopup((i+1) + '. ' + s.name);
+    });
+
+    // Pot po cestah (OSRM)
+    var seq = [HOME].concat(geocoded).concat([HOME]);
+    var coords = seq.map(function(p){ return p.lon + ',' + p.lat; }).join(';');
+    statusEl.textContent = '🗺️ Rišem pot po cestah…';
+    try {
+      var res = await fetch(OSRM + coords + '?overview=full&geometries=geojson');
+      var data = await res.json();
+      if (data && data.routes && data.routes[0]) {
+        var line = data.routes[0].geometry.coordinates.map(function(c){ return [c[1], c[0]]; });
+        L.polyline(line, { color: '#3b82f6', weight: 5, opacity: 0.8 }).addTo(map);
+        map.fitBounds(L.polyline(line).getBounds(), { padding: [20, 20] });
+        var km = (data.routes[0].distance / 1000).toFixed(1);
+        var min = Math.round(data.routes[0].duration / 60);
+        summaryEl.textContent = 'Start/cilj: Bartog Ajdovščina · Skupaj ~' + km + ' km · ~' + min + ' min vožnje (brez prometa).';
+        statusEl.textContent = '✅ Pot narisana.';
+        setTimeout(function(){ statusEl.style.display='none'; }, 2000);
+        setTimeout(function(){ window.print(); }, 2500);
+        return;
+      }
+    } catch(e) {}
+
+    // Rezerva: ravne črte
+    var straight = seq.map(function(p){ return [p.lat, p.lon]; });
+    L.polyline(straight, { color: '#f59e0b', weight: 4, dashArray: '6 6' }).addTo(map);
+    map.fitBounds(L.polyline(straight).getBounds(), { padding: [20, 20] });
+    summaryEl.textContent = 'Start/cilj: Bartog Ajdovščina · Postankov: ' + geocoded.length;
+    statusEl.textContent = '⚠️ Cestna pot ni dosegljiva – ravne linije.';
+    setTimeout(function(){ window.print(); }, 1500);
+  }
   </script>
 </body>
 </html>
