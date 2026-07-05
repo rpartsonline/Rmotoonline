@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>{{ route_label }} – dostava</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
@@ -10,22 +11,30 @@
     .hdr h1 { font-size: 22px; margin: 0; }
     .hdr .meta { font-size: 13px; color: #444; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #ccc; font-size: 14px; vertical-align: top; }
-    th { background: #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    .num { width: 36px; font-weight: 700; }
-    .chk { width: 34px; text-align: center; }
-    .box { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #ccc; font-size: 13px; vertical-align: middle; }
+    th { background: #f0f0f0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .num  { width: 32px; font-weight: 700; }
+    .chk  { width: 34px; text-align: center; }
+    .qrcol{ width: 75px; text-align: center; padding: 4px; }
+    .box  { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; }
     .cust { font-weight: 700; }
     .addr { color: #333; }
-    .note { color: #666; font-size: 12px; }
+    .note { color: #666; font-size: 11px; }
+    .qr-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .qr-wrap canvas, .qr-wrap img { width:65px!important; height:65px!important; display:block; }
+    .qr-label { font-size:9px; color:#888; text-align:center; line-height:1.2; }
     .actions { margin-bottom: 16px; }
     .btn { font-size: 14px; padding: 8px 16px; border: 1px solid #333; background: #fff; border-radius: 6px; cursor: pointer; }
-    @media print { .actions { display: none; } body { margin: 8mm; } }
+    @media print {
+      .actions { display: none; }
+      body { margin: 8mm; }
+      tr { page-break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
   <div class="actions">
-    <button class="btn" onclick="window.print()">🖨 Natisni</button>
+    <button class="btn" id="btn-print">🖨 Natisni</button>
     <button class="btn" onclick="window.close()">Zapri</button>
   </div>
 
@@ -46,6 +55,7 @@
         <th>Telefon</th>
         <th>Opomba</th>
         <th>Pnevm.</th>
+        <th class="qrcol">Maps QR</th>
         <th class="chk">✓</th>
       </tr>
     </thead>
@@ -58,14 +68,51 @@
         <td>{{ s.phone or '' }}</td>
         <td class="note">{{ s.note or '' }}</td>
         <td>{{ s.tires or '' }}</td>
+        <td class="qrcol">
+          {% if s.address %}
+          <div class="qr-wrap">
+            <div id="qr-{{ loop.index }}"
+                 data-addr="{{ s.address | e }}"
+                 data-name="{{ s.customer | e }}"></div>
+            <span class="qr-label">Google Maps</span>
+          </div>
+          {% else %}
+          <span style="color:#bbb;font-size:11px;">brez naslova</span>
+          {% endif %}
+        </td>
         <td class="chk"><span class="box"></span></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
+      <tr><td colspan="8" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
+  <script>
+  window.addEventListener('load', function() {
+    // Generiraj QR kode za vse naslove
+    var qrDivs = document.querySelectorAll('[id^="qr-"]');
+    qrDivs.forEach(function(div) {
+      var addr  = div.getAttribute('data-addr');
+      var name  = div.getAttribute('data-name');
+      var query = encodeURIComponent(addr + ', Slovenija');
+      var url   = 'https://maps.google.com/?q=' + query;
+      new QRCode(div, {
+        text: url,
+        width: 65,
+        height: 65,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+
+    // Gumb za tisk
+    document.getElementById('btn-print').addEventListener('click', function() {
+      window.print();
+    });
+
+    // Samodejni tisk po 800ms (da se QR kode generirajo)
+    setTimeout(function() { window.print(); }, 800);
+  });
+  </script>
 </body>
 </html>
