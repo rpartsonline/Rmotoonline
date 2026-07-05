@@ -123,7 +123,6 @@ def create_app():
     from routes.staff import staff_bp
     from routes.complaints import complaints_bp
     from routes.create_accounts import create_acc_bp
-    from routes.moto import moto_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -136,7 +135,6 @@ def create_app():
     app.register_blueprint(staff_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(create_acc_bp)
-    app.register_blueprint(moto_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request

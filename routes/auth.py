@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db
 
@@ -33,12 +33,7 @@ def login():
         if user and user.is_active_user and user.check_password(password):
             login_user(user, remember=remember)
             next_page = request.args.get("next")
-            if next_page:
-                return redirect(next_page)
-            # Admin vidi izbiro platforme, ostali grejo direktno na dashboard
-            if user.is_admin:
-                return redirect(url_for("auth.platform_select"))
-            return redirect(url_for("main.dashboard"))
+            return redirect(next_page or url_for("main.dashboard"))
 
         flash("Napačno uporabniško ime ali geslo.", "danger")
 
@@ -51,25 +46,3 @@ def logout():
     logout_user()
     flash("Uspešno ste se odjavili.", "info")
     return redirect(url_for("auth.login"))
-
-
-@auth_bp.route("/platforma")
-@login_required
-def platform_select():
-    """Izbira platforme – samo za admina."""
-    if not current_user.is_admin:
-        return redirect(url_for("main.dashboard"))
-    return render_template("platform_select.html")
-
-
-@auth_bp.route("/platforma/izberi/<platforma>")
-@login_required
-def set_platform(platforma):
-    """Nastavi platformo v sejo in preusmeri."""
-    if not current_user.is_admin:
-        return redirect(url_for("main.dashboard"))
-    if platforma == "moto":
-        session["platform"] = "moto"
-        return redirect(url_for("moto.narocila"))
-    session["platform"] = "avto"
-    return redirect(url_for("main.dashboard"))
