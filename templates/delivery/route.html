@@ -189,118 +189,91 @@
 {% endblock %}
 
 <script>
-// Stranke za dropdown pri dostavi
-const DEL_CUSTOMERS = [
+var DEL_CUSTOMERS = [
   {% for c in customers %}
   {id: {{c.id}}, name: {{c.name|tojson}}, address: {{((c.address or '') + ' ' + (c.postal or ''))|trim|tojson}}, phone: {{(c.phone or '')|tojson}}},
   {% endfor %}
 ];
 
-(function() {
-  const inp     = document.getElementById('del-customer-search');
-  const drop    = document.getElementById('del-customer-dropdown');
-  const hidden  = document.getElementById('del-customer-hidden');
-  const addrFld = document.getElementById('del-address');
-  const phoneFld= document.getElementById('del-phone');
-  let activeIdx = -1;
+document.addEventListener('DOMContentLoaded', function() {
+  var inp     = document.getElementById('del-customer-search');
+  var drop    = document.getElementById('del-customer-dropdown');
+  var hidden  = document.getElementById('del-customer-hidden');
+  var addrFld = document.getElementById('del-address');
+  var phoneFld= document.getElementById('del-phone');
+  if (!inp || !drop) return;
 
-  function renderDrop(items) {
+  // Stil dropdowna
+  drop.style.cssText = [
+    'display:none',
+    'position:absolute',
+    'z-index:9999',
+    'width:100%',
+    'background:#fff',
+    'border:1px solid #c0ccda',
+    'border-radius:6px',
+    'max-height:260px',
+    'overflow-y:auto',
+    'box-shadow:0 6px 18px rgba(0,0,0,0.13)',
+    'top:calc(100% + 2px)',
+    'left:0'
+  ].join(';');
+
+  function renderDrop(list) {
     drop.innerHTML = '';
-    activeIdx = -1;
-
-    if (!items.length) {
-      drop.innerHTML = '<div class="px-3 py-2 text-muted small">Ni zadetkov</div>';
-      drop.style.display = 'block';
-      return;
-    }
-
-    items.slice(0, 30).forEach(function(c, i) {
-      const div = document.createElement('div');
-      div.className = 'del-drop-item';
-      div.style.cssText = 'padding:8px 14px; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:0.92rem;';
-      div.innerHTML = '<span style="font-weight:600;">' + c.name + '</span>'
-        + (c.phone ? ' <span style="color:#888; font-size:0.82rem;">· ' + c.phone + '</span>' : '')
-        + (c.address ? '<br><span style="color:#aaa; font-size:0.78rem;">' + c.address + '</span>' : '');
-
-      div.addEventListener('mouseover', function() { setActive(i); });
-      div.addEventListener('mouseout',  function() { setActive(-1); });
-      div.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        selectCustomer(c);
+    if (!list.length) {
+      drop.innerHTML = '<div style="padding:10px 14px;color:#999;font-size:0.88rem;">Ni zadetkov</div>';
+    } else {
+      list.slice(0, 40).forEach(function(c) {
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:1px solid #f2f4f8;font-size:0.91rem;';
+        div.innerHTML = '<b>' + c.name + '</b>'
+          + (c.phone ? ' <span style="color:#888;font-size:0.82rem;">· ' + c.phone + '</span>' : '')
+          + (c.address && c.address.trim() ? '<br><span style="color:#bbb;font-size:0.78rem;">' + c.address.trim() + '</span>' : '');
+        div.addEventListener('mouseover', function() { this.style.background='#eef2ff'; });
+        div.addEventListener('mouseout',  function() { this.style.background=''; });
+        div.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          inp.value    = c.name;
+          hidden.value = c.name;
+          if (addrFld  && c.address) addrFld.value  = c.address.trim();
+          if (phoneFld && c.phone)   phoneFld.value = c.phone;
+          drop.style.display = 'none';
+        });
+        drop.appendChild(div);
       });
-      drop.appendChild(div);
-    });
+    }
     drop.style.display = 'block';
   }
 
-  function setActive(idx) {
-    const items = drop.querySelectorAll('.del-drop-item');
-    items.forEach(function(el, i) {
-      el.style.background = (i === idx) ? '#e8f0fe' : '';
-    });
-    activeIdx = idx;
-  }
-
-  function selectCustomer(c) {
-    inp.value    = c.name;
-    hidden.value = c.name;
-    drop.style.display = 'none';
-    if (addrFld  && c.address) addrFld.value  = c.address;
-    if (phoneFld && c.phone)   phoneFld.value = c.phone;
-  }
-
-  function filterAndShow(q) {
+  function openDrop() {
+    var q = inp.value.toLowerCase().trim();
     if (!q) {
       renderDrop(DEL_CUSTOMERS);
     } else {
-      const res = DEL_CUSTOMERS.filter(function(c) {
-        return c.name.toLowerCase().includes(q) ||
-               (c.phone && c.phone.includes(q));
+      var res = DEL_CUSTOMERS.filter(function(c) {
+        return c.name.toLowerCase().indexOf(q) >= 0 || (c.phone && c.phone.indexOf(q) >= 0);
       });
       renderDrop(res);
     }
   }
 
-  if (!inp) return;
-
-  // Prikaži vse ob kliku / fokusu
-  inp.addEventListener('focus', function() {
-    filterAndShow(this.value.toLowerCase().trim());
-  });
-
-  // Filtriraj ob tipkanju
-  inp.addEventListener('input', function() {
+  // Prikaži ob kliku ALI fokusu
+  inp.addEventListener('click',  openDrop);
+  inp.addEventListener('focus',  openDrop);
+  inp.addEventListener('input',  function() {
     hidden.value = this.value;
-    filterAndShow(this.value.toLowerCase().trim());
+    openDrop();
   });
-
-  // Navigacija s tipkovnico
-  inp.addEventListener('keydown', function(e) {
-    const items = drop.querySelectorAll('.del-drop-item');
-    if (!items.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActive(Math.min(activeIdx + 1, items.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActive(Math.max(activeIdx - 1, 0));
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      items[activeIdx].dispatchEvent(new MouseEvent('mousedown'));
-    } else if (e.key === 'Escape') {
-      drop.style.display = 'none';
-    }
-  });
-
-  // Zapri ob kliku zunaj
-  document.addEventListener('mousedown', function(e) {
-    if (!inp.contains(e.target) && !drop.contains(e.target)) {
-      drop.style.display = 'none';
-    }
-  });
-
   inp.addEventListener('blur', function() {
-    setTimeout(function() { drop.style.display = 'none'; }, 200);
+    setTimeout(function() { drop.style.display = 'none'; }, 220);
   });
-})();
+
+  // Zapri ob kliku izven
+  document.addEventListener('mousedown', function(e) {
+    if (e.target !== inp && !drop.contains(e.target)) {
+      drop.style.display = 'none';
+    }
+  });
+});
 </script>
