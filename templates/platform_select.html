@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Izberi platformo – Bartog</title>
+  <title>Izberi platformo – R-Parts</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
@@ -139,14 +139,14 @@
 <body>
   <div class="platform-wrap">
     <div class="platform-logo">B</div>
-    <div class="platform-title">Bartog Ajdovščina</div>
+    <div class="platform-title">R-Parts</div>
     <div class="platform-sub">Izberi platformo za nadaljevanje</div>
 
     <div class="platform-cards">
       <!-- MOTO -->
       <a href="{{ url_for('auth.set_platform', platforma='moto') }}" class="platform-card moto">
         <span class="card-icon">🏍️</span>
-        <div class="card-title">Moto platforma</div>
+        <div class="card-title">Moto Naročila – R-MotoShop</div>
         <div class="card-sub">Evidenca naročil moto delov<br>R-MotoShop Ajdovščina</div>
         <div class="card-badge badge-moto"><i class="bi bi-wrench me-1"></i>Moto deli</div>
       </a>
@@ -154,7 +154,7 @@
       <!-- AVTO -->
       <a href="{{ url_for('auth.set_platform', platforma='avto') }}" class="platform-card avto">
         <span class="card-icon">🚗</span>
-        <div class="card-title">Bartog-Avto platforma</div>
+        <div class="card-title">Avto Naročila – Bartog</div>
         <div class="card-sub">Naročila, povpraševanja,<br>stranke, dostava</div>
         <div class="card-badge badge-avto"><i class="bi bi-clipboard-check me-1"></i>Avto deli</div>
       </a>
