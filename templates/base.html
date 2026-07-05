@@ -12,113 +12,12 @@
 <body>
 
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
-{% set platform = session.get('platform', 'avto') %}
-
-{% if platform == 'moto' %}
-<!-- ── MOTO SIDEBAR (svetlo zelena) ─────────────────────────────────────── -->
-<style>
-  .sidebar { background: linear-gradient(180deg, #1a5c34 0%, #145228 100%) !important; }
-  .sb-header { border-bottom-color: rgba(255,255,255,0.15) !important; }
-  .sb-link:hover, .sb-link.active { background: rgba(255,255,255,0.18) !important; }
-  .sb-section { color: rgba(255,255,255,0.5) !important; }
-  .sb-footer { border-top-color: rgba(255,255,255,0.15) !important; }
-  .sidebar .sb-logo-mark { color: #7de8a8 !important; }
-</style>
-<nav class="sidebar" id="sidebar">
-  <div class="sb-header">
-    <span style="font-size:1.1rem;font-weight:900;color:#fff;letter-spacing:1px;">R-MotoShop</span>
-    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
-  </div>
-  <ul class="sb-nav">
-    <li>
-      <a href="{{ url_for('main.dashboard') }}"
-         class="sb-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
-        <i class="bi bi-speedometer2"></i><span>Pregled</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('moto.narocila') }}"
-         class="sb-link {% if request.endpoint and 'moto' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-clipboard-check"></i><span>Naročila</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('notes.list_notes') }}"
-         class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-journal-text"></i><span>Beležka</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.leave') }}"
-         class="sb-link {% if request.endpoint == 'staff.leave' or request.endpoint == 'staff.leave_list' %}active{% endif %}">
-        <i class="bi bi-calendar3"></i><span>Dopusti</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.hours') }}"
-         class="sb-link {% if request.endpoint and 'hours' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-clock"></i><span>Ure</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('customers.list_customers') }}"
-         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-people"></i><span>Stranke</span>
-      </a>
-    </li>
-    <li class="sb-section">Storitve</li>
-    <li>
-      <a href="{{ url_for('moto.pnevmatike') }}"
-         class="sb-link {% if request.endpoint == 'moto.pnevmatike' %}active{% endif %}">
-        <i class="bi bi-circle"></i><span>Menjava pnevmatik</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('moto.rent_ebike') }}"
-         class="sb-link {% if request.endpoint == 'moto.rent_ebike' %}active{% endif %}">
-        <i class="bi bi-lightning-charge"></i><span>Rent E-Bike</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('moto.rent_motorbike') }}"
-         class="sb-link {% if request.endpoint == 'moto.rent_motorbike' %}active{% endif %}">
-        <i class="bi bi-bicycle"></i><span>Rent Motorbike</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('moto.rent_atv') }}"
-         class="sb-link {% if request.endpoint == 'moto.rent_atv' %}active{% endif %}">
-        <i class="bi bi-truck"></i><span>Rent ATV/Quad</span>
-      </a>
-    </li>
-    {% if current_user.is_admin %}
-    <li class="sb-section">Admin</li>
-    <li>
-      <a href="{{ url_for('admin.users') }}"
-         class="sb-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-person-gear"></i><span>Uporabniki</span>
-      </a>
-    </li>
-    {% endif %}
-  </ul>
-  <div class="sb-footer">
-    <div class="sb-user">
-      <i class="bi bi-person-circle"></i>
-      <span>{{ current_user.full_name }}</span>
-    </div>
-    <a href="{{ url_for('auth.logout') }}" class="sb-logout">
-      <i class="bi bi-box-arrow-right me-1"></i><span>Odjava</span>
-    </a>
-  </div>
-</nav>
-
-{% else %}
-<!-- ── AVTO SIDEBAR (original) ───────────────────────────────────────────── -->
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="R-MotoShop" class="sb-logo">
     <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
   </div>
+
   <ul class="sb-nav">
     <li>
       <a href="{{ url_for('main.dashboard') }}"
@@ -133,21 +32,9 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('notes.list_notes') }}"
-         class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-journal-text"></i><span>Beležka</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.leave') }}"
-         class="sb-link {% if request.endpoint == 'staff.leave' or request.endpoint == 'staff.leave_list' %}active{% endif %}">
-        <i class="bi bi-calendar3"></i><span>Dopusti</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.hours') }}"
-         class="sb-link {% if request.endpoint and 'hours' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-clock"></i><span>Ure</span>
+      <a href="{{ url_for('orders.new_order') }}"
+         class="sb-link {% if request.endpoint == 'orders.new_order' %}active{% endif %}">
+        <i class="bi bi-plus-circle"></i><span>Novo naročilo</span>
       </a>
     </li>
     <li>
@@ -157,17 +44,12 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('delivery.overview') }}"
-         class="sb-link {% if request.endpoint and 'delivery' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-truck"></i><span>Dostava</span>
+      <a href="{{ url_for('vehicles.new_vehicle') }}"
+         class="sb-link {% if request.endpoint and 'vehicles' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-car-front"></i><span>Vozila</span>
       </a>
     </li>
-    <li>
-      <a href="{{ url_for('complaints.list_complaints') }}"
-         class="sb-link {% if request.endpoint and 'complaints' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
-      </a>
-    </li>
+
     {% if current_user.is_admin %}
     <li class="sb-section">Admin</li>
     <li>
@@ -178,6 +60,7 @@
     </li>
     {% endif %}
   </ul>
+
   <div class="sb-footer">
     <div class="sb-user">
       <i class="bi bi-person-circle"></i>
@@ -188,7 +71,6 @@
     </a>
   </div>
 </nav>
-{% endif %}
 
 <!-- ══ MAIN ════════════════════════════════════════════════════════════════ -->
 <div class="main-wrap" id="main-wrap">
