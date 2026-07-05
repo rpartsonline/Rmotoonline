@@ -7,24 +7,29 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
-    .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #111; padding-bottom: 8px; margin-bottom: 16px; }
+
+    .hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 8px; margin-bottom: 16px; }
     .hdr h1 { font-size: 22px; margin: 0; }
-    .hdr .meta { font-size: 13px; color: #444; }
+    .hdr .meta { font-size: 13px; color: #444; text-align: right; }
+
+    .hdr-right { display: flex; align-items: flex-start; gap: 16px; }
+    .qr-box { text-align: center; }
+    .qr-box canvas, .qr-box img { display: block; }
+    .qr-box .qr-label { font-size: 10px; color: #555; margin-top: 3px; }
+
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #ccc; font-size: 13px; vertical-align: middle; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #ccc; font-size: 13px; vertical-align: top; }
     th { background: #f0f0f0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-    .num  { width: 32px; font-weight: 700; }
+    .num  { width: 36px; font-weight: 700; }
     .chk  { width: 34px; text-align: center; }
-    .qrcol{ width: 75px; text-align: center; padding: 4px; }
     .box  { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; }
     .cust { font-weight: 700; }
     .addr { color: #333; }
     .note { color: #666; font-size: 11px; }
-    .qr-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; }
-    .qr-wrap canvas, .qr-wrap img { width:65px!important; height:65px!important; display:block; }
-    .qr-label { font-size:9px; color:#888; text-align:center; line-height:1.2; }
+
     .actions { margin-bottom: 16px; }
     .btn { font-size: 14px; padding: 8px 16px; border: 1px solid #333; background: #fff; border-radius: 6px; cursor: pointer; }
+
     @media print {
       .actions { display: none; }
       body { margin: 8mm; }
@@ -39,10 +44,22 @@
   </div>
 
   <div class="hdr">
-    <h1>{{ route_label }}</h1>
-    <div class="meta">
-      Bartog Ajdovščina · Dostava<br>
-      Datum: ____________  Šofer: ____________
+    <div>
+      <h1>{{ route_label }}</h1>
+      <div style="font-size:13px; color:#444; margin-top:4px;">
+        Skupaj postankov: {{ stops|length }}
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="meta">
+        Bartog Ajdovščina · Dostava<br>
+        Datum: ____________&nbsp;&nbsp;Šofer: ____________
+      </div>
+      <!-- ENA QR koda za celo ruto -->
+      <div class="qr-box">
+        <div id="route-qr"></div>
+        <div class="qr-label">Google Maps – celotna ruta</div>
+      </div>
     </div>
   </div>
 
@@ -55,7 +72,6 @@
         <th>Telefon</th>
         <th>Opomba</th>
         <th>Pnevm.</th>
-        <th class="qrcol">Maps QR</th>
         <th class="chk">✓</th>
       </tr>
     </thead>
@@ -68,50 +84,47 @@
         <td>{{ s.phone or '' }}</td>
         <td class="note">{{ s.note or '' }}</td>
         <td>{{ s.tires or '' }}</td>
-        <td class="qrcol">
-          {% if s.address %}
-          <div class="qr-wrap">
-            <div id="qr-{{ loop.index }}"
-                 data-addr="{{ s.address | e }}"
-                 data-name="{{ s.customer | e }}"></div>
-            <span class="qr-label">Google Maps</span>
-          </div>
-          {% else %}
-          <span style="color:#bbb;font-size:11px;">brez naslova</span>
-          {% endif %}
-        </td>
         <td class="chk"><span class="box"></span></td>
       </tr>
       {% else %}
-      <tr><td colspan="8" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
+      <tr><td colspan="7" style="text-align:center; padding:24px; color:#777;">Ni strank na tej ruti.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
+  <!-- Naslovi postankov za Google Maps -->
   <script>
+  var STOP_ADDRESSES = [
+    {% for s in stops %}
+    {% if s.address %}"{{ s.address | replace('"', '') | replace('\n', ' ') }}",{% endif %}
+    {% endfor %}
+  ];
+
   window.addEventListener('load', function() {
-    // Generiraj QR kode za vse naslove
-    var qrDivs = document.querySelectorAll('[id^="qr-"]');
-    qrDivs.forEach(function(div) {
-      var addr  = div.getAttribute('data-addr');
-      var name  = div.getAttribute('data-name');
-      var query = encodeURIComponent(addr + ', Slovenija');
-      var url   = 'https://maps.google.com/?q=' + query;
-      new QRCode(div, {
-        text: url,
-        width: 65,
-        height: 65,
-        correctLevel: QRCode.CorrectLevel.M
-      });
+    // Sestavi Google Maps URL z vsemi postanki
+    var start = 'Bartog+Ajdov%C5%A1%C4%8Dina,+Slovenija';
+    var parts  = [start];
+    STOP_ADDRESSES.forEach(function(addr) {
+      parts.push(encodeURIComponent(addr + ', Slovenija'));
+    });
+    parts.push(start); // konec = nazaj v Ajdovščino
+    var mapsUrl = 'https://www.google.com/maps/dir/' + parts.join('/');
+
+    // Generiraj ENO QR kodo
+    new QRCode(document.getElementById('route-qr'), {
+      text: mapsUrl,
+      width: 90,
+      height: 90,
+      correctLevel: QRCode.CorrectLevel.M
     });
 
-    // Gumb za tisk
+    // Gumb tisk
     document.getElementById('btn-print').addEventListener('click', function() {
       window.print();
     });
 
-    // Samodejni tisk po 800ms (da se QR kode generirajo)
-    setTimeout(function() { window.print(); }, 800);
+    // Samodejni tisk po 600ms
+    setTimeout(function() { window.print(); }, 600);
   });
   </script>
 </body>
