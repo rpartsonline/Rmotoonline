@@ -186,7 +186,6 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="{{ url_for('static', filename='js/delivery_route.js') }}"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if (window.DeliveryRoute) DeliveryRoute.init(); });</script>
-{% endblock %}
 
 <script>
 var DEL_CUSTOMERS = [
@@ -203,7 +202,6 @@ document.addEventListener('DOMContentLoaded', function() {
   var phoneFld= document.getElementById('del-phone');
   if (!inp || !drop) return;
 
-  // Stil dropdowna
   drop.style.cssText = [
     'display:none',
     'position:absolute',
@@ -258,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Prikaži ob kliku ALI fokusu
   inp.addEventListener('click',  openDrop);
   inp.addEventListener('focus',  openDrop);
   inp.addEventListener('input',  function() {
@@ -269,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { drop.style.display = 'none'; }, 220);
   });
 
-  // Zapri ob kliku izven
   document.addEventListener('mousedown', function(e) {
     if (e.target !== inp && !drop.contains(e.target)) {
       drop.style.display = 'none';
@@ -277,3 +273,4 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+{% endblock %}
