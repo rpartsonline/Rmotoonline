@@ -20,7 +20,14 @@ def list_customers():
             )
         )
     customers = q.order_by(Customer.name).all()
-    return render_template("customers/list.html", customers=customers, search=search)
+    # Set customer ID-jev ki že imajo račun
+    linked_customer_ids = set(
+        u.linked_customer_id for u in User.query.filter(
+            User.linked_customer_id.isnot(None)
+        ).all()
+    )
+    return render_template("customers/list.html", customers=customers,
+                           search=search, linked_customer_ids=linked_customer_ids)
 
 
 @customers_bp.route("/new", methods=["GET", "POST"])

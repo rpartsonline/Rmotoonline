@@ -75,9 +75,21 @@
           <td class="small text-muted">{{ c.created_at|sl_date }}</td>
           <td>
             {% if current_user.is_admin %}
-            <div class="d-flex gap-1">
+            <div class="d-flex gap-1 flex-wrap">
               <a href="{{ url_for('customers.customer_detail', customer_id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
               <a href="{{ url_for('customers.edit_customer', customer_id=c.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+              {% if c.id in linked_customer_ids %}
+              <span class="btn btn-sm btn-outline-success disabled" title="Račun že obstaja">
+                <i class="bi bi-person-check"></i>
+              </span>
+              {% else %}
+              <form method="POST" action="{{ url_for('customers.create_customer_account', customer_id=c.id) }}"
+                    onsubmit="return confirm('Ustvarim račun za {{ c.name }}?\nGeslo: bartog111')">
+                <button type="submit" class="btn btn-sm btn-outline-warning" title="Ustvari kupčev račun (geslo: bartog111)">
+                  <i class="bi bi-person-plus"></i>
+                </button>
+              </form>
+              {% endif %}
               <form method="POST" action="{{ url_for('customers.delete_customer', customer_id=c.id) }}" onsubmit="return confirm('Izbriši stranko {{ c.name }}?')">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
               </form>
