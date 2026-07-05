@@ -5,32 +5,6 @@
 <ol class="breadcrumb mb-0 small">
   <li class="breadcrumb-item active">Stranke</li>
 </ol>
-<script>
-(function() {
-  const input = document.getElementById('live-search');
-  const clearBtn = document.getElementById('clear-search');
-  const countEl = document.getElementById('search-count');
-  const rows = document.querySelectorAll('.customer-row');
-  const totalHeader = document.querySelector('.tbl-header-title');
-  const total = rows.length;
-  function filter(val) {
-    const q = val.toLowerCase().trim();
-    let visible = 0;
-    rows.forEach(function(row) {
-      const match = !q || row.dataset.search.includes(q);
-      row.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-    if (totalHeader) totalHeader.textContent = visible + ' strank';
-    countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
-    clearBtn.style.display = q ? '' : 'none';
-  }
-  if (input) {
-    input.addEventListener('input', function() { filter(this.value); });
-    clearBtn.addEventListener('click', function() { input.value = ''; filter(''); input.focus(); });
-  }
-})();
-</script>
 {% endblock %}
 
 {% block content %}
@@ -125,4 +99,43 @@
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var input     = document.getElementById('live-search');
+  var clearBtn  = document.getElementById('clear-search');
+  var countEl   = document.getElementById('search-count');
+  var rows      = document.querySelectorAll('.customer-row');
+  var totalHeader = document.querySelector('.tbl-header-title');
+  var total     = rows.length;
+
+  function filter(val) {
+    var q = val.toLowerCase().trim();
+    var visible = 0;
+    rows.forEach(function(row) {
+      var match = !q || row.dataset.search.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (totalHeader) totalHeader.textContent = visible + ' strank';
+    if (countEl) countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
+    if (clearBtn) clearBtn.style.display = q ? '' : 'none';
+  }
+
+  if (input) {
+    input.addEventListener('input', function() { filter(this.value); });
+    // Fokus na iskalno polje ob odprtju strani
+    input.focus();
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      input.value = '';
+      filter('');
+      input.focus();
+    });
+  }
+});
+</script>
 {% endblock %}
