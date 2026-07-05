@@ -32,17 +32,24 @@
   </div>
   {% else %}
   <div class="mb-3">
-    <label class="form-label small fw-semibold">Izberi obstoječo stranko</label>
-    <select name="customer_id" id="customer-select" class="form-select">
-      <option value="new">➕ Dodaj novo stranko…</option>
-      {% for c in customers %}
-      <option value="{{ c.id }}"
-        {% if preselected_customer == c.id|string %}selected{% endif %}
-        data-phone="{{ c.phone or '' }}">
-        {{ c.name }}{% if c.phone %} · {{ c.phone }}{% endif %}
-      </option>
-      {% endfor %}
-    </select>
+    <label class="form-label small fw-semibold">Izberi obstoječo stranko ali vpiši novo</label>
+    <div class="position-relative">
+      <input type="text" id="customer-search-inp" class="form-control"
+             placeholder="Začni pisati ime stranke ali vpiši novo…"
+             autocomplete="off"
+             value="{% if preselected_customer %}{% for c in customers %}{% if c.id|string == preselected_customer|string %}{{ c.name }}{% endif %}{% endfor %}{% endif %}">
+      <div id="customer-search-drop"
+           style="display:none; position:absolute; z-index:9999; width:100%;
+                  background:#fff; border:1px solid #c0ccda; border-radius:6px;
+                  max-height:280px; overflow-y:auto;
+                  box-shadow:0 6px 18px rgba(0,0,0,0.13);
+                  top:calc(100% + 2px); left:0;"></div>
+    </div>
+    <input type="hidden" name="customer_id" id="customer-select"
+           value="{{ preselected_customer or 'new' }}">
+    <div class="form-text">
+      <i class="bi bi-info-circle me-1"></i>Klikni za seznam strank · Tipkaj za iskanje · Pusti prazno ali vpiši novo = nova stranka
+    </div>
   </div>
 
   <!-- Nova stranka polja -->
@@ -570,73 +577,107 @@ async function loadVehicles(customerId, preselId='') {
   });
 });
 
-custSel && custSel.addEventListener('change', () => {
-  const val = custSel.value;
+// ── Stranka: searchable dropdown + ročni vnos ────────────────────────────
+var CUST_LIST = [
+  {% for c in customers %}
+  {id: "{{c.id}}", name: {{c.name|tojson}}, phone: {{(c.phone or '')|tojson}}},
+  {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+  var searchInp  = document.getElementById('customer-search-inp');
+  var searchDrop = document.getElementById('customer-search-drop');
+  if (!searchInp || !searchDrop || !custSel) return;
+
+  function renderDrop(list) {
+    searchDrop.innerHTML = '';
+    var addNew = document.createElement('div');
+    addNew.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:2px solid #e5eaf2;font-size:0.91rem;color:#2563eb;font-weight:600;';
+    addNew.innerHTML = '&#10010; Dodaj novo stranko (ročni vnos)';
+    addNew.addEventListener('mouseover', function(){ this.style.background='#eff6ff'; });
+    addNew.addEventListener('mouseout',  function(){ this.style.background=''; });
+    addNew.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      custSel.value = 'new';
+      searchDrop.style.display = 'none';
+      searchInp.value = '';
+      custSel.dispatchEvent(new Event('change'));
+    });
+    searchDrop.appendChild(addNew);
+    list.slice(0, 40).forEach(function(c) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:1px solid #f2f4f8;font-size:0.91rem;';
+      div.innerHTML = '<b>' + c.name + '</b>' + (c.phone ? ' <span style="color:#888;font-size:0.82rem;">· ' + c.phone + '</span>' : '');
+      div.addEventListener('mouseover', function(){ this.style.background='#eef2ff'; });
+      div.addEventListener('mouseout',  function(){ this.style.background=''; });
+      div.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        searchInp.value = c.name;
+        custSel.value   = c.id;
+        searchDrop.style.display = 'none';
+        custSel.dispatchEvent(new Event('change'));
+      });
+      searchDrop.appendChild(div);
+    });
+    searchDrop.style.display = 'block';
+  }
+
+  function openDrop() {
+    var q = searchInp.value.toLowerCase().trim();
+    var res = q ? CUST_LIST.filter(function(c){
+      return c.name.toLowerCase().indexOf(q) >= 0 || (c.phone && c.phone.indexOf(q) >= 0);
+    }) : CUST_LIST;
+    renderDrop(res);
+  }
+
+  searchInp.addEventListener('click', openDrop);
+  searchInp.addEventListener('focus', openDrop);
+  searchInp.addEventListener('input', function(){
+    custSel.value = 'new';
+    openDrop();
+  });
+  searchInp.addEventListener('blur', function(){
+    setTimeout(function(){
+      searchDrop.style.display = 'none';
+      if (custSel.value === 'new') {
+        if (searchInp.value.trim() && newCustF) {
+          var nameEl = newCustF.querySelector('[name="new_customer_name"]');
+          if (nameEl && !nameEl.value) nameEl.value = searchInp.value.trim();
+        }
+        if (newCustF) newCustF.style.display = '';
+      }
+    }, 220);
+  });
+
+  document.addEventListener('mousedown', function(e){
+    if (e.target !== searchInp && !searchDrop.contains(e.target)){
+      searchDrop.style.display = 'none';
+    }
+  });
+});
+
+// Listener za change na custSel (hidden input)
+custSel && custSel.addEventListener('change', function() {
+  var val = custSel.value;
   if (val === 'new') {
-    newCustF.style.display = '';
+    if (newCustF) newCustF.style.display = '';
     evWrap.style.display = 'none';
     evChips.innerHTML = '';
-    exIdEl.value = '';
+    if (exIdEl) exIdEl.value = '';
   } else {
-    newCustF.style.display = 'none';
+    if (newCustF) newCustF.style.display = 'none';
     loadVehicles(val);
   }
 });
 
-// Prepreči oddajo (in s tem brisanje vnosov), če obvezna polja niso izpolnjena
-const orderForm = document.getElementById('order-form');
-const ORDER_KIND = "{{ kind }}";
-if (orderForm) {
-  orderForm.addEventListener('submit', (e) => {
-    const usingExisting = custSel && custSel.value && custSel.value !== 'new';
-    const nameEl  = document.querySelector('[name="new_customer_name"]');
-    const phoneEl = document.querySelector('[name="new_customer_phone"]');
-    const name  = nameEl  ? nameEl.value.trim()  : '';
-    const phone = phoneEl ? phoneEl.value.trim() : '';
-    const problems = [];
-
-    if (!usingExisting) {
-      if (!name)  problems.push('ime in priimek stranke');
-      if (!phone) problems.push('telefon stranke');
-    }
-
-    // znamka vozila obvezna samo pri naročilih
-    if (ORDER_KIND !== 'povprasevanje') {
-      const exVeh = document.getElementById('existing_vehicle_id');
-      const brandEl = document.getElementById('nv_brand');
-      const hasExisting = exVeh && exVeh.value && /\d/.test(exVeh.value);
-      const hasBrand = brandEl && brandEl.value.trim();
-      if (!hasExisting && !hasBrand) problems.push('znamka vozila');
-    }
-
-    // kupec mora pri naročilu izbrati nujnost dostave
-    if (window.IS_KUPEC === true && ORDER_KIND !== 'povprasevanje') {
-      const urg = document.querySelector('input[name="delivery_urgency"]:checked');
-      if (!urg) problems.push('kdaj potrebuješ nadomestne dele');
-    }
-
-    if (problems.length) {
-      e.preventDefault();
-      if (!usingExisting && newCustF) newCustF.style.display = '';
-      if (!name && nameEl) { nameEl.focus(); nameEl.classList.add('is-invalid'); }
-      else if (!phone && phoneEl) { phoneEl.focus(); phoneEl.classList.add('is-invalid'); }
-      alert('Manjkajo obvezni podatki: ' + problems.join(', ') + '. Vnosi se ne bodo izgubili.');
-    }
-  });
-}
-
 // ── Init ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  if (!custSel) return;  // kupec: ni izbirnika strank
+document.addEventListener('DOMContentLoaded', function() {
+  if (!custSel) return;
   if (PRESEL_CUST && custSel.value !== 'new') {
-    newCustF.style.display = 'none';
+    if (newCustF) newCustF.style.display = 'none';
     loadVehicles(PRESEL_CUST, PRESEL_VEH);
-  } else if (!PRESEL_CUST) {
-    const hasCustomers = custSel.options.length > 1;
-    if (!hasCustomers) {
-      custSel.value = 'new';
-      newCustF.style.display = '';
-    }
+  } else {
+    if (newCustF) newCustF.style.display = '';
   }
 });
 </script>
