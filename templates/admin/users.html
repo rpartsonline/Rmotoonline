@@ -15,9 +15,24 @@
   </a>
 </div>
 
+<!-- Live Search -->
+<div class="card-plain mb-3">
+  <div class="d-flex gap-2 align-items-center">
+    <div class="position-relative flex-grow-1" style="max-width:480px;">
+      <i class="bi bi-search position-absolute" style="left:10px;top:50%;transform:translateY(-50%);color:#aaa;"></i>
+      <input type="text" id="user-search" class="form-control form-control-sm ps-4"
+             placeholder="Išči po imenu, uporabniškem imenu ali vlogi…" autocomplete="off">
+    </div>
+    <span id="user-count" class="text-muted small"></span>
+    <button type="button" id="user-clear" class="btn btn-sm btn-outline-secondary" style="display:none;">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+</div>
+
 <div class="tbl-card">
   <div class="tbl-header">
-    <h6 class="tbl-header-title">{{ users|length }} uporabnikov</h6>
+    <h6 id="user-header-title">{{ users|length }} uporabnikov</h6>
   </div>
   <table class="table">
     <thead>
@@ -34,7 +49,8 @@
     </thead>
     <tbody>
       {% for u in users %}
-      <tr class="{% if not u.is_active_user %}table-light text-muted{% endif %}">
+      <tr class="user-row {% if not u.is_active_user %}table-light text-muted{% endif %}"
+          data-search="{{ u.full_name|lower }} {{ u.username|lower }} {% if u.is_admin %}admin{% elif u.role == 'kupec' %}mehanik kupec{% else %}zaposlen{% endif %}">
         <td class="fw-semibold">{{ u.full_name }}</td>
         <td><code>{{ u.username }}</code></td>
         <td>
@@ -125,4 +141,40 @@
     </tbody>
   </table>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var input   = document.getElementById('user-search');
+  var clearBtn= document.getElementById('user-clear');
+  var countEl = document.getElementById('user-count');
+  var header  = document.getElementById('user-header-title');
+  var rows    = document.querySelectorAll('.user-row');
+  var total   = rows.length;
+
+  function filter(val) {
+    var q = val.toLowerCase().trim();
+    var visible = 0;
+    rows.forEach(function(row) {
+      var match = !q || row.dataset.search.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (header) header.textContent = visible + ' uporabnikov';
+    if (countEl) countEl.textContent = q ? ('Najdeno: ' + visible + ' / ' + total) : '';
+    if (clearBtn) clearBtn.style.display = q ? '' : 'none';
+  }
+
+  if (input) {
+    input.addEventListener('input', function() { filter(this.value); });
+    input.focus();
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      input.value = ''; filter(''); input.focus();
+    });
+  }
+});
+</script>
 {% endblock %}
