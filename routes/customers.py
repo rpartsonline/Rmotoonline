@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from sqlalchemy import or_
-from models import db, Customer
+from models import db, Customer, User
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
 
@@ -51,7 +51,43 @@ def new_customer():
 @login_required
 def customer_detail(customer_id):
     customer = Customer.query.get_or_404(customer_id)
-    return render_template("customers/detail.html", customer=customer)
+    linked_user = User.query.filter_by(linked_customer_id=customer_id).first()
+    return render_template("customers/detail.html", customer=customer, linked_user=linked_user)
+
+
+@customers_bp.route("/<int:customer_id>/ustvari-racun", methods=["POST"])
+@login_required
+def create_customer_account(customer_id):
+    from flask_login import current_user
+    if not current_user.is_admin:
+        flash("Samo admin lahko ustvari račun.", "danger")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+
+    customer = Customer.query.get_or_404(customer_id)
+
+    # Preveri ali račun že obstaja
+    existing = User.query.filter_by(linked_customer_id=customer_id).first()
+    if existing:
+        flash(f"Račun za to stranko že obstaja: '{existing.username}'", "warning")
+        return redirect(url_for("customers.customer_detail", customer_id=customer_id))
+
+    # Ustvari username iz imena stranke
+    base = customer.name.strip()
+    username = base
+    used = set(u.username for u in User.query.all())
+    i = 2
+    while username in used:
+        username = f"{base}_{i}"
+        i += 1
+
+    u = User(username=username, full_name=customer.name,
+             is_admin=False, role="kupec",
+             linked_customer_id=customer_id)
+    u.set_password("bartog111")
+    db.session.add(u)
+    db.session.commit()
+    flash(f"✅ Račun ustvarjen! Uporabniško ime: '{username}' · Geslo: bartog111", "success")
+    return redirect(url_for("customers.customer_detail", customer_id=customer_id))
 
 
 @customers_bp.route("/<int:customer_id>/edit", methods=["GET", "POST"])

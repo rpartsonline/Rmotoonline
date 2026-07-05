@@ -11,7 +11,7 @@
 {% block content %}
 <div class="page-hdr">
   <h1><i class="bi bi-person me-2 text-primary"></i>{{ customer.name }}</h1>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}"
        class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-pencil me-1"></i>Uredi
@@ -20,6 +20,20 @@
        class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Novo naročilo
     </a>
+    {% if current_user.is_admin %}
+      {% if linked_user %}
+      <span class="btn btn-sm btn-outline-success disabled">
+        <i class="bi bi-person-check me-1"></i>Račun: <strong>{{ linked_user.username }}</strong>
+      </span>
+      {% else %}
+      <form method="POST" action="{{ url_for('customers.create_customer_account', customer_id=customer.id) }}"
+            onsubmit="return confirm('Ustvarim kupčev račun za {{ customer.name }}?\nUporabniško ime: {{ customer.name }}\nGeslo: bartog111')">
+        <button type="submit" class="btn btn-sm btn-outline-warning">
+          <i class="bi bi-person-plus me-1"></i>Ustvari kupčev račun
+        </button>
+      </form>
+      {% endif %}
+    {% endif %}
   </div>
 </div>
 
