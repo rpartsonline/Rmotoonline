@@ -67,7 +67,7 @@ def leave():
         legend[e.user_id] = {"name": e.user.full_name if e.user else "?",
                              "color": leave_color_for(e.user_id)}
 
-    users = User.query.filter_by(is_active_user=True).order_by(User.full_name).all()
+    users = User.query.filter(User.is_active_user==True, User.role!="kupec").order_by(User.full_name).all()
     (py, pm), (ny, nm) = _prev_next(y, m)
 
     return render_template("staff/leave.html",
@@ -183,7 +183,7 @@ def hours():
     # izbor ur/nadur (0–16 po 0.5)
     hour_options = [x / 2 for x in range(0, 33)]
 
-    users = User.query.filter_by(is_active_user=True).order_by(User.full_name).all()
+    users = User.query.filter(User.is_active_user==True, User.role!="kupec").order_by(User.full_name).all()
     (py, pm), (ny, nm) = _prev_next(y, m)
 
     locked = MonthLock.query.filter_by(user_id=target.id, year=y, month=m).first() is not None
