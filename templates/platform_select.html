@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Izberi platformo – Bartog</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f2117 0%, #1a3a28 50%, #0f2117 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    .platform-wrap {
+      width: 100%;
+      max-width: 720px;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    .platform-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 900;
+      color: #fff;
+      margin: 0 auto 12px;
+    }
+
+    .platform-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .platform-sub {
+      color: rgba(255,255,255,0.55);
+      font-size: 14px;
+      margin-bottom: 40px;
+    }
+
+    .platform-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 500px) {
+      .platform-cards { grid-template-columns: 1fr; }
+    }
+
+    .platform-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 36px 24px;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: block;
+    }
+
+    .platform-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.1);
+      text-decoration: none;
+    }
+
+    .platform-card.moto:hover {
+      border-color: #3DAA6E;
+      background: rgba(61,170,110,0.15);
+      box-shadow: 0 8px 32px rgba(46,139,87,0.25);
+    }
+
+    .platform-card.avto:hover {
+      border-color: #3b82f6;
+      background: rgba(59,130,246,0.12);
+      box-shadow: 0 8px 32px rgba(59,130,246,0.2);
+    }
+
+    .card-icon {
+      font-size: 52px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .card-sub {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .card-badge {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge-moto {
+      background: rgba(46,139,87,0.25);
+      color: #5dbb87;
+      border: 1px solid rgba(46,139,87,0.4);
+    }
+
+    .badge-avto {
+      background: rgba(59,130,246,0.2);
+      color: #7cb8ff;
+      border: 1px solid rgba(59,130,246,0.3);
+    }
+
+    .user-info {
+      margin-top: 36px;
+      color: rgba(255,255,255,0.35);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="platform-wrap">
+    <div class="platform-logo">B</div>
+    <div class="platform-title">Bartog Ajdovščina</div>
+    <div class="platform-sub">Izberi platformo za nadaljevanje</div>
+
+    <div class="platform-cards">
+      <!-- MOTO -->
+      <a href="{{ url_for('auth.set_platform', platforma='moto') }}" class="platform-card moto">
+        <span class="card-icon">🏍️</span>
+        <div class="card-title">Moto platforma</div>
+        <div class="card-sub">Evidenca naročil moto delov<br>R-MotoShop Ajdovščina</div>
+        <div class="card-badge badge-moto"><i class="bi bi-wrench me-1"></i>Moto deli</div>
+      </a>
+
+      <!-- AVTO -->
+      <a href="{{ url_for('auth.set_platform', platforma='avto') }}" class="platform-card avto">
+        <span class="card-icon">🚗</span>
+        <div class="card-title">Bartog-Avto platforma</div>
+        <div class="card-sub">Naročila, povpraševanja,<br>stranke, dostava</div>
+        <div class="card-badge badge-avto"><i class="bi bi-clipboard-check me-1"></i>Avto deli</div>
+      </a>
+    </div>
+
+    <div class="user-info">
+      <i class="bi bi-person-circle me-1"></i>{{ current_user.full_name }} &nbsp;·&nbsp;
+      <a href="{{ url_for('auth.logout') }}" style="color:rgba(255,255,255,0.35)">Odjava</a>
+    </div>
+  </div>
+</body>
+</html>

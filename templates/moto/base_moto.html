@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Moto naročila{% endblock %} – R-MotoShop</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#1a3a28">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <style>
+    /* ── Moto zelena tema ─────────────────────────────────── */
+    .sidebar {
+      background: #0f2117 !important;
+    }
+    .sb-header {
+      background: linear-gradient(135deg, #1a6b3c, #2e8b57) !important;
+      padding: 0 !important;
+    }
+    .sb-brand-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 18px;
+      text-decoration: none;
+    }
+    .moto-brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .moto-brand-text {
+      line-height: 1.2;
+    }
+    .moto-brand-text strong {
+      display: block;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .moto-brand-text small {
+      color: rgba(255,255,255,0.6);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .sb-link {
+      color: rgba(255,255,255,0.65) !important;
+    }
+    .sb-link:hover, .sb-link.active {
+      background: rgba(61,170,110,0.18) !important;
+      color: #5dbb87 !important;
+    }
+    .sb-link.active {
+      border-left: 3px solid #3daa6e !important;
+    }
+    .sb-section {
+      color: rgba(255,255,255,0.3) !important;
+    }
+    .sb-switch {
+      margin: 4px 12px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(59,130,246,0.12);
+      border: 1px solid rgba(59,130,246,0.25);
+      color: #7cb8ff !important;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .sb-switch:hover {
+      background: rgba(59,130,246,0.22) !important;
+    }
+    .moto-topbar-btn {
+      background: #2e8b57;
+      border-color: #2e8b57;
+    }
+    .moto-topbar-btn:hover {
+      background: #1a6b3c;
+      border-color: #1a6b3c;
+    }
+    .moto-stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 6px rgba(30,100,60,0.08);
+    }
+    .moto-stat-card .num {
+      font-size: 28px;
+      font-weight: 800;
+    }
+    .moto-stat-card .lbl {
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <a href="{{ url_for('moto.narocila') }}" class="sb-brand-link">
+      <div class="moto-brand-icon">🏍</div>
+      <div class="moto-brand-text">
+        <strong>R-MotoShop</strong>
+        <small>Ajdovščina</small>
+      </div>
+    </a>
+  </div>
+
+  <ul class="sb-nav">
+    <li>
+      <a href="{{ url_for('moto.narocila') }}"
+         class="sb-link {% if request.endpoint == 'moto.narocila' %}active{% endif %}">
+        <i class="bi bi-clipboard-check"></i><span>Naročila</span>
+      </a>
+    </li>
+
+    <li class="sb-section" style="margin-top:16px">Platforma</li>
+    <li>
+      <a href="{{ url_for('auth.platform_select') }}" class="sb-switch">
+        <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="sb-footer">
+    <div class="sb-user">
+      <i class="bi bi-person-circle"></i>
+      <span>{{ current_user.full_name }}</span>
+    </div>
+    <a href="{{ url_for('auth.logout') }}" class="sb-logout">
+      <i class="bi bi-box-arrow-right me-1"></i><span>Odjava</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ══ MAIN ════════════════════════════════════════════════════════════════ -->
+<div class="main-wrap" id="main-wrap">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="topbar-toggle" id="sbToggle">
+      <i class="bi bi-list fs-5"></i>
+    </button>
+    <nav aria-label="breadcrumb" class="ms-2 d-none d-md-block">
+      {% block breadcrumb %}{% endblock %}
+    </nav>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button class="btn btn-sm moto-topbar-btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoNarocilo">
+        <i class="bi bi-plus-lg me-1"></i>Novo naročilo
+      </button>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-secondary d-md-none" title="Odjava">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  <div class="container-fluid px-4 pt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show py-2" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Content -->
+  <div class="container-fluid px-4 pb-5">
+    {% block content %}{% endblock %}
+  </div>
+
+</div><!-- /main-wrap -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+  const sidebar  = document.getElementById('sidebar');
+  const mainWrap = document.getElementById('main-wrap');
+  document.getElementById('sbToggle').addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    mainWrap.classList.toggle('expanded');
+  });
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>
