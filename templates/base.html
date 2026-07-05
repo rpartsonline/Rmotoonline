@@ -69,6 +69,12 @@
       </a>
     </li>
     <li>
+      <a href="/reklamacije"
+         class="sb-link {% if request.endpoint and 'complaints' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-exclamation-circle"></i><span>Reklamacije</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('staff.leave') }}"
          class="sb-link {% if request.endpoint and request.endpoint.startswith('staff.leave') %}active{% endif %}">
         <i class="bi bi-calendar2-week"></i><span>Dopusti</span>
