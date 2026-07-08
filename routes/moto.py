@@ -16,6 +16,13 @@ def admin_required(f):
     return decorated
 
 
+@moto_bp.route("/platforma")
+@login_required
+@admin_required
+def platform_select():
+    return render_template("platform_select.html")
+
+
 @moto_bp.route("/")
 @login_required
 @admin_required

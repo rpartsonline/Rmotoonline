@@ -15,154 +15,70 @@
       justify-content: center;
       font-family: 'Segoe UI', Arial, sans-serif;
     }
-
-    .platform-wrap {
-      width: 100%;
-      max-width: 720px;
-      padding: 24px 16px;
-      text-align: center;
+    .wrap { width: 100%; max-width: 680px; padding: 24px 16px; text-align: center; }
+    .logo {
+      width: 68px; height: 68px; border-radius: 16px;
+      background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; font-weight: 900; color: #fff; margin: 0 auto 12px;
     }
-
-    .platform-logo {
-      width: 72px;
-      height: 72px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      font-weight: 900;
-      color: #fff;
-      margin: 0 auto 12px;
+    .main-title { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .main-sub { color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 36px; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+    .card-link {
+      background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 18px; padding: 32px 20px; text-decoration: none;
+      display: block; transition: all 0.2s;
     }
-
-    .platform-title {
-      font-size: 26px;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 4px;
+    .card-link:hover { transform: translateY(-3px); text-decoration: none; }
+    .card-link.moto:hover {
+      border-color: #3daa6e; background: rgba(61,170,110,0.12);
+      box-shadow: 0 8px 28px rgba(46,139,87,0.2);
     }
-
-    .platform-sub {
-      color: rgba(255,255,255,0.55);
-      font-size: 14px;
-      margin-bottom: 40px;
+    .card-link.avto:hover {
+      border-color: #3b82f6; background: rgba(59,130,246,0.1);
+      box-shadow: 0 8px 28px rgba(59,130,246,0.18);
     }
-
-    .platform-cards {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    @media (max-width: 500px) {
-      .platform-cards { grid-template-columns: 1fr; }
-    }
-
-    .platform-card {
-      background: rgba(255,255,255,0.05);
-      border: 2px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 36px 24px;
-      text-decoration: none;
-      transition: all 0.2s;
-      display: block;
-    }
-
-    .platform-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(255,255,255,0.35);
-      background: rgba(255,255,255,0.1);
-      text-decoration: none;
-    }
-
-    .platform-card.moto:hover {
-      border-color: #3DAA6E;
-      background: rgba(61,170,110,0.15);
-      box-shadow: 0 8px 32px rgba(46,139,87,0.25);
-    }
-
-    .platform-card.avto:hover {
-      border-color: #3b82f6;
-      background: rgba(59,130,246,0.12);
-      box-shadow: 0 8px 32px rgba(59,130,246,0.2);
-    }
-
-    .card-icon {
-      font-size: 52px;
-      margin-bottom: 16px;
-      display: block;
-    }
-
-    .card-title {
-      font-size: 20px;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 6px;
-    }
-
-    .card-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.5);
-    }
-
+    .card-icon { font-size: 48px; margin-bottom: 14px; display: block; }
+    .card-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 5px; }
+    .card-sub { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.5; }
     .card-badge {
-      display: inline-block;
-      margin-top: 16px;
-      padding: 5px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
+      display: inline-block; margin-top: 14px; padding: 4px 12px;
+      border-radius: 20px; font-size: 11px; font-weight: 700;
     }
-
-    .badge-moto {
-      background: rgba(46,139,87,0.25);
-      color: #5dbb87;
-      border: 1px solid rgba(46,139,87,0.4);
-    }
-
-    .badge-avto {
-      background: rgba(59,130,246,0.2);
-      color: #7cb8ff;
-      border: 1px solid rgba(59,130,246,0.3);
-    }
-
-    .user-info {
-      margin-top: 36px;
-      color: rgba(255,255,255,0.35);
-      font-size: 13px;
-    }
+    .badge-moto { background: rgba(46,139,87,0.2); color: #5dbb87; border: 1px solid rgba(46,139,87,0.35); }
+    .badge-avto { background: rgba(59,130,246,0.18); color: #7cb8ff; border: 1px solid rgba(59,130,246,0.3); }
+    .footer-info { margin-top: 32px; color: rgba(255,255,255,0.3); font-size: 13px; }
+    .footer-info a { color: rgba(255,255,255,0.3); }
+    .footer-info a:hover { color: rgba(255,255,255,0.6); }
   </style>
 </head>
 <body>
-  <div class="platform-wrap">
-    <div class="platform-logo">B</div>
-    <div class="platform-title">Bartog Ajdovščina</div>
-    <div class="platform-sub">Izberi platformo za nadaljevanje</div>
+  <div class="wrap">
+    <div class="logo">B</div>
+    <div class="main-title">Bartog Ajdovščina</div>
+    <div class="main-sub">Izberi platformo za nadaljevanje</div>
 
-    <div class="platform-cards">
-      <!-- MOTO -->
-      <a href="{{ url_for('auth.set_platform', platforma='moto') }}" class="platform-card moto">
+    <div class="cards">
+      <a href="{{ url_for('moto.narocila') }}" class="card-link moto">
         <span class="card-icon">🏍️</span>
         <div class="card-title">Moto platforma</div>
         <div class="card-sub">Evidenca naročil moto delov<br>R-MotoShop Ajdovščina</div>
         <div class="card-badge badge-moto"><i class="bi bi-wrench me-1"></i>Moto deli</div>
       </a>
-
-      <!-- AVTO -->
-      <a href="{{ url_for('auth.set_platform', platforma='avto') }}" class="platform-card avto">
+      <a href="{{ url_for('main.dashboard') }}" class="card-link avto">
         <span class="card-icon">🚗</span>
-        <div class="card-title">Bartog-Avto platforma</div>
-        <div class="card-sub">Naročila, povpraševanja,<br>stranke, dostava</div>
+        <div class="card-title">Bartog-Avto</div>
+        <div class="card-sub">Naročila, reklamacije,<br>stranke, dostava</div>
         <div class="card-badge badge-avto"><i class="bi bi-clipboard-check me-1"></i>Avto deli</div>
       </a>
     </div>
 
-    <div class="user-info">
-      <i class="bi bi-person-circle me-1"></i>{{ current_user.full_name }} &nbsp;·&nbsp;
-      <a href="{{ url_for('auth.logout') }}" style="color:rgba(255,255,255,0.35)">Odjava</a>
+    <div class="footer-info">
+      <i class="bi bi-person-circle me-1"></i>{{ current_user.full_name }}
+      &nbsp;·&nbsp;
+      <a href="{{ url_for('auth.logout') }}">Odjava</a>
     </div>
   </div>
 </body>

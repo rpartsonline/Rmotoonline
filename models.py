@@ -435,3 +435,46 @@ TRUCK_TIRE_BRANDS = [
     "Michelin", "Continental", "Bridgestone", "Goodyear", "Hankook", "Pirelli",
     "Sava", "Barum", "Matador", "Giti", "Aeolus", "Sailun", "Triangle",
 ]
+
+
+# ── Moto platforma: evidenca naročil delov ────────────────────────────────────
+
+MOTO_BRANDS = [
+    "Honda", "Yamaha", "Kawasaki", "Suzuki", "KTM", "BMW", "Ducati",
+    "Husqvarna", "Triumph", "Aprilia", "Harley-Davidson", "Royal Enfield",
+    "Beta", "GasGas", "Sherco", "TM Racing", "Drugo",
+]
+
+MOTO_ORDER_STATUSES = [
+    ("cakanje",    "V čakanju",  "warning"),
+    ("naroceno",   "Naročeno",   "primary"),
+    ("prispelo",   "Prispelo",   "success"),
+    ("zakljuceno", "Zaključeno", "secondary"),
+]
+MOTO_ORDER_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in MOTO_ORDER_STATUSES}
+
+
+class MotoOrder(db.Model):
+    __tablename__ = "moto_orders"
+
+    id             = db.Column(db.Integer, primary_key=True)
+    stranka        = db.Column(db.String(200), nullable=False)
+    telefon        = db.Column(db.String(50))
+    znamka         = db.Column(db.String(100))
+    model_motorja  = db.Column(db.String(100))
+    letnik         = db.Column(db.Integer)
+    nadomestni_del = db.Column(db.String(500), nullable=False)
+    opomba         = db.Column(db.Text)
+    status         = db.Column(db.String(20), default="cakanje", nullable=False)
+    created_by_id  = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship("User")
+
+    @property
+    def status_info(self):
+        return MOTO_ORDER_STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+
+    def __repr__(self):
+        return f"<MotoOrder {self.id} – {self.stranka}>"
