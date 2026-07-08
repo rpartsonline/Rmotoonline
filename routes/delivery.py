@@ -113,3 +113,21 @@ def print_route(route_key):
     return render_template("delivery/print.html",
                            route_label=_route_label(route_key),
                            stops=stops)
+
+
+@delivery_bp.route("/<route_key>/clear", methods=["POST"])
+@login_required
+def clear_route(route_key):
+    if route_key not in DELIVERY_ROUTE_DICT:
+        flash("Neznana ruta.", "danger")
+        return redirect(url_for("delivery.overview"))
+    mode = request.form.get("mode", "done")
+    if mode == "all":
+        DeliveryStop.query.filter_by(route=route_key).delete()
+        db.session.commit()
+        flash(f"Ruta {DELIVERY_ROUTE_DICT[route_key]} zaključena – vsi postanki odstranjeni.", "success")
+    else:
+        DeliveryStop.query.filter_by(route=route_key, done=True).delete()
+        db.session.commit()
+        flash("Dostavljeni postanki odstranjeni.", "success")
+    return redirect(url_for("delivery.route_view", route_key=route_key))

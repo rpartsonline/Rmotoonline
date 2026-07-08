@@ -40,7 +40,7 @@
                     max-height:220px; overflow-y:auto;
                     box-shadow:0 4px 12px rgba(0,0,0,0.1); top:100%; left:0;"></div>
       </div>
-      <input type="hidden" name="customer" id="del-customer-hidden" required>
+      <input type="hidden" name="customer" id="del-customer-hidden">
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Naslov</label>
@@ -174,6 +174,70 @@
     </table>
   </div>
 </div>
+
+<!-- Dodaj stranko SPODAJ -->
+{% if stops %}
+<div class="form-section mt-3 mb-3">
+  <div class="form-section-title"><i class="bi bi-plus-circle"></i> Dodaj stranko na konec rute</div>
+  <form method="POST" action="{{ url_for('delivery.add_stop', route_key=route_key) }}" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Stranka *</label>
+      <div class="position-relative">
+        <input type="text" id="del-customer-search-b" class="form-control"
+               placeholder="Začni pisati ali vpiši ime…" autocomplete="off">
+        <div id="del-customer-dropdown-b"
+             style="display:none; position:absolute; z-index:9999; width:100%;
+                    background:#fff; border:1px solid #c0ccda; border-radius:6px;
+                    max-height:220px; overflow-y:auto;
+                    box-shadow:0 6px 18px rgba(0,0,0,0.13); bottom:calc(100% + 2px); left:0;"></div>
+      </div>
+      <input type="hidden" name="customer" id="del-customer-hidden-b">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Naslov</label>
+      <input type="text" name="address" id="del-address-b" class="form-control" placeholder="Ulica, kraj">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Telefon</label>
+      <input type="text" name="phone" id="del-phone-b" class="form-control" placeholder="040…">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Opomba / škatle</label>
+      <input type="text" name="note" class="form-control" placeholder="npr. 2 škatli">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label small fw-semibold">Pnevmatike</label>
+      <input type="text" name="tires" class="form-control" placeholder="kos">
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i></button>
+    </div>
+  </form>
+</div>
+
+<!-- Zaključi ruto -->
+<div class="d-flex justify-content-end mt-2 mb-4">
+  <form method="POST" action="{{ url_for('delivery.clear_route', route_key=route_key) }}"
+        onsubmit="return confirm('Zaključujem ruto {{ route_label }}.
+
+Izberi kaj želiš narediti:
+OK = izbriši samo dostavljene postanke
+Preklici = prekliči')">
+    <button type="submit" name="mode" value="done" class="btn btn-outline-success me-2">
+      <i class="bi bi-check2-all me-1"></i>Izbriši dostavljene
+    </button>
+  </form>
+  <form method="POST" action="{{ url_for('delivery.clear_route', route_key=route_key) }}"
+        onsubmit="return confirm('Zaključim in POČISTIM celo ruto {{ route_label }}?
+
+Vsi postanki bodo izbrisani!')">
+    <button type="submit" name="mode" value="all" class="btn btn-danger">
+      <i class="bi bi-flag-fill me-1"></i>Zaključi ruto (počisti vse)
+    </button>
+  </form>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block extra_head %}
@@ -271,6 +335,87 @@ document.addEventListener('DOMContentLoaded', function() {
       drop.style.display = 'none';
     }
   });
+
+  // Ročni vnos - zagotovi da hidden dobi vrednost ob submit
+  var topForm = inp.closest('form');
+  if (topForm) {
+    topForm.addEventListener('submit', function() {
+      if (!hidden.value && inp.value.trim()) {
+        hidden.value = inp.value.trim();
+      }
+    });
+  }
+});
+
+// Spodnji dropdown (ista logika)
+document.addEventListener('DOMContentLoaded', function() {
+  var inp2    = document.getElementById('del-customer-search-b');
+  var drop2   = document.getElementById('del-customer-dropdown-b');
+  var hidden2 = document.getElementById('del-customer-hidden-b');
+  var addrFld2= document.getElementById('del-address-b');
+  var phoneFld2=document.getElementById('del-phone-b');
+  if (!inp2 || !drop2) return;
+
+  drop2.style.cssText = [
+    'display:none','position:absolute','z-index:9999','width:100%',
+    'background:#fff','border:1px solid #c0ccda','border-radius:6px',
+    'max-height:220px','overflow-y:auto',
+    'box-shadow:0 6px 18px rgba(0,0,0,0.13)',
+    'bottom:calc(100% + 2px)','left:0'
+  ].join(';');
+
+  function renderDrop2(list) {
+    drop2.innerHTML = '';
+    if (!list.length) {
+      drop2.innerHTML = '<div style="padding:10px 14px;color:#999;font-size:0.88rem;">Ni zadetkov</div>';
+    } else {
+      list.slice(0, 40).forEach(function(c) {
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:1px solid #f2f4f8;font-size:0.91rem;';
+        div.innerHTML = '<b>' + c.name + '</b>'
+          + (c.phone ? ' <span style="color:#888;font-size:0.82rem;">· ' + c.phone + '</span>' : '')
+          + (c.address && c.address.trim() ? '<br><span style="color:#bbb;font-size:0.78rem;">' + c.address.trim() + '</span>' : '');
+        div.addEventListener('mouseover', function() { this.style.background='#eef2ff'; });
+        div.addEventListener('mouseout',  function() { this.style.background=''; });
+        div.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          inp2.value    = c.name;
+          hidden2.value = c.name;
+          if (addrFld2  && c.address) addrFld2.value  = c.address.trim();
+          if (phoneFld2 && c.phone)   phoneFld2.value = c.phone;
+          drop2.style.display = 'none';
+        });
+        drop2.appendChild(div);
+      });
+    }
+    drop2.style.display = 'block';
+  }
+
+  function openDrop2() {
+    var q = inp2.value.toLowerCase().trim();
+    var res = q ? DEL_CUSTOMERS.filter(function(c) {
+      return c.name.toLowerCase().indexOf(q) >= 0 || (c.phone && c.phone.indexOf(q) >= 0);
+    }) : DEL_CUSTOMERS;
+    renderDrop2(res);
+  }
+
+  inp2.addEventListener('click',  openDrop2);
+  inp2.addEventListener('focus',  openDrop2);
+  inp2.addEventListener('input',  function() { hidden2.value = this.value; openDrop2(); });
+  inp2.addEventListener('blur', function() {
+    setTimeout(function() { drop2.style.display = 'none'; }, 220);
+  });
+  document.addEventListener('mousedown', function(e) {
+    if (e.target !== inp2 && !drop2.contains(e.target)) drop2.style.display = 'none';
+  });
+
+  // Ročni vnos za spodnji form
+  var botForm = inp2.closest('form');
+  if (botForm) {
+    botForm.addEventListener('submit', function() {
+      if (!hidden2.value && inp2.value.trim()) hidden2.value = inp2.value.trim();
+    });
+  }
 });
 </script>
 {% endblock %}
