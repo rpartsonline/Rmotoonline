@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from models import db, DeliveryStop, Customer, DELIVERY_ROUTES, DELIVERY_ROUTE_DICT
@@ -131,3 +132,22 @@ def clear_route(route_key):
         db.session.commit()
         flash("Dostavljeni postanki odstranjeni.", "success")
     return redirect(url_for("delivery.route_view", route_key=route_key))
+
+
+@delivery_bp.route("/<route_key>/reorder", methods=["POST"])
+@login_required
+def reorder_stops(route_key):
+    """Sprejme novo zaporedje postankov kot JSON seznam ID-jev."""
+    if route_key not in DELIVERY_ROUTE_DICT:
+        return {"ok": False, "error": "unknown route"}, 400
+    try:
+        data = request.get_json(force=True) or {}
+        order = data.get("order", [])
+        for pos, stop_id in enumerate(order, start=1):
+            stop = DeliveryStop.query.get(int(stop_id))
+            if stop and stop.route == route_key:
+                stop.position = pos
+        db.session.commit()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, 500

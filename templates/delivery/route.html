@@ -134,10 +134,10 @@
           <th style="width:140px"></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="stops-tbody">
         {% for s in stops %}
-        <tr class="{% if s.done %}table-light text-muted{% endif %}">
-          <td class="fw-bold text-primary">{{ loop.index }}</td>
+        <tr class="stop-row {% if s.done %}table-light text-muted{% endif %}" data-stop-id="{{ s.id }}" style="cursor:grab;">
+          <td class="fw-bold text-primary stop-num">{{ loop.index }}</td>
           <td class="{% if s.done %}text-decoration-line-through{% else %}fw-semibold{% endif %}">{{ s.customer }}</td>
           <td class="small">{{ s.address or '–' }}</td>
           <td class="small">{{ s.phone or '–' }}</td>
@@ -416,6 +416,75 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!hidden2.value && inp2.value.trim()) hidden2.value = inp2.value.trim();
     });
   }
+});
+</script>
+
+<style>
+.stop-row.drag-over { background: #e8f0fe !important; border-top: 2px solid #3b82f6; }
+.stop-row.dragging  { opacity: 0.4; }
+.stop-row { cursor: grab; }
+</style>
+<script>
+// ── Drag-and-drop za hitro premikanje postankov ──────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var tbody = document.getElementById('stops-tbody');
+  if (!tbody) return;
+  var dragSrc = null;
+
+  function getRows() { return Array.from(tbody.querySelectorAll('.stop-row')); }
+
+  function saveOrder() {
+    var ids = getRows().map(function(r) { return parseInt(r.dataset.stopId); });
+    fetch('{{ url_for("delivery.reorder_stops", route_key=route_key) }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+      body: JSON.stringify({order: ids})
+    }).then(function(r) {
+      if (r.ok) {
+        // Posodobi številke
+        getRows().forEach(function(row, i) {
+          var num = row.querySelector('.stop-num');
+          if (num) num.textContent = i + 1;
+        });
+      }
+    });
+  }
+
+  function initDrag(row) {
+    row.setAttribute('draggable', 'true');
+    row.addEventListener('dragstart', function(e) {
+      dragSrc = this;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(function() { dragSrc.classList.add('dragging'); }, 0);
+    });
+    row.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      getRows().forEach(function(r) { r.classList.remove('drag-over'); });
+      dragSrc = null;
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      if (this === dragSrc) return;
+      getRows().forEach(function(r) { r.classList.remove('drag-over'); });
+      this.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function() {
+      this.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragSrc || this === dragSrc) return;
+      var rows = getRows();
+      var srcIdx = rows.indexOf(dragSrc);
+      var dstIdx = rows.indexOf(this);
+      if (srcIdx < dstIdx) { this.after(dragSrc); }
+      else                  { this.before(dragSrc); }
+      this.classList.remove('drag-over');
+      saveOrder();
+    });
+  }
+
+  getRows().forEach(initDrag);
 });
 </script>
 {% endblock %}

@@ -29,20 +29,67 @@
   }
 
   // ── OCR: prebere vrstice (ime + naslov) ─────────────────────────────────────
+  // Prepozna naslove: vsebuje hišno številko ali ključno besedo
+  function looksLikeAddr(s) {
+    if (!s) return false;
+    // Hišna številka (npr. "Ulica 13", "Cesta 5A", "13A")
+    if (/\b\d+\s*[a-zA-Z]?\s*(,|$)/.test(s)) return true;
+    // Ključne besede za slovensko cesto
+    if (/\b(ulica|ul\.|cesta|c\.|trg|pot|vas|naselje|aleja|breg|gmajna)\b/i.test(s)) return true;
+    // Poštna številka (4 cifre)
+    if (/\b\d{4}\b/.test(s)) return true;
+    return false;
+  }
+
+  function isHeader(s) {
+    return /^(stranka|kupec|firma|naslov|ime|telefon|#|št|vrstni)/i.test(s.trim());
+  }
+
   function parseLines(text) {
-    const lines = (text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const raw = (text || "").split(/\r?\n/).map(s => s.trim()).filter(s => s.length >= 3);
     const out = [];
-    for (const ln of lines) {
-      // preskoči zelo kratke / številčne vrstice
-      if (ln.length < 4) continue;
-      // poskusi ločiti ime in naslov, če je vejica
-      let name = ln, address = ln;
-      const comma = ln.indexOf(",");
-      if (comma > 0) {
-        name = ln.slice(0, comma).trim();
-        address = ln.slice(comma + 1).trim();
+    let i = 0;
+    while (i < raw.length) {
+      const ln = raw[i];
+      if (isHeader(ln)) { i++; continue; }
+
+      // Format: "Ime, Naslov" ali "Ime - Naslov" ali "Ime | Naslov"
+      const sepMatch = ln.match(/^(.+?)[,\-|]\s*(.+)$/);
+      if (sepMatch) {
+        const a = sepMatch[1].trim(), b = sepMatch[2].trim();
+        // Drugi del je naslov?
+        if (looksLikeAddr(b) && !looksLikeAddr(a)) {
+          out.push({ name: a, address: b });
+          i++; continue;
+        }
+        // Prvi del je naslov?
+        if (looksLikeAddr(a) && !looksLikeAddr(b)) {
+          out.push({ name: b, address: a });
+          i++; continue;
+        }
+        // Oba sta enaka – vzemi ime brez naslova, naslov pa vse od vejice naprej
+        out.push({ name: a, address: ln.slice(ln.indexOf(sepMatch[0][a.length]) + 1).trim() });
+        i++; continue;
       }
-      out.push({ name: name, address: address });
+
+      // Format: naslednja vrstica je naslov (dve vrstici na postanok)
+      if (i + 1 < raw.length) {
+        const next = raw[i + 1];
+        if (!isHeader(next)) {
+          if (looksLikeAddr(next) && !looksLikeAddr(ln)) {
+            out.push({ name: ln, address: next });
+            i += 2; continue;
+          }
+          if (looksLikeAddr(ln) && !looksLikeAddr(next)) {
+            out.push({ name: next, address: ln });
+            i += 2; continue;
+          }
+        }
+      }
+
+      // Ena vrstica – ime in naslov sta enaka (geocodiranje bo poskusilo)
+      out.push({ name: ln, address: ln });
+      i++;
     }
     return out;
   }
