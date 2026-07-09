@@ -334,7 +334,7 @@ def _handle_new(kind):
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return _render_new_order_form(kind)
+            return _render_new_order_form(kind, form_data=request.form)
 
         # ── Stranka ──────────────────────────────────────────────────────────
         if is_kupec:
@@ -494,8 +494,12 @@ def _handle_new(kind):
     return _render_new_order_form(kind)
 
 
-def _render_new_order_form(kind="narocilo"):
+def _render_new_order_form(kind="narocilo", form_data=None):
     cfg = _kind_cfg(kind)
+    fd = form_data or {}
+    # Pri napaki ohrani predhodno izbrano stranko / vozilo
+    presel_cust = fd.get("customer_id") or request.args.get("customer_id")
+    presel_veh  = fd.get("existing_vehicle_id") or request.args.get("vehicle_id")
     return render_template(
         "orders/new.html",
         customers    = Customer.query.order_by(Customer.name).all(),
@@ -513,8 +517,9 @@ def _render_new_order_form(kind="narocilo"):
         moto_brands    = MOTO_TIRE_BRANDS,
         agro_brands    = AGRO_TIRE_BRANDS,
         truck_brands   = TRUCK_TIRE_BRANDS,
-        preselected_customer = request.args.get("customer_id"),
-        preselected_vehicle  = request.args.get("vehicle_id"),
+        preselected_customer = presel_cust,
+        preselected_vehicle  = presel_veh,
+        form_data   = fd,
         kind        = kind,
         page_title  = cfg["new_title"],
         form_action = url_for(cfg["new_endpoint"]),

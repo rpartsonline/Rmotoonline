@@ -61,19 +61,19 @@
        style="{% if preselected_customer or current_user.role == 'kupec' %}display:none{% endif %}">
     <div class="col-md-6">
       <label class="form-label small">Ime in priimek / Podjetje *</label>
-      <input type="text" name="new_customer_name" class="form-control" placeholder="Janez Novak">
+      <input type="text" name="new_customer_name" class="form-control" placeholder="Janez Novak" value="{{ form_data.get('new_customer_name', '') }}">
     </div>
     <div class="col-md-3">
       <label class="form-label small">Telefon</label>
-      <input type="text" name="new_customer_phone" class="form-control" placeholder="+386 …">
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="+386 …" value="{{ form_data.get('new_customer_phone', '') }}">
     </div>
     <div class="col-md-3">
       <label class="form-label small">E-pošta</label>
-      <input type="email" name="new_customer_email" class="form-control" placeholder="…@…">
+      <input type="email" name="new_customer_email" class="form-control" placeholder="…@…" value="{{ form_data.get('new_customer_email', '') }}">
     </div>
     <div class="col-12">
       <label class="form-label small">Naslov</label>
-      <input type="text" name="new_customer_address" class="form-control" placeholder="Ulica, kraj">
+      <input type="text" name="new_customer_address" class="form-control" placeholder="Ulica, kraj" value="{{ form_data.get('new_customer_address', '') }}">
     </div>
   </div>
   {% endif %}
