@@ -342,7 +342,7 @@ def _handle_new(kind):
             name = f.get("new_customer_name", "").strip()
             if not name:
                 flash("Vpiši ime stranke.", "danger")
-                return _render_new_order_form(kind)
+                return _render_new_order_form(kind, form_data=request.form)
             customer = Customer(
                 name    = name,
                 phone   = f.get("new_customer_phone", "").strip(),
