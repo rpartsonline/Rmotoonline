@@ -100,6 +100,7 @@
           <td class="small text-muted">
             {{ n.created_by.full_name if n.created_by else '' }}<br>
             <span>{{ n.created_at|sl_date }}</span>
+            <span class="text-primary fw-semibold">{{ n.created_at|sl_time }}</span>
           </td>
           <td class="text-end">
             <form method="POST" action="{{ url_for('notes.delete_note', note_id=n.id) }}"
