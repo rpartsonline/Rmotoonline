@@ -104,11 +104,34 @@ def create_app():
                     employee_id=current_user.id, notify_customer=True).count()
         except Exception:
             pass
+        # Nove beležke za trenutnega zaposlenega (od zadnjega ogleda)
+        note_notif_count = 0
+        try:
+            from flask import session as flask_session
+            from models import Note
+            if current_user.is_authenticated and getattr(current_user, "role", "") != "kupec":
+                last_visit_str = flask_session.get("notes_last_visit")
+                if last_visit_str:
+                    from datetime import datetime as _dt
+                    last_visit = _dt.fromisoformat(last_visit_str)
+                    note_notif_count = Note.query.filter(
+                        Note.person == current_user.full_name,
+                        Note.done == False,
+                        Note.created_at > last_visit
+                    ).count()
+                else:
+                    # Prva obisk – pokaži vse nedone beležke za to osebo
+                    note_notif_count = Note.query.filter_by(
+                        person=current_user.full_name, done=False
+                    ).count()
+        except Exception:
+            pass
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
+            "note_notif_count": note_notif_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────

@@ -54,6 +54,21 @@
     <div class="form-text">
       <i class="bi bi-info-circle me-1"></i>Klikni za seznam strank · Tipkaj za iskanje · Pusti prazno ali vpiši novo = nova stranka
     </div>
+    <!-- Telefon obstoječe stranke -->
+    <div id="existing-phone-wrap" style="display:none;" class="mt-2 p-2 rounded bg-light border">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <i class="bi bi-telephone text-muted small"></i>
+        <span class="small text-muted">Telefon stranke:</span>
+        <span id="phone-display" class="fw-semibold small text-dark"></span>
+        <input type="text" name="update_customer_phone" id="phone-edit-input"
+               class="form-control form-control-sm" style="max-width:220px; display:none;"
+               placeholder="Vpiši telefonsko številko…">
+        <input type="hidden" name="update_customer_id" id="update-customer-id">
+        <button type="button" id="phone-edit-btn" class="btn btn-sm btn-outline-warning py-0 px-2">
+          <i class="bi bi-pencil me-1"></i>Dodaj/uredi
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Nova stranka polja -->
@@ -668,11 +683,61 @@ custSel && custSel.addEventListener('change', function() {
     evWrap.style.display = 'none';
     evChips.innerHTML = '';
     if (exIdEl) exIdEl.value = '';
+    // Skrij telefon sekcijo
+    var pw = document.getElementById('existing-phone-wrap');
+    if (pw) pw.style.display = 'none';
   } else {
     if (newCustF) newCustF.style.display = 'none';
     loadVehicles(val);
+    // Pokaži telefon stranke
+    _showCustomerPhone(val);
   }
 });
+
+function _showCustomerPhone(custId) {
+  var pw = document.getElementById('existing-phone-wrap');
+  var pd = document.getElementById('phone-display');
+  var pi = document.getElementById('phone-edit-input');
+  var uc = document.getElementById('update-customer-id');
+  var btn = document.getElementById('phone-edit-btn');
+  if (!pw || !pd) return;
+  // Poišči stranko v CUST_LIST
+  var cust = null;
+  if (typeof CUST_LIST !== 'undefined') {
+    for (var i = 0; i < CUST_LIST.length; i++) {
+      if (String(CUST_LIST[i].id) === String(custId)) { cust = CUST_LIST[i]; break; }
+    }
+  }
+  if (!cust) return;
+  if (uc) uc.value = custId;
+  pw.style.display = '';
+  if (cust.phone) {
+    pd.textContent = cust.phone;
+    pi.value = cust.phone;
+    pi.style.display = 'none';
+    pd.style.display = '';
+  } else {
+    pd.textContent = '— ni telefona —';
+    pi.value = '';
+    pi.style.display = '';  // Takoj pokaži input
+    pd.style.display = '';
+    pd.style.color = '#aaa';
+  }
+  // Gumb za urejanje
+  if (btn) {
+    btn.onclick = function() {
+      if (pi.style.display === 'none') {
+        pi.style.display = '';
+        pi.focus();
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Shrani';
+      } else {
+        pi.style.display = 'none';
+        if (pi.value) pd.textContent = pi.value;
+        btn.innerHTML = '<i class="bi bi-pencil me-1"></i>Dodaj/uredi';
+      }
+    };
+  }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {

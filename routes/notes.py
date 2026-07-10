@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_required, current_user
 from models import db, Note, NOTE_PEOPLE
 
@@ -22,6 +22,9 @@ def list_notes():
         q = q.filter_by(done=True)
 
     notes = q.order_by(Note.done.asc(), Note.created_at.desc()).all()
+
+    # Zabeleži čas ogleda (za oblaček novih beležk)
+    session["notes_last_visit"] = datetime.utcnow().isoformat()
 
     # Števila nezaključenih po osebi
     counts = {p: Note.query.filter_by(person=p, done=False).count() for p in NOTE_PEOPLE}

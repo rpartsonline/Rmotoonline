@@ -488,6 +488,17 @@ def _handle_new(kind):
 
         db.session.commit()
         what = "Povpraševanje" if kind == "povprasevanje" else "Naročilo"
+        # Posodobi telefon stranke če je bil dodan/spremenjen
+        try:
+            upd_cust_id = f.get("update_customer_id", "").strip()
+            upd_phone   = f.get("update_customer_phone", "").strip()
+            if upd_cust_id and upd_phone and upd_cust_id.isdigit():
+                upd_cust = Customer.query.get(int(upd_cust_id))
+                if upd_cust and upd_cust.phone != upd_phone:
+                    upd_cust.phone = upd_phone
+                    db.session.commit()
+        except Exception:
+            pass
         flash(f"{what} {order.order_number} je bilo uspešno ustvarjeno.", "success")
         return redirect(url_for("orders.order_detail", order_id=order.id))
 
