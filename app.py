@@ -76,7 +76,7 @@ def create_app():
     @app.context_processor
     def inject_alerts():
         from datetime import timedelta
-        from models import Order, today_local
+        from models import Order, Note, today_local
         new_count = 0
         deliv_count = 0
         deliv_red = False
@@ -104,28 +104,18 @@ def create_app():
                     employee_id=current_user.id, notify_customer=True).count()
         except Exception:
             pass
-        # Nove beležke za trenutnega zaposlenega (od zadnjega ogleda)
+        # Neobdelane beležke za trenutnega zaposlenega
         note_notif_count = 0
         try:
-            from flask import session as flask_session
-            from models import Note
-            if current_user.is_authenticated and getattr(current_user, "role", "") != "kupec":
-                last_visit_str = flask_session.get("notes_last_visit")
-                if last_visit_str:
-                    from datetime import datetime as _dt
-                    last_visit = _dt.fromisoformat(last_visit_str)
-                    note_notif_count = Note.query.filter(
-                        Note.person == current_user.full_name,
-                        Note.done == False,
-                        Note.created_at > last_visit
-                    ).count()
-                else:
-                    # Prva obisk – pokaži vse nedone beležke za to osebo
-                    note_notif_count = Note.query.filter_by(
-                        person=current_user.full_name, done=False
-                    ).count()
-        except Exception:
-            pass
+            if (current_user.is_authenticated
+                    and getattr(current_user, "role", "") not in ("kupec",)
+                    and getattr(current_user, "full_name", None)):
+                note_notif_count = Note.query.filter_by(
+                    person=current_user.full_name,
+                    done=False
+                ).count()
+        except Exception as _note_err:
+            print(f"Note notif err: {_note_err}")
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
