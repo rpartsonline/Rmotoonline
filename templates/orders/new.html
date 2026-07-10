@@ -124,9 +124,21 @@
         <i class="bi bi-camera me-1"></i>Fotografiraj identifikacijsko številko
         <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" hidden>
       </label>
+      <label class="btn btn-outline-secondary btn-sm mb-0">
+        <i class="bi bi-upload me-1"></i>Naloži sliko / printscreen
+        <input type="file" id="nv_vin_upload" accept="image/*" hidden>
+      </label>
+      <button type="button" class="btn btn-outline-info btn-sm" id="nv_vin_paste_btn">
+        <i class="bi bi-clipboard-image me-1"></i>Prilepi (Ctrl+V)
+      </button>
+    </div>
+    <!-- Predogled prilepljene slike -->
+    <div id="nv_paste_preview" class="mt-2" style="display:none;">
+      <img id="nv_paste_img" style="max-height:120px; max-width:100%; border-radius:6px; border:1px solid #dee2e6;">
+      <span class="small text-muted ms-2" id="nv_paste_name"></span>
     </div>
     <div id="nv_status" class="small mt-2"></div>
-    <div class="form-text">Slikaj identifikacijsko številko (npr. s prometnega dovoljenja) – aplikacija jo prebere in vpiše. Pred uporabo jo preveri in po potrebi popravi.</div>
+    <div class="form-text">Fotografiraj, naloži sliko ali <strong>prilepi printscreen</strong> (Ctrl+V) prometnega dovoljenja – aplikacija prebere šasijsko številko.</div>
   </div>
 
   <!-- Osnova -->
@@ -463,6 +475,83 @@
     engineType: 'nv_engine', displacement: 'nv_displ', power: 'nv_power',
     transmission: 'nv_transmission', status: 'nv_status'
   });
+</script>
+
+<script>
+/* ── VIN iz slike: prilepi (Ctrl+V) ali naloži printscreen ─────────── */
+(function() {
+  var VIN_OCR_URL = "{{ url_for('vehicles.api_vin_ocr') }}";
+  var statusEl   = document.getElementById('nv_status');
+  var vinInp     = document.getElementById('nv_vin');
+  var preview    = document.getElementById('nv_paste_preview');
+  var previewImg = document.getElementById('nv_paste_img');
+  var previewName= document.getElementById('nv_paste_name');
+
+  function setStatus(msg, color) {
+    if (statusEl) { statusEl.innerHTML = msg; statusEl.style.color = color || '#666'; }
+  }
+
+  function sendImageForOCR(file) {
+    if (!file) return;
+    setStatus('<i class="bi bi-arrow-repeat"></i> Berem šasijsko številko iz slike…', '#2563eb');
+    if (preview && previewImg) {
+      previewImg.src = URL.createObjectURL(file);
+      preview.style.display = '';
+      if (previewName) previewName.textContent = file.name || 'prilepljena slika';
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      fetch(VIN_OCR_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: e.target.result })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && data.vin) {
+          if (vinInp) { vinInp.value = data.vin.toUpperCase(); vinInp.dispatchEvent(new Event('input')); }
+          setStatus('<i class="bi bi-check-circle-fill text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — preveri in popravi po potrebi.', '#16a34a');
+        } else {
+          setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. Poskusi z boljšo sliko ali vpiši ročno.' + (data.raw ? ' (prebrano: ' + data.raw.slice(0,40) + ')' : ''), '#b45309');
+        }
+      })
+      .catch(function() { setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', '#dc2626'); });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Upload gumb
+    var up = document.getElementById('nv_vin_upload');
+    if (up) up.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+
+    // Paste gumb
+    var pb = document.getElementById('nv_vin_paste_btn');
+    if (pb) {
+      pb.addEventListener('click', function() {
+        setStatus('<i class="bi bi-clipboard me-1"></i>Pritisni <b>Ctrl+V</b> za prilepi sliko…', '#2563eb');
+      });
+    }
+
+    // Globalni Ctrl+V — sprejmi sliko odkoderkoli
+    document.addEventListener('paste', function(e) {
+      // Ne prestrezaj če je fokus v textarea/input (razen VIN polja)
+      var active = document.activeElement;
+      var isText = active && (active.tagName === 'TEXTAREA' ||
+                  (active.tagName === 'INPUT' && active.type === 'text' && active.id !== 'nv_vin'));
+      if (isText) return;
+      var items = (e.clipboardData || {}).items || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image') === 0) {
+          e.preventDefault();
+          sendImageForOCR(items[i].getAsFile());
+          if (vinInp) vinInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          break;
+        }
+      }
+    });
+  });
+})();
 </script>
 <script>
 const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
