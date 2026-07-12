@@ -131,19 +131,31 @@ class EurotonClient:
         except Exception as e:
             return {"ok": False, "napaka": f"Iskanje: {e}", "rezultati": []}
 
+        # DEBUG: izpiši kaj je strežnik vrnil
+        log.warning(f"[EUROTON] Response status={r.status_code}, dolzina={len(r.text)}")
+        log.warning(f"[EUROTON] Prvih 500 znakov: {r.text[:500]}")
+
         # Odgovor je JSON {"html_res": "..."} ali čist HTML
         html = ""
         try:
             data = json.loads(r.text)
             html = data.get("html_res", "")
-        except Exception:
+            log.warning(f"[EUROTON] JSON parsan, html_res dolzina={len(html)}")
+        except Exception as je:
             html = r.text
+            log.warning(f"[EUROTON] Ni JSON ({je}), uporabljam raw HTML")
 
         if not html:
             return {"ok": True, "napaka": None, "rezultati": [],
-                    "sporocilo": "Ni rezultatov za to kodo."}
+                    "sporocilo": "Ni rezultatov za to kodo (prazen html)."}
+
+        # DEBUG: preveri katere razrede vsebuje
+        log.warning(f"[EUROTON] 'article_box' v html: {'article_box' in html}")
+        log.warning(f"[EUROTON] 'articleBrand' v html: {'articleBrand' in html}")
+        log.warning(f"[EUROTON] signin/login v html: {'ctrlLogin' in html or 'signin' in html.lower()}")
 
         rezultati = self._parse(html)
+        log.warning(f"[EUROTON] Parsanih artiklov: {len(rezultati)}")
 
         # Dopolni cene (getStock) za artikle ki imajo ID
         for art in rezultati:
