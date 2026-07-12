@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'moto/base_moto.html' %}
 {% block title %}{{ naslov }}{% endblock %}
 
 {% block breadcrumb %}
@@ -10,13 +10,13 @@
 
 {% block content %}
 <div class="page-hdr">
-  <h1><i class="bi {{ ikona }} me-2 text-success"></i>{{ naslov }}</h1>
+  <h1><i class="bi {{ ikona }} me-2" style="color:#2e8b57"></i>{{ naslov }}</h1>
 </div>
-<div class="card-plain text-center py-5">
-  <i class="bi {{ ikona }} fs-1 text-success mb-3 d-block"></i>
-  <h4>{{ naslov }}</h4>
+<div style="background:#fff;border-radius:14px;padding:48px;text-align:center;box-shadow:0 1px 8px rgba(30,100,60,0.09);">
+  <i class="bi {{ ikona }}" style="font-size:3rem;color:#2e8b57;display:block;margin-bottom:16px;"></i>
+  <h4 style="color:#1a2e1f;">{{ naslov }}</h4>
   <p class="text-muted">{{ opis }}</p>
-  <a href="{{ url_for('moto.narocila') }}" class="btn btn-outline-success mt-2">
+  <a href="{{ url_for('moto.narocila') }}" class="btn btn-moto btn-primary mt-2">
     <i class="bi bi-arrow-left me-1"></i>Nazaj na naročila
   </a>
 </div>
