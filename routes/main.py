@@ -121,6 +121,15 @@ def dashboard():
     )
 
 
+@main_bp.route("/zamenjaj-platformo")
+@login_required
+def zamenjaj_platformo():
+    """Počisti izbrano platformo in vrni na izbiro."""
+    from flask import session
+    session.pop("platform", None)
+    return redirect(url_for("main.dashboard"))
+
+
 @main_bp.route("/dobrodosli")
 @login_required
 def kupec_home():
