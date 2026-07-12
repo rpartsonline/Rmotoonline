@@ -82,7 +82,7 @@ def dashboard():
     )
 
     # Dodatne statistike za dashboard
-    from models import Customer, Vehicle, STATUS_LABELS
+    from models import Customer, Vehicle
     total_customers = Customer.query.count()
     total_vehicles  = Vehicle.query.count()
 
