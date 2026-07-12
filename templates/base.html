@@ -128,8 +128,14 @@
     </li>
     <li>
       <a href="{{ url_for('orders.list_orders') }}"
-         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.endpoint != 'orders.new_order' %}active{% endif %}">
+         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.endpoint != 'orders.new_order' and request.args.get('kind') != 'povprasevanje' %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('orders.list_orders', kind='povprasevanje') }}"
+         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.args.get('kind') == 'povprasevanje' %}active{% endif %}">
+        <i class="bi bi-search"></i><span>Povpraševanje</span>
       </a>
     </li>
     <li>
