@@ -125,6 +125,29 @@ def dashboard():
     )
 
 
+@main_bp.route("/iskalnik-dobaviteljev")
+@login_required
+def iskalnik_dobaviteljev():
+    return render_template("iskalnik.html")
+
+
+@main_bp.route("/euroton-isci", methods=["POST"])
+@login_required
+def euroton_isci():
+    """AJAX iskanje po Euroton katalogu."""
+    from flask import jsonify
+    koda = (request.form.get("koda") or "").strip()
+    if not koda:
+        return jsonify({"ok": False, "napaka": "Vpiši kodo."})
+    try:
+        from euroton_scraper import EurotonClient
+        client = EurotonClient()
+        rez = client.isci(koda)
+        return jsonify(rez)
+    except Exception as e:
+        return jsonify({"ok": False, "napaka": f"Napaka: {e}", "rezultati": []})
+
+
 @main_bp.route("/zamenjaj-platformo")
 @login_required
 def zamenjaj_platformo():
