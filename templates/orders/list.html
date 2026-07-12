@@ -1,52 +1,28 @@
 {% extends 'base.html' %}
-{% block title %}{{ page_title|default('Naročila') }}{% endblock %}
+{% block title %}Naročila{% endblock %}
 
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0 small">
   <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
-  <li class="breadcrumb-item active">{{ page_title|default('Naročila') }}</li>
+  <li class="breadcrumb-item active">Naročila</li>
 </ol>
 {% endblock %}
 
 {% block content %}
 <div class="page-hdr">
-  <h1>
-    {% if kind == 'povprasevanje' %}
-    <i class="bi bi-chat-left-text me-2 text-primary"></i>
-    {% else %}
-    <i class="bi bi-clipboard-check me-2 text-primary"></i>
-    {% endif %}
-    {{ page_title|default('Naročila') }}
-  </h1>
-  <a href="{{ new_url|default(url_for('orders.new_order')) }}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>{{ new_title|default('Novo naročilo') }}
+  <h1><i class="bi bi-clipboard-check me-2 text-primary"></i>Naročila</h1>
+  <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Novo naročilo
   </a>
 </div>
 
-<!-- ── Stanje po statusih ─────────────────────────────────────────────────── -->
-{% if status_breakdown %}
-<div class="row g-2 mb-3 justify-content-center">
-  {% for s in status_breakdown %}
-  <div class="col-6 col-md">
-    <a href="{{ list_url }}?status={{ s.key }}" class="text-decoration-none">
-      <div class="card-plain d-flex align-items-center justify-content-between py-2 px-3">
-        <span class="badge bg-{{ s.color }}">{{ s.label }}</span>
-        <span class="fw-bold fs-5">{{ s.count }}</span>
-      </div>
-    </a>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
 <!-- ── Filters ────────────────────────────────────────────────────────────── -->
-{% if current_user.role != 'kupec' %}
 <div class="card-plain mb-3">
   <form method="GET" class="row g-2 align-items-end">
     <div class="col-md-3">
       <label class="form-label small text-muted mb-1">Išči (številka)</label>
       <input type="text" name="search" class="form-control form-control-sm"
-             placeholder="Številka…" value="{{ search }}">
+             placeholder="NAR-2024-…" value="{{ search }}">
     </div>
     <div class="col-md-2">
       <label class="form-label small text-muted mb-1">Status</label>
@@ -78,24 +54,23 @@
       <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
         <i class="bi bi-search"></i>
       </button>
-      <a href="{{ list_url|default(url_for('orders.list_orders')) }}" class="btn btn-sm btn-outline-secondary">
+      <a href="{{ url_for('orders.list_orders') }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-x-lg"></i>
       </a>
     </div>
   </form>
 </div>
-{% endif %}
 
 <!-- ── Table ─────────────────────────────────────────────────────────────── -->
 <div class="tbl-card">
   <div class="tbl-header">
-    <h6 class="tbl-header-title">Skupaj: {{ orders|length }}</h6>
+    <h6 class="tbl-header-title">Skupaj: {{ orders|length }} naročil</h6>
   </div>
   <div class="table-responsive">
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>{% if kind == 'povprasevanje' %}Številka{% else %}Naročilnica{% endif %}</th>
+          <th>Naročilnica</th>
           <th>Stranka</th>
           <th>Vozilo</th>
           <th>Postavk</th>
@@ -107,24 +82,26 @@
         </tr>
       </thead>
       <tbody>
+        {% set ns = namespace(last_date=none) %}
         {% for o in orders %}
+        {% set cur_date = o.created_at|sl_date %}
+        {% if cur_date != ns.last_date %}
+        {% set ns.last_date = cur_date %}
+        <tr style="background:#eef2ff; border-top: 2px solid #c7d2fe;">
+          <td colspan="9" class="py-2 px-3">
+            <i class="bi bi-calendar3 me-2 text-primary"></i>
+            <span class="fw-bold text-primary">{{ cur_date }}</span>
+          </td>
+        </tr>
+        {% endif %}
         <tr>
           <td>
             <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
                class="order-num text-decoration-none">{{ o.order_number }}</a>
           </td>
           <td>
-            {% if o.employee and o.employee.role == 'kupec' %}
-            <div class="small text-info fw-semibold mb-1">
-              <i class="bi bi-shop me-1"></i>Končni kupec: {{ o.employee.full_name }}
-            </div>
-            {% endif %}
-            {% if current_user.role == 'kupec' %}
-            <span class="text-dark fw-semibold">{{ o.customer.name }}</span>
-            {% else %}
             <a href="{{ url_for('customers.customer_detail', customer_id=o.customer_id) }}"
                class="text-decoration-none text-dark">{{ o.customer.name }}</a>
-            {% endif %}
             {% if o.customer.phone %}
             <div class="small text-muted">{{ o.customer.phone }}</div>
             {% endif %}
@@ -132,6 +109,9 @@
           <td class="small">
             {% if o.vehicle %}
               {{ o.vehicle.brand }} {{ o.vehicle.model }}
+              {% if o.vehicle.registration %}
+              <span class="text-muted">({{ o.vehicle.registration }})</span>
+              {% endif %}
             {% else %}
               <span class="text-muted">–</span>
             {% endif %}
@@ -141,43 +121,20 @@
           </td>
           <td><span class="chip-source">{{ o.source }}</span></td>
           <td class="small text-muted">{{ o.employee.full_name }}</td>
+          <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+          <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
-            <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
-            {% if o.notify_customer and o.status == 'naroceno' %}
-              <i class="bi bi-check-circle-fill text-success ms-1" title="Naročeno!" style="font-size:1.1rem;"></i>
-            {% endif %}
-            {% if kind == 'povprasevanje' and o.delivery_date %}
-              {% set dl = o.delivery_days_left %}
-              <span class="badge {% if dl is not none and dl <= 0 %}bg-danger{% elif dl == 1 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %} d-inline-flex align-items-center gap-1 mt-1">
-                <i class="bi bi-truck"></i>
-                {% if dl is none %}–{% elif dl < 0 %}zamuda {{ -dl }}d{% elif dl == 0 %}danes{% elif dl == 1 %}jutri{% else %}{{ dl }} dni{% endif %}
-              </span>
-            {% endif %}
-          </td>
-          <td class="small text-muted">
-            {{ o.created_at|sl_date }}<br>
-            <span><i class="bi bi-clock me-1"></i>{{ o.created_at|sl_time }}</span>
-          </td>
-          <td>
-            <div class="d-flex gap-1 justify-content-end">
-              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
-                 class="btn btn-sm btn-outline-primary" title="Ogled">
-                <i class="bi bi-eye"></i>
-              </a>
-              {% if current_user.is_admin %}
-              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}"
-                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
-                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
-              </form>
-              {% endif %}
-            </div>
+            <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
           </td>
         </tr>
         {% else %}
         <tr>
           <td colspan="9" class="text-center text-muted py-5">
             <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-            Ni zapisov z izbranimi filtri.
+            Ni naročil z izbranimi filtri.
           </td>
         </tr>
         {% endfor %}
