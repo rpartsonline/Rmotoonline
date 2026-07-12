@@ -247,28 +247,51 @@
 </script>
 {% block extra_scripts %}{% endblock %}
 
+<style>
+@keyframes pulse-red    { 0%,100%{box-shadow:0 4px 16px rgba(220,38,38,.4);}  50%{box-shadow:0 4px 28px rgba(220,38,38,.8);} }
+@keyframes pulse-orange { 0%,100%{box-shadow:0 4px 16px rgba(234,88,12,.4);}  50%{box-shadow:0 4px 28px rgba(234,88,12,.8);} }
+@keyframes pulse-yellow { 0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);} 50%{box-shadow:0 4px 28px rgba(245,158,11,.8);} }
+.notif-bubble { position:fixed; z-index:9999; border-radius:999px; padding:10px 18px 10px 14px;
+  text-decoration:none; font-weight:700; font-size:.88rem; color:#fff;
+  display:flex; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); }
+.notif-bubble .nb-count { background:rgba(255,255,255,.25); border-radius:999px;
+  padding:1px 8px; font-size:.85rem; font-weight:900; min-width:24px; text-align:center; }
+</style>
+
+{% set _nb_bottom = 24 %}
+
+{# ── Nova naročila ── #}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and new_orders_count > 0 %}
+<a href="{{ url_for('orders.list_orders', status='novo') }}"
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px; background:#dc2626; animation:pulse-red 2s infinite;">
+  <i class="bi bi-bell-fill fs-6"></i> Nova naročila
+  <span class="nb-count">{{ new_orders_count }}</span>
+</a>
+{% set _nb_bottom = _nb_bottom + 64 %}
+{% endif %}
+
+{# ── Dostava jutri/danes ── #}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and delivery_alert_count > 0 %}
+<a href="{{ url_for('orders.list_orders', status='narocena_caka') }}"
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px;
+          background:{% if delivery_alert_red %}#dc2626{% else %}#ea580c{% endif %};
+          animation:{% if delivery_alert_red %}pulse-red{% else %}pulse-orange{% endif %} 2s infinite;">
+  <i class="bi bi-truck fs-6"></i> Dostava
+  <span class="nb-count">{{ delivery_alert_count }}</span>
+</a>
+{% set _nb_bottom = _nb_bottom + 64 %}
+{% endif %}
+
+{# ── Beležke za zaposlenega ── #}
 {% if current_user.is_authenticated and current_user.role != 'kupec' and note_notif_count > 0 %}
 <a href="{{ url_for('notes.list_notes') }}"
-   style="position:fixed;bottom:24px;right:24px;z-index:9999;
-          background:#f59e0b;color:#fff;border-radius:999px;
-          padding:10px 18px 10px 14px;
-          box-shadow:0 4px 16px rgba(0,0,0,0.18);
-          text-decoration:none;font-weight:700;font-size:0.9rem;
-          display:flex;align-items:center;gap:8px;
-          animation:pulse-note 2s infinite;">
-  <i class="bi bi-journal-text fs-6"></i>
-  Nova beležka
-  <span style="background:#fff;color:#b45309;border-radius:999px;
-               padding:1px 8px;font-size:0.85rem;font-weight:900;">
-    {{ note_notif_count }}
-  </span>
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px; background:#f59e0b; animation:pulse-yellow 2s infinite;">
+  <i class="bi bi-journal-text fs-6"></i> Beležka
+  <span class="nb-count">{{ note_notif_count }}</span>
 </a>
-<style>
-@keyframes pulse-note {
-  0%,100% { box-shadow:0 4px 16px rgba(245,158,11,0.4); }
-  50%      { box-shadow:0 4px 28px rgba(245,158,11,0.8); }
-}
-</style>
 {% endif %}
 
 </body>
