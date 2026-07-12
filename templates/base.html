@@ -116,7 +116,10 @@
 <!-- ── AVTO SIDEBAR (original) ───────────────────────────────────────────── -->
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="R-MotoShop" class="sb-logo">
+    <div style="line-height:1.1;">
+      <div style="font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:1px;">BARTOG</div>
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;">Ajdovščina</div>
+    </div>
     <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
   </div>
   <ul class="sb-nav">
@@ -180,13 +183,6 @@
       <a href="{{ url_for('admin.users') }}"
          class="sb-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
         <i class="bi bi-person-gear"></i><span>Uporabniki</span>
-      </a>
-    </li>
-    <li class="sb-section">Platforma</li>
-    <li>
-      <a href="{{ url_for('main.zamenjaj_platformo') }}"
-         class="sb-link">
-        <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
       </a>
     </li>
     {% endif %}
