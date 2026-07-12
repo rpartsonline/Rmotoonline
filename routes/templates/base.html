@@ -12,12 +12,25 @@
 <body>
 
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
+{% set platform = session.get('platform', 'avto') %}
+
+{% if platform == 'moto' %}
+<!-- ── MOTO SIDEBAR (svetlo zelena) ─────────────────────────────────────── -->
+<style>
+  .sidebar { background: linear-gradient(180deg, #1a5c34 0%, #145228 100%) !important; }
+  .sb-header { border-bottom-color: rgba(255,255,255,0.15) !important; }
+  .sb-link:hover, .sb-link.active { background: rgba(255,255,255,0.18) !important; }
+  .sb-section { color: rgba(255,255,255,0.5) !important; }
+  .sb-footer { border-top-color: rgba(255,255,255,0.15) !important; }
+</style>
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="R-MotoShop" class="sb-logo">
-    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+    <div style="line-height:1.1;">
+      <div style="font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:1px;">R-MotoShop</div>
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);letter-spacing:2px;">AJDOVŠČINA</div>
+    </div>
+    <i class="bi bi-wrench-adjustable-circle-fill" style="color:#7de8a8;font-size:1.3rem;"></i>
   </div>
-
   <ul class="sb-nav">
     <li>
       <a href="{{ url_for('main.dashboard') }}"
@@ -26,15 +39,27 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('orders.list_orders') }}"
-         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.endpoint != 'orders.new_order' %}active{% endif %}">
+      <a href="{{ url_for('moto.narocila') }}"
+         class="sb-link {% if request.endpoint == 'moto.narocila' or request.endpoint == 'moto.uredi' %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('orders.new_order') }}"
-         class="sb-link {% if request.endpoint == 'orders.new_order' %}active{% endif %}">
-        <i class="bi bi-plus-circle"></i><span>Novo naročilo</span>
+      <a href="{{ url_for('orders.list_inquiries') }}"
+         class="sb-link {% if request.endpoint == 'orders.list_inquiries' %}active{% endif %}">
+        <i class="bi bi-search"></i><span>Povpraševanja</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('notes.list_notes') }}"
+         class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-journal-text"></i><span>Beležka</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('staff.hours') }}"
+         class="sb-link {% if request.endpoint and 'hours' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-clock"></i><span>Ure</span>
       </a>
     </li>
     <li>
@@ -43,24 +68,48 @@
         <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
+    <li class="sb-section">Storitve</li>
     <li>
-      <a href="{{ url_for('vehicles.new_vehicle') }}"
-         class="sb-link {% if request.endpoint and 'vehicles' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-car-front"></i><span>Vozila</span>
+      <a href="{{ url_for('moto.rent_ebike') }}"
+         class="sb-link {% if request.endpoint == 'moto.rent_ebike' %}active{% endif %}">
+        <i class="bi bi-lightning-charge"></i><span>Rent E-Bike</span>
       </a>
     </li>
-
+    <li>
+      <a href="{{ url_for('moto.rent_motorbike') }}"
+         class="sb-link {% if request.endpoint == 'moto.rent_motorbike' %}active{% endif %}">
+        <i class="bi bi-bicycle"></i><span>Rent Motorbike</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('moto.pnevmatike') }}"
+         class="sb-link {% if request.endpoint == 'moto.pnevmatike' %}active{% endif %}">
+        <i class="bi bi-circle"></i><span>Menjava pnevmatik</span>
+      </a>
+    </li>
     {% if current_user.is_admin %}
     <li class="sb-section">Admin</li>
+    <li>
+      <a href="{{ url_for('staff.leave') }}"
+         class="sb-link {% if request.endpoint and 'leave' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-people"></i><span>Zaposleni</span>
+      </a>
+    </li>
     <li>
       <a href="{{ url_for('admin.users') }}"
          class="sb-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
         <i class="bi bi-person-gear"></i><span>Uporabniki</span>
       </a>
     </li>
+    <li class="sb-section">Platforma</li>
+    <li>
+      <a href="{{ url_for('main.zamenjaj_platformo') }}"
+         class="sb-link">
+        <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
+      </a>
+    </li>
     {% endif %}
   </ul>
-
   <div class="sb-footer">
     <div class="sb-user">
       <i class="bi bi-person-circle"></i>
@@ -71,6 +120,99 @@
     </a>
   </div>
 </nav>
+{% else %}
+<!-- ── AVTO SIDEBAR (original) ───────────────────────────────────────────── -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div style="line-height:1.1;">
+      <div style="font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:1px;">BARTOG</div>
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;">Ajdovščina</div>
+    </div>
+    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+  </div>
+  <ul class="sb-nav">
+    <li>
+      <a href="{{ url_for('main.dashboard') }}"
+         class="sb-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i><span>Pregled</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('orders.list_orders') }}"
+         class="sb-link {% if request.endpoint == 'orders.list_orders' or request.endpoint == 'orders.new_order' or request.endpoint == 'orders.order_detail' %}active{% endif %}">
+        <i class="bi bi-clipboard-check"></i><span>Naročila</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('orders.list_inquiries') }}"
+         class="sb-link {% if request.endpoint == 'orders.list_inquiries' or request.endpoint == 'orders.new_inquiry' %}active{% endif %}">
+        <i class="bi bi-search"></i><span>Povpraševanje</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('notes.list_notes') }}"
+         class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-journal-text"></i><span>Beležka</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('staff.leave') }}"
+         class="sb-link {% if request.endpoint == 'staff.leave' or request.endpoint == 'staff.leave_list' %}active{% endif %}">
+        <i class="bi bi-calendar3"></i><span>Dopusti</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('staff.hours') }}"
+         class="sb-link {% if request.endpoint and 'hours' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-clock"></i><span>Ure</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('customers.list_customers') }}"
+         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-people"></i><span>Stranke</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('delivery.overview') }}"
+         class="sb-link {% if request.endpoint and 'delivery' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-truck"></i><span>Dostava</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('complaints.list_complaints') }}"
+         class="sb-link {% if request.endpoint and 'complaints' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
+      </a>
+    </li>
+    {% if current_user.is_admin %}
+    <li class="sb-section">Admin</li>
+    <li>
+      <a href="{{ url_for('admin.users') }}"
+         class="sb-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-person-gear"></i><span>Uporabniki</span>
+      </a>
+    </li>
+    <li class="sb-section">Platforma</li>
+    <li>
+      <a href="{{ url_for('main.zamenjaj_platformo') }}"
+         class="sb-link">
+        <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+  <div class="sb-footer">
+    <div class="sb-user">
+      <i class="bi bi-person-circle"></i>
+      <span>{{ current_user.full_name }}</span>
+    </div>
+    <a href="{{ url_for('auth.logout') }}" class="sb-logout">
+      <i class="bi bi-box-arrow-right me-1"></i><span>Odjava</span>
+    </a>
+  </div>
+</nav>
+{% endif %}
 
 <!-- ══ MAIN ════════════════════════════════════════════════════════════════ -->
 <div class="main-wrap" id="main-wrap">
@@ -84,9 +226,15 @@
       {% block breadcrumb %}{% endblock %}
     </nav>
     <div class="ms-auto d-flex align-items-center gap-2">
+      {% if request.endpoint and 'inquir' in request.endpoint %}
+      <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+      </a>
+      {% else %}
       <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Novo naročilo
       </a>
+      {% endif %}
     </div>
   </div>
 
@@ -122,5 +270,53 @@
   });
 </script>
 {% block extra_scripts %}{% endblock %}
+
+<style>
+@keyframes pulse-red    { 0%,100%{box-shadow:0 4px 16px rgba(220,38,38,.4);}  50%{box-shadow:0 4px 28px rgba(220,38,38,.8);} }
+@keyframes pulse-orange { 0%,100%{box-shadow:0 4px 16px rgba(234,88,12,.4);}  50%{box-shadow:0 4px 28px rgba(234,88,12,.8);} }
+@keyframes pulse-yellow { 0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);} 50%{box-shadow:0 4px 28px rgba(245,158,11,.8);} }
+.notif-bubble { position:fixed; z-index:9999; border-radius:999px; padding:10px 18px 10px 14px;
+  text-decoration:none; font-weight:700; font-size:.88rem; color:#fff;
+  display:flex; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); }
+.notif-bubble .nb-count { background:rgba(255,255,255,.25); border-radius:999px;
+  padding:1px 8px; font-size:.85rem; font-weight:900; min-width:24px; text-align:center; }
+</style>
+
+{% set _nb_bottom = 24 %}
+
+{# ── Nova naročila ── #}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and new_orders_count > 0 %}
+<a href="{{ url_for('orders.list_orders', status='novo') }}"
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px; background:#dc2626; animation:pulse-red 2s infinite;">
+  <i class="bi bi-bell-fill fs-6"></i> Nova naročila
+  <span class="nb-count">{{ new_orders_count }}</span>
+</a>
+{% set _nb_bottom = _nb_bottom + 64 %}
+{% endif %}
+
+{# ── Dostava jutri/danes ── #}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and delivery_alert_count > 0 %}
+<a href="{{ url_for('orders.list_orders', status='narocena_caka') }}"
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px;
+          background:{% if delivery_alert_red %}#dc2626{% else %}#ea580c{% endif %};
+          animation:{% if delivery_alert_red %}pulse-red{% else %}pulse-orange{% endif %} 2s infinite;">
+  <i class="bi bi-truck fs-6"></i> Dostava
+  <span class="nb-count">{{ delivery_alert_count }}</span>
+</a>
+{% set _nb_bottom = _nb_bottom + 64 %}
+{% endif %}
+
+{# ── Beležke za zaposlenega ── #}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and note_notif_count > 0 %}
+<a href="{{ url_for('notes.list_notes') }}"
+   class="notif-bubble"
+   style="bottom:{{ _nb_bottom }}px; right:24px; background:#f59e0b; animation:pulse-yellow 2s infinite;">
+  <i class="bi bi-journal-text fs-6"></i> Beležka
+  <span class="nb-count">{{ note_notif_count }}</span>
+</a>
+{% endif %}
+
 </body>
 </html>
