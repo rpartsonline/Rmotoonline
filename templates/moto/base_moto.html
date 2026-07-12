@@ -136,12 +136,14 @@
     </li>
     {% endif %}
 
+    {% if current_user.is_admin %}
     <li class="sb-section" style="margin-top:12px">Platforma</li>
     <li>
       <a href="/zamenjaj-platformo" class="sb-switch">
         <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
       </a>
     </li>
+    {% endif %}
   </ul>
 
   <div class="sb-footer">

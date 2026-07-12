@@ -39,9 +39,13 @@ def _today_utc_range():
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
+    from flask import session
     # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
         return redirect(url_for("main.kupec_home"))
+    # Če je izbrana moto platforma → moto naročila
+    if session.get("platform") == "moto":
+        return redirect(url_for("moto.narocila"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
@@ -124,9 +128,13 @@ def dashboard():
 @main_bp.route("/zamenjaj-platformo")
 @login_required
 def zamenjaj_platformo():
-    """Počisti izbrano platformo in vrni na izbiro."""
+    """Preklop platforme (samo admin). Odjavi in vrni na izbiro."""
     from flask import session
-    session.pop("platform", None)
+    if not current_user.is_admin:
+        return redirect(url_for("main.dashboard"))
+    # Preklopi platformo brez odjave
+    cur = session.get("platform", "avto")
+    session["platform"] = "moto" if cur == "avto" else "avto"
     return redirect(url_for("main.dashboard"))
 
 
