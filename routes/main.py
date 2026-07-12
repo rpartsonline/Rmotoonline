@@ -81,13 +81,34 @@ def dashboard():
         .all()
     )
 
+    # Dodatne statistike za dashboard
+    from models import Customer, Vehicle, STATUS_LABELS
+    total_customers = Customer.query.count()
+    total_vehicles  = Vehicle.query.count()
+
+    # Status counts za kartice
+    try:
+        status_counts = {}
+        for key, info in STATUS_DICT.items():
+            cnt = Order.query.filter_by(kind="narocilo", status=key).count()
+            status_counts[key] = {"label": info["label"], "color": info["color"], "count": cnt}
+    except Exception:
+        status_counts = {}
+
+    total_orders = Order.query.filter_by(kind="narocilo").count()
+
     return render_template(
         "dashboard.html",
         today_orders=today_orders,
         new_orders=new_orders,
         ordered_orders=ordered_orders,
         active_orders=active_orders,
+        total_orders=total_orders,
         today_str=_today_str(),
+        now=_ljubljana_now(),
+        total_customers=total_customers,
+        total_vehicles=total_vehicles,
+        status_counts=status_counts,
         inquiry_breakdown=inquiry_breakdown,
         note_counts=note_counts,
         recent_orders=recent_orders,
