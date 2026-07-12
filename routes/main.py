@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, jsonify, redirect, url_for
+from flask import Blueprint, render_template, jsonify, redirect, url_for, request, session
 from flask_login import login_required, current_user
 from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, Note, NOTE_PEOPLE, INQUIRY_STATUSES
 
@@ -39,7 +39,6 @@ def _today_utc_range():
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    from flask import session
     # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
         return redirect(url_for("main.kupec_home"))
@@ -152,7 +151,6 @@ def euroton_isci():
 @login_required
 def zamenjaj_platformo():
     """Preklop platforme (samo admin). Odjavi in vrni na izbiro."""
-    from flask import session
     if not current_user.is_admin:
         return redirect(url_for("main.dashboard"))
     # Preklopi platformo brez odjave
