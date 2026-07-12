@@ -39,9 +39,13 @@ def _today_utc_range():
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
+    from flask import session
     # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
         return redirect(url_for("main.kupec_home"))
+    # Če je izbrana moto platforma → moto naročila
+    if session.get("platform") == "moto":
+        return redirect(url_for("moto.narocila"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
@@ -81,18 +85,80 @@ def dashboard():
         .all()
     )
 
+    # Dodatne statistike za dashboard
+    from models import Customer, Vehicle
+    total_customers = Customer.query.count()
+    total_vehicles  = Vehicle.query.count()
+
+    # Status counts za kartice
+    try:
+        status_counts = {}
+        for key, info in STATUS_DICT.items():
+            cnt = Order.query.filter_by(kind="narocilo", status=key).count()
+            status_counts[key] = {"label": info["label"], "color": info["color"], "count": cnt}
+    except Exception:
+        status_counts = {}
+
+    total_orders = Order.query.filter_by(kind="narocilo").count()
+    # Naročila v obdelavi = status "poslano_povprasevanje" (oranžni)
+    orders_v_obdelavi = Order.query.filter_by(
+        kind="narocilo", status="poslano_povprasevanje"
+    ).count()
+
     return render_template(
         "dashboard.html",
         today_orders=today_orders,
         new_orders=new_orders,
         ordered_orders=ordered_orders,
         active_orders=active_orders,
+        total_orders=total_orders,
+        orders_v_obdelavi=orders_v_obdelavi,
         today_str=_today_str(),
+        now=_ljubljana_now(),
+        total_customers=total_customers,
+        total_vehicles=total_vehicles,
+        status_counts=status_counts,
         inquiry_breakdown=inquiry_breakdown,
         note_counts=note_counts,
         recent_orders=recent_orders,
         pending_orders=pending_orders,
     )
+
+
+@main_bp.route("/iskalnik-dobaviteljev")
+@login_required
+def iskalnik_dobaviteljev():
+    return render_template("iskalnik.html")
+
+
+@main_bp.route("/euroton-isci", methods=["POST"])
+@login_required
+def euroton_isci():
+    """AJAX iskanje po Euroton katalogu."""
+    from flask import jsonify
+    koda = (request.form.get("koda") or "").strip()
+    if not koda:
+        return jsonify({"ok": False, "napaka": "Vpiši kodo."})
+    try:
+        from euroton_scraper import EurotonClient
+        client = EurotonClient()
+        rez = client.isci(koda)
+        return jsonify(rez)
+    except Exception as e:
+        return jsonify({"ok": False, "napaka": f"Napaka: {e}", "rezultati": []})
+
+
+@main_bp.route("/zamenjaj-platformo")
+@login_required
+def zamenjaj_platformo():
+    """Preklop platforme (samo admin). Odjavi in vrni na izbiro."""
+    from flask import session
+    if not current_user.is_admin:
+        return redirect(url_for("main.dashboard"))
+    # Preklopi platformo brez odjave
+    cur = session.get("platform", "avto")
+    session["platform"] = "moto" if cur == "avto" else "avto"
+    return redirect(url_for("main.dashboard"))
 
 
 @main_bp.route("/dobrodosli")

@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% block title %}Iskalnik dobaviteljev{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Iskalnik dobaviteljev</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-search me-2 text-primary"></i>Iskalnik po dobaviteljih</h1>
+</div>
+
+<div class="form-section mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label small fw-semibold">Koda / številka izdelka</label>
+      <input type="text" id="iskana-koda" class="form-control form-control-lg"
+             placeholder="npr. 6000633302" autocomplete="off" autofocus
+             style="font-family:monospace; letter-spacing:0.05em;">
+    </div>
+    <div class="col-md-4">
+      <button id="btn-odpri-vse" class="btn btn-primary btn-lg w-100">
+        <i class="bi bi-box-arrow-up-right me-1"></i>Odpri vse dobavitelje
+      </button>
+    </div>
+  </div>
+  <div id="kopirano-status" class="small mt-2" style="min-height:20px;"></div>
+</div>
+
+<!-- Euroton – rezultati v aplikaciji -->
+<div class="tbl-card mb-3">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-lightning-charge me-2 text-warning"></i>Euroton – rezultati v aplikaciji</h6>
+  </div>
+  <div class="p-3">
+    <div id="euroton-status" class="small text-muted mb-2">Vpiši kodo zgoraj in klikni »Poišči v Euroton«.</div>
+    <button id="btn-euroton" class="btn btn-warning btn-sm mb-3">
+      <i class="bi bi-search me-1"></i>Poišči v Euroton
+    </button>
+    <div id="euroton-rezultati" class="table-responsive" style="display:none;">
+      <table class="table table-sm table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Znamka</th>
+            <th>Naziv</th>
+            <th>Koda</th>
+            <th>Cena</th>
+          </tr>
+        </thead>
+        <tbody id="euroton-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Posamični dobavitelji -->
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-list-ul me-2"></i>Dobavitelji</h6>
+    <button id="btn-uredi" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Uredi povezave
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Dobavitelj</th>
+          <th>Način iskanja</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody id="dobavitelji-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="alert alert-info small mt-3">
+  <i class="bi bi-info-circle me-1"></i>
+  <strong>Kako deluje:</strong> Vpiši kodo in klikni »Odpri vse«. Koda se kopira v odložišče in vsi dobavitelji se odprejo v ločenih zavihkih.
+  Pri dobaviteljih z URL-iskanjem (🔗) je koda že poiskana; pri ostalih (📋) prilepi s <kbd>Ctrl+V</kbd> v iskalno polje.
+  <br><span class="text-muted">Če brskalnik blokira pojavna okna, klikni ikono v naslovni vrstici in dovoli pojavna okna za to stran.</span>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Privzeti dobavitelji. {koda} se zamenja z vpisano kodo.
+// type: 'url' = odpre z vgrajeno kodo | 'paste' = odpre stran, kodo prilepiš
+var PRIVZETI = [
+  { ime: 'Euroton',        url: 'https://euroton.si/avtodeli/TdCatalogueAlt.aspx', type: 'paste' },
+  { ime: 'Parts Europe',   url: 'https://www.partseurope.eu/search?q={koda}',      type: 'url' },
+  { ime: 'VDM',            url: 'https://www.vdm.si/',                              type: 'paste' },
+  { ime: 'Apollo',         url: 'https://www.apollo.si/',                          type: 'paste' },
+  { ime: 'orderusedcarparts', url: 'https://www.orderusedcarparts.com/?s={koda}',  type: 'url' },
+];
+
+function loadDobavitelji() {
+  var saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem('dobavitelji')); } catch(e) {}
+  return (saved && saved.length) ? saved : PRIVZETI.slice();
+}
+function saveDobavitelji(list) {
+  try { sessionStorage.setItem('dobavitelji', JSON.stringify(list)); } catch(e) {}
+}
+
+var DOBAVITELJI = loadDobavitelji();
+
+function renderTabela() {
+  var tb = document.getElementById('dobavitelji-tbody');
+  tb.innerHTML = '';
+  DOBAVITELJI.forEach(function(d, i) {
+    var tr = document.createElement('tr');
+    var typeIco = d.type === 'url'
+      ? '<span class="badge bg-success"><i class="bi bi-link-45deg"></i> Samodejno iskanje</span>'
+      : '<span class="badge bg-warning text-dark"><i class="bi bi-clipboard"></i> Prilepi (Ctrl+V)</span>';
+    tr.innerHTML =
+      '<td class="fw-semibold">' + d.ime + '</td>' +
+      '<td>' + typeIco + '</td>' +
+      '<td class="text-end"><button class="btn btn-sm btn-outline-primary odpri-enega" data-idx="' + i + '">' +
+        '<i class="bi bi-box-arrow-up-right me-1"></i>Odpri</button></td>';
+    tb.appendChild(tr);
+  });
+  document.querySelectorAll('.odpri-enega').forEach(function(b) {
+    b.addEventListener('click', function() {
+      odpriDobavitelja(DOBAVITELJI[parseInt(this.dataset.idx)]);
+    });
+  });
+}
+
+function trenutnaKoda() {
+  return document.getElementById('iskana-koda').value.trim();
+}
+
+function kopirajKodo(koda) {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(koda);
+  }
+  // fallback
+  var t = document.createElement('textarea');
+  t.value = koda; document.body.appendChild(t); t.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(t);
+  return Promise.resolve();
+}
+
+function odpriDobavitelja(d) {
+  var koda = trenutnaKoda();
+  var url = d.url;
+  if (d.type === 'url' && koda) {
+    url = url.replace('{koda}', encodeURIComponent(koda));
+  }
+  window.open(url, '_blank');
+}
+
+function statusMsg(html, color) {
+  var el = document.getElementById('kopirano-status');
+  el.innerHTML = html;
+  el.style.color = color || '#666';
+}
+
+document.getElementById('btn-odpri-vse').addEventListener('click', function() {
+  var koda = trenutnaKoda();
+  if (!koda) {
+    statusMsg('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Vpiši kodo izdelka.', '#b45309');
+    document.getElementById('iskana-koda').focus();
+    return;
+  }
+  kopirajKodo(koda).then(function() {
+    statusMsg('<i class="bi bi-check-circle-fill text-success me-1"></i>Koda <strong>' + koda + '</strong> kopirana v odložišče. Odpiram dobavitelje…', '#16a34a');
+  });
+  // Odpri vse z majhnim zamikom (da browser ne blokira vseh naenkrat)
+  DOBAVITELJI.forEach(function(d, i) {
+    setTimeout(function() { odpriDobavitelja(d); }, i * 350);
+  });
+});
+
+// Enter v polju = odpri vse
+document.getElementById('iskana-koda').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-odpri-vse').click(); }
+});
+
+// ── Urejanje povezav ──────────────────────────────────────────────────
+document.getElementById('btn-uredi').addEventListener('click', function() {
+  var tekst = DOBAVITELJI.map(function(d) {
+    return d.ime + ' | ' + d.url + ' | ' + d.type;
+  }).join('\n');
+  var nov = prompt(
+    'Uredi dobavitelje (ena vrstica = ime | URL | tip).\n' +
+    'Tip: "url" (koda v URL-ju, uporabi {koda}) ali "paste" (samo odpri).\n\n' +
+    'Primer:\nEuroton | https://euroton.si/... | paste\nParts Europe | https://...search?q={koda} | url',
+    tekst
+  );
+  if (nov === null) return;
+  var nova = [];
+  nov.split('\n').forEach(function(line) {
+    var deli = line.split('|').map(function(s){ return s.trim(); });
+    if (deli.length >= 2 && deli[0]) {
+      nova.push({ ime: deli[0], url: deli[1], type: (deli[2] === 'url' ? 'url' : 'paste') });
+    }
+  });
+  if (nova.length) {
+    DOBAVITELJI = nova;
+    saveDobavitelji(nova);
+    renderTabela();
+    statusMsg('<i class="bi bi-check-circle text-success me-1"></i>Dobavitelji posodobljeni.', '#16a34a');
+  }
+});
+
+renderTabela();
+
+// ── Euroton iskanje v aplikaciji ──────────────────────────────────────
+document.getElementById('btn-euroton').addEventListener('click', function() {
+  var koda = trenutnaKoda();
+  var statusEl = document.getElementById('euroton-status');
+  var rezWrap = document.getElementById('euroton-rezultati');
+  var tbody = document.getElementById('euroton-tbody');
+
+  if (!koda) {
+    statusEl.innerHTML = '<span class="text-warning">Vpiši kodo izdelka zgoraj.</span>';
+    return;
+  }
+
+  statusEl.innerHTML = '<i class="bi bi-arrow-repeat"></i> Iščem v Euroton katalogu… (prijava + iskanje, lahko traja nekaj sekund)';
+  this.disabled = true;
+  var btn = this;
+
+  var fd = new FormData();
+  fd.append('koda', koda);
+
+  fetch('{{ url_for("main.euroton_isci") }}', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      if (!data.ok) {
+        statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>' + (data.napaka || 'Napaka.') + '</span>';
+        rezWrap.style.display = 'none';
+        return;
+      }
+      var rez = data.rezultati || [];
+      if (!rez.length) {
+        statusEl.innerHTML = '<span class="text-muted">Ni rezultatov za kodo <strong>' + koda + '</strong>.</span>';
+        rezWrap.style.display = 'none';
+        return;
+      }
+      statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Najdenih ' + rez.length + ' zadetkov.</span>';
+      tbody.innerHTML = '';
+      rez.forEach(function(a) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="fw-semibold">' + (a.znamka || '—') + '</td>' +
+          '<td>' + (a.naziv || '—') + '</td>' +
+          '<td class="font-monospace small">' + (a.koda || '—') + '</td>' +
+          '<td>' + (a.cena ? '<span class="text-success fw-semibold">' + a.cena + '</span>' : '<span class="text-muted">—</span>') + '</td>';
+        tbody.appendChild(tr);
+      });
+      rezWrap.style.display = '';
+    })
+    .catch(function(e) {
+      btn.disabled = false;
+      statusEl.innerHTML = '<span class="text-danger">Napaka pri povezavi: ' + e + '</span>';
+    });
+});
+</script>
+{% endblock %}
