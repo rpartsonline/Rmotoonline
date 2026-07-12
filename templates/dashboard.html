@@ -13,82 +13,58 @@
   <span class="text-muted small">{{ now.strftime('%A, %d.%m.%Y') if now else '' }}</span>
 </div>
 
-<!-- ── Naročila ──────────────────────────────────────────────────────────── -->
-<div class="page-hdr">
-  <h1><i class="bi bi-clipboard-check me-2 text-primary"></i>Naročila</h1>
-  <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Novo naročilo
-  </a>
-</div>
-
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-lg-4">
+  <div class="col-6 col-lg-3">
     <a href="{{ url_for('orders.list_orders', status='novo') }}" class="text-decoration-none">
       <div class="stat-card">
         <div class="num text-danger">{{ new_orders }}</div>
-        <div class="lbl"><i class="bi bi-bell-fill me-1 text-danger"></i>Nova naročila</div>
+        <div class="lbl"><i class="bi bi-bell me-1"></i>Nova naročila</div>
       </div>
     </a>
   </div>
-  <div class="col-6 col-lg-4">
+  <div class="col-6 col-lg-3">
     <a href="{{ url_for('orders.list_orders', status='naroceno') }}" class="text-decoration-none">
       <div class="stat-card">
         <div class="num text-success">{{ ordered_orders }}</div>
-        <div class="lbl"><i class="bi bi-check-circle me-1 text-success"></i>Naročena naročila</div>
+        <div class="lbl"><i class="bi bi-check-circle me-1"></i>Naročila v obdelavi</div>
       </div>
     </a>
   </div>
-  <div class="col-12 col-lg-4">
-    <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
-      <div class="stat-card">
-        <div class="num text-primary">{{ today_orders }}</div>
-        <div class="lbl"><i class="bi bi-clipboard-check me-1"></i>Naročila · {{ today_str }}</div>
-      </div>
-    </a>
-  </div>
-</div>
-
-<!-- ── Povpraševanja ──────────────────────────────────────────────────────── -->
-<div class="page-hdr">
-  <h1><i class="bi bi-chat-left-text me-2 text-primary"></i>Povpraševanja</h1>
-  <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
-  </a>
-</div>
-
-<div class="row g-3 mb-4">
-  {% for s in inquiry_breakdown %}
   <div class="col-6 col-lg-3">
-    <a href="{{ url_for('orders.list_inquiries', status=s.key) }}" class="text-decoration-none">
-      <div class="stat-card stat-card-sm d-flex align-items-center justify-content-between">
-        <span class="badge bg-{{ s.color }} badge-status">{{ s.label }}</span>
-        <span class="num">{{ s.count }}</span>
-      </div>
-    </a>
+    <div class="stat-card">
+      <div class="num text-success">{{ total_customers }}</div>
+      <div class="lbl"><i class="bi bi-people me-1"></i>Stranke</div>
+    </div>
   </div>
-  {% endfor %}
-</div>
-
-<!-- ── Beležka ────────────────────────────────────────────────────────────── -->
-<div class="page-hdr">
-  <h1><i class="bi bi-journal-text me-2 text-primary"></i>Beležka</h1>
-  <a href="{{ url_for('notes.list_notes') }}" class="btn btn-primary">
-    <i class="bi bi-pencil me-1"></i>Odpri beležko
-  </a>
-</div>
-
-<div class="row g-3 mb-4">
-  {% for nc in note_counts %}
   <div class="col-6 col-lg-3">
-    <a href="{{ url_for('notes.list_notes', person=nc.person) }}" class="text-decoration-none">
-      <div class="stat-card">
-        <div class="num {% if nc.count %}text-danger{% else %}text-muted{% endif %}">{{ nc.count }}</div>
-        <div class="lbl"><i class="bi bi-person me-1"></i>{{ nc.person }}</div>
-      </div>
-    </a>
+    <div class="stat-card">
+      <div class="num text-info">{{ total_vehicles }}</div>
+      <div class="lbl"><i class="bi bi-car-front me-1"></i>Vozila</div>
+    </div>
   </div>
-  {% endfor %}
+</div>
+
+<!-- ── Status breakdown ──────────────────────────────────────────────────── -->
+<div class="tbl-card mb-4">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-bar-chart me-2"></i>Stanje po statusih</h6>
+  </div>
+  <div class="p-3">
+    <div class="row g-2">
+      {% for key, info in status_counts.items() %}
+      <div class="col-6 col-md-3">
+        <a href="{{ url_for('orders.list_orders', status=key) }}" class="text-decoration-none">
+          <div class="d-flex align-items-center justify-content-between p-2 rounded"
+               style="background:#f8fafc; border:1px solid #e5eaf2;">
+            <span class="badge bg-{{ info.color }} badge-status">{{ info.label }}</span>
+            <span class="fw-bold text-dark">{{ info.count }}</span>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <div class="row g-3">
@@ -106,7 +82,6 @@
             <th>Stranka</th>
             <th>Status</th>
             <th>Datum</th>
-            {% if current_user.is_admin %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -119,17 +94,9 @@
             <td>{{ o.customer.name }}</td>
             <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
             <td class="text-muted small">{{ o.created_at|sl_date }}</td>
-            {% if current_user.is_admin %}
-            <td class="text-end">
-              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}"
-                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
-                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
-              </form>
-            </td>
-            {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="{% if current_user.is_admin %}5{% else %}4{% endif %}" class="text-center text-muted py-4">Ni naročil.</td></tr>
+          <tr><td colspan="4" class="text-center text-muted py-4">Ni naročil.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -156,12 +123,6 @@
             </td>
             <td class="text-end">
               <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
-              {% if current_user.is_admin %}
-              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}" class="d-inline ms-1"
-                    onsubmit="return confirm('Izbrišem {{ o.order_number }}? Tega ni mogoče razveljaviti.');">
-                <button class="btn btn-sm btn-outline-danger" title="Briši"><i class="bi bi-trash"></i></button>
-              </form>
-              {% endif %}
             </td>
           </tr>
           {% else %}
