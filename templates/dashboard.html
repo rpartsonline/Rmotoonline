@@ -15,7 +15,7 @@
 
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
+  <div class="col-6">
     <a href="{{ url_for('orders.list_orders', status='novo') }}" class="text-decoration-none">
       <div class="stat-card">
         <div class="num text-danger">{{ new_orders }}</div>
@@ -23,25 +23,13 @@
       </div>
     </a>
   </div>
-  <div class="col-6 col-lg-3">
-    <a href="{{ url_for('orders.list_orders', status='naroceno') }}" class="text-decoration-none">
+  <div class="col-6">
+    <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
       <div class="stat-card">
-        <div class="num text-success">{{ ordered_orders }}</div>
-        <div class="lbl"><i class="bi bi-check-circle me-1"></i>Naročila v obdelavi</div>
+        <div class="num text-success">{{ orders_v_obdelavi }}</div>
+        <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>Naročila v obdelavi</div>
       </div>
     </a>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-success">{{ total_customers }}</div>
-      <div class="lbl"><i class="bi bi-people me-1"></i>Stranke</div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="stat-card">
-      <div class="num text-info">{{ total_vehicles }}</div>
-      <div class="lbl"><i class="bi bi-car-front me-1"></i>Vozila</div>
-    </div>
   </div>
 </div>
 
@@ -85,7 +73,18 @@
           </tr>
         </thead>
         <tbody>
+          {% set ns = namespace(last_date=none) %}
           {% for o in recent_orders %}
+          {% set cur_date = o.created_at|sl_date %}
+          {% if cur_date != ns.last_date %}
+          {% set ns.last_date = cur_date %}
+          <tr style="background:#eef2ff;">
+            <td colspan="4" class="py-1 px-3">
+              <i class="bi bi-calendar3 me-1 text-primary"></i>
+              <span class="fw-bold text-primary small">{{ cur_date }}</span>
+            </td>
+          </tr>
+          {% endif %}
           <tr>
             <td>
               <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"

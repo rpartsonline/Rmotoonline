@@ -96,6 +96,10 @@ def dashboard():
         status_counts = {}
 
     total_orders = Order.query.filter_by(kind="narocilo").count()
+    # Vsa aktivna naročila (ni zaključeno in ni preklicano)
+    orders_v_obdelavi = Order.query.filter_by(kind="narocilo").filter(
+        ~Order.status.in_(["zakljuceno", "preklicano"])
+    ).count()
 
     return render_template(
         "dashboard.html",
@@ -104,6 +108,7 @@ def dashboard():
         ordered_orders=ordered_orders,
         active_orders=active_orders,
         total_orders=total_orders,
+        orders_v_obdelavi=orders_v_obdelavi,
         today_str=_today_str(),
         now=_ljubljana_now(),
         total_customers=total_customers,
