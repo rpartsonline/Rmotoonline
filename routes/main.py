@@ -96,9 +96,9 @@ def dashboard():
         status_counts = {}
 
     total_orders = Order.query.filter_by(kind="narocilo").count()
-    # Vsa aktivna naročila (ni zaključeno in ni preklicano)
-    orders_v_obdelavi = Order.query.filter_by(kind="narocilo").filter(
-        ~Order.status.in_(["zakljuceno", "preklicano"])
+    # Naročila v obdelavi = status "poslano_povprasevanje" (oranžni)
+    orders_v_obdelavi = Order.query.filter_by(
+        kind="narocilo", status="poslano_povprasevanje"
     ).count()
 
     return render_template(

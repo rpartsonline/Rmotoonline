@@ -15,7 +15,7 @@
 
 <!-- ── Stat cards ────────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-6">
+  <div class="col-6 col-lg-4">
     <a href="{{ url_for('orders.list_orders', status='novo') }}" class="text-decoration-none">
       <div class="stat-card">
         <div class="num text-danger">{{ new_orders }}</div>
@@ -23,11 +23,19 @@
       </div>
     </a>
   </div>
-  <div class="col-6">
+  <div class="col-6 col-lg-4">
+    <a href="{{ url_for('orders.list_orders', status='poslano_povprasevanje') }}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-warning">{{ orders_v_obdelavi }}</div>
+        <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>Naročila v obdelavi</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-lg-4">
     <a href="{{ url_for('orders.list_orders') }}" class="text-decoration-none">
       <div class="stat-card">
-        <div class="num text-success">{{ orders_v_obdelavi }}</div>
-        <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>Naročila v obdelavi</div>
+        <div class="num text-primary">{{ today_orders }}</div>
+        <div class="lbl"><i class="bi bi-calendar-day me-1"></i>Naročil danes</div>
       </div>
     </a>
   </div>
