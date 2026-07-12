@@ -128,13 +128,13 @@
     </li>
     <li>
       <a href="{{ url_for('orders.list_orders') }}"
-         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.endpoint != 'orders.new_order' and request.args.get('kind') != 'povprasevanje' %}active{% endif %}">
+         class="sb-link {% if request.endpoint == 'orders.list_orders' or request.endpoint == 'orders.new_order' or request.endpoint == 'orders.order_detail' %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('orders.list_orders', kind='povprasevanje') }}"
-         class="sb-link {% if request.endpoint and 'orders' in request.endpoint and request.args.get('kind') == 'povprasevanje' %}active{% endif %}">
+      <a href="{{ url_for('orders.list_inquiries') }}"
+         class="sb-link {% if request.endpoint == 'orders.list_inquiries' or request.endpoint == 'orders.new_inquiry' %}active{% endif %}">
         <i class="bi bi-search"></i><span>Povpraševanje</span>
       </a>
     </li>
@@ -208,9 +208,15 @@
       {% block breadcrumb %}{% endblock %}
     </nav>
     <div class="ms-auto d-flex align-items-center gap-2">
+      {% if request.endpoint and 'inquir' in request.endpoint %}
+      <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+      </a>
+      {% else %}
       <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Novo naročilo
       </a>
+      {% endif %}
     </div>
   </div>
 

@@ -10,15 +10,28 @@
 
 {% block content %}
 <div class="page-hdr">
-  <h1><i class="bi bi-clipboard-check me-2 text-primary"></i>Naročila</h1>
+  <h1>
+    {% if kind == 'povprasevanje' %}
+    <i class="bi bi-search me-2 text-primary"></i>Povpraševanja
+    {% else %}
+    <i class="bi bi-clipboard-check me-2 text-primary"></i>Naročila
+    {% endif %}
+  </h1>
+  {% if kind == 'povprasevanje' %}
+  <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
+  </a>
+  {% else %}
   <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
     <i class="bi bi-plus-lg me-1"></i>Novo naročilo
   </a>
+  {% endif %}
 </div>
 
 <!-- ── Filters ────────────────────────────────────────────────────────────── -->
 <div class="card-plain mb-3">
   <form method="GET" class="row g-2 align-items-end">
+    <input type="hidden" name="kind" value="{{ kind }}">
     <div class="col-md-3">
       <label class="form-label small text-muted mb-1">Išči (številka)</label>
       <input type="text" name="search" class="form-control form-control-sm"
@@ -54,7 +67,8 @@
       <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
         <i class="bi bi-search"></i>
       </button>
-      <a href="{{ url_for('orders.list_orders') }}" class="btn btn-sm btn-outline-secondary">
+      <a href="{% if kind == 'povprasevanje' %}{{ url_for('orders.list_inquiries') }}{% else %}{{ url_for('orders.list_orders') }}{% endif %}"
+         class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-x-lg"></i>
       </a>
     </div>
