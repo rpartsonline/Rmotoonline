@@ -106,18 +106,33 @@ def create_app():
             pass
         # Neobdelane beležke za trenutnega zaposlenega
         note_notif_count = 0
+        # Obdelane beležke ki jih je ustvaril trenutni uporabnik (povratna info)
+        note_done_count = 0
         try:
             if (current_user.is_authenticated
-                    and getattr(current_user, "role", "") not in ("kupec",)
-                    and getattr(current_user, "full_name", None)):
-                note_notif_count = Note.query.filter_by(
-                    person=current_user.full_name,
-                    done=False
-                ).count()
+                    and getattr(current_user, "role", "") not in ("kupec",)):
+                if getattr(current_user, "full_name", None):
+                    note_notif_count = Note.query.filter_by(
+                        person=current_user.full_name,
+                        done=False
+                    ).count()
+                # Beležke ki sem jih ustvaril JAZ in so bile obdelane, a jih še nisem videl
+                from flask import session as _sess
+                seen = _sess.get("notes_done_seen")
+                q = Note.query.filter_by(created_by_id=current_user.id, done=True)
+                if seen:
+                    from datetime import datetime as _dt
+                    try:
+                        seen_dt = _dt.fromisoformat(seen)
+                        q = q.filter(Note.done_at > seen_dt)
+                    except Exception:
+                        pass
+                note_done_count = q.count()
         except Exception as _note_err:
             print(f"Note notif err: {_note_err}")
         return {
             "new_orders_count": new_count,
+            "note_done_count": note_done_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
