@@ -253,20 +253,42 @@ def _vin_cleanup(text):
     if not candidates:
         return ""
 
-    # Ocenjevanje: VIN ima običajno mešanico črk in števk (ne samo eno).
+    # Ocenjevanje: VIN ima običajno mešanico črk in števk.
+    # Znane WMI predpone evropskih znamk (prvi 3 znaki) → večja verjetnost.
+    known_wmi = ("WVW", "WVG", "WV1", "WV2", "WAU", "WA1", "TRU",  # VW/Audi
+                 "WBA", "WBS", "WBY", "4US", "5UX",                # BMW
+                 "WDB", "WDC", "WDD", "WDF", "W1K", "W1N", "W1V",  # Mercedes
+                 "VF1", "VF3", "VF7", "VF6",                       # Renault/Peugeot/Citroen
+                 "ZFA", "ZFF", "ZAR",                              # Fiat/Ferrari/Alfa
+                 "TMB", "TMP",                                     # Škoda
+                 "VSS", "VSK",                                     # Seat/Nissan ES
+                 "SB1", "SJN", "JTD", "JTM", "JT1",                # Toyota
+                 "KMH", "KNA", "KNB", "U5Y", "TMA",                # Hyundai/Kia
+                 "ZAC", "1C4", "SAL", "SAJ",                       # Jeep/LandRover/Jaguar
+                 "YV1", "YV4", "VF8", "W0L", "W0V", "VXK")         # Volvo/Opel
+
     def score(v):
-        digits = sum(c.isdigit() for c in v)
+        digits = sum(ch.isdigit() for ch in v)
         letters = 17 - digits
         s = 0
-        # želimo vsaj nekaj števk in nekaj črk (pravi VIN), kaznujemo skrajnosti
-        if 2 <= digits <= 14:
+        # Mešanica črk in števk (pravi VIN)
+        if 3 <= digits <= 12:
             s += 5
-        if 2 <= letters <= 15:
+        if 5 <= letters <= 14:
             s += 5
-        # kontrolna številka (če ustreza, močno povečaj)
-        # (severnoameriški standard; pri EU vozilih ni vedno, a če ustreza, je skoraj gotovo VIN)
+        # Znana WMI predpona → skoraj gotovo VIN
+        if v[:3] in known_wmi:
+            s += 20
+        # 10. znak (leto) je črka ali številka brez I,O,Q,U,Z,0 → tipično VIN
+        year_char = v[9]
+        if year_char in "ABCDEFGHJKLMNPRSTVWXY123456789":
+            s += 3
+        # Kazen če je preveč enega znaka zapored (npr. OCR napaka)
+        if re.search(r"(.)\1{4,}", v):
+            s -= 10
         return s
 
+    candidates = list(dict.fromkeys(candidates))  # odstrani duplikate, ohrani vrstni red
     candidates.sort(key=score, reverse=True)
     return candidates[0]
 

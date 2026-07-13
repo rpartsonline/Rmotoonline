@@ -478,7 +478,7 @@
 </script>
 
 <script>
-/* ── VIN iz slike: prilepi (Ctrl+V) ali naloži printscreen ─────────── */
+/* ── VIN iz slike: KAMERA / prilepi (Ctrl+V) / naloži ─────────────────── */
 (function() {
   var VIN_OCR_URL = "{{ url_for('vehicles.api_vin_ocr') }}";
   var statusEl   = document.getElementById('nv_status');
@@ -491,36 +491,88 @@
     if (statusEl) { statusEl.innerHTML = msg; statusEl.style.color = color || '#666'; }
   }
 
+  // Optimizacija slike: zmanjšaj na max 1600px + povečaj kontrast → boljši OCR
+  function optimizeImage(file) {
+    return new Promise(function(resolve) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function() {
+        URL.revokeObjectURL(url);
+        var maxDim = 1600;
+        var w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else       { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // Povečaj kontrast in pretvori v sivinsko (boljši OCR za VIN)
+        try {
+          var imgData = ctx.getImageData(0, 0, w, h);
+          var d = imgData.data;
+          var contrast = 1.35; // faktor kontrasta
+          var intercept = 128 * (1 - contrast);
+          for (var i = 0; i < d.length; i += 4) {
+            var gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+            var val = gray * contrast + intercept;
+            val = val < 0 ? 0 : (val > 255 ? 255 : val);
+            d[i] = d[i+1] = d[i+2] = val;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        } catch(e) { /* če CORS/security, pusti barvno */ }
+
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = function() {
+        URL.revokeObjectURL(url);
+        // fallback: pošlji original
+        var reader = new FileReader();
+        reader.onload = function(ev) { resolve(ev.target.result); };
+        reader.readAsDataURL(file);
+      };
+      img.src = url;
+    });
+  }
+
   function sendImageForOCR(file) {
     if (!file) return;
-    setStatus('<i class="bi bi-arrow-repeat"></i> Berem šasijsko številko iz slike…', '#2563eb');
+    setStatus('<i class="bi bi-arrow-repeat"></i> Obdelujem sliko in berem šasijsko…', '#2563eb');
     if (preview && previewImg) {
       previewImg.src = URL.createObjectURL(file);
       preview.style.display = '';
-      if (previewName) previewName.textContent = file.name || 'prilepljena slika';
+      if (previewName) previewName.textContent = file.name || 'slika';
     }
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      fetch(VIN_OCR_URL, {
+    optimizeImage(file).then(function(dataUrl) {
+      return fetch(VIN_OCR_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: e.target.result })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok && data.vin) {
-          if (vinInp) { vinInp.value = data.vin.toUpperCase(); vinInp.dispatchEvent(new Event('input')); }
-          setStatus('<i class="bi bi-check-circle-fill text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — preveri in popravi po potrebi.', '#16a34a');
-        } else {
-          setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. Poskusi z boljšo sliko ali vpiši ročno.' + (data.raw ? ' (prebrano: ' + data.raw.slice(0,40) + ')' : ''), '#b45309');
-        }
-      })
-      .catch(function() { setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', '#dc2626'); });
-    };
-    reader.readAsDataURL(file);
+        body: JSON.stringify({ image: dataUrl })
+      });
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok && data.vin) {
+        if (vinInp) { vinInp.value = data.vin.toUpperCase(); vinInp.dispatchEvent(new Event('input')); }
+        setStatus('<i class="bi bi-check-circle-fill text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — preveri in popravi po potrebi.', '#16a34a');
+      } else if (data.error === 'no_key') {
+        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>OCR ni na voljo (manjka Vision ključ). Vpiši ročno.', '#b45309');
+      } else if (data.error === 'daily_limit') {
+        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Dnevna omejitev skeniranj dosežena. Vpiši ročno.', '#b45309');
+      } else {
+        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. Poskusi z bližjo, ostrejšo sliko (samo VIN vrstica).' + (data.raw ? ' <span class="text-muted">(prebrano: ' + data.raw.slice(0,40) + '…)</span>' : ''), '#b45309');
+      }
+    })
+    .catch(function() { setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', '#dc2626'); });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
+    // KAMERA (fotografiraj) — glavni gumb
+    var photo = document.getElementById('nv_vin_photo');
+    if (photo) photo.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+
     // Upload gumb
     var up = document.getElementById('nv_vin_upload');
     if (up) up.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
@@ -533,9 +585,8 @@
       });
     }
 
-    // Globalni Ctrl+V — sprejmi sliko odkoderkoli
+    // Globalni Ctrl+V
     document.addEventListener('paste', function(e) {
-      // Ne prestrezaj če je fokus v textarea/input (razen VIN polja)
       var active = document.activeElement;
       var isText = active && (active.tagName === 'TEXTAREA' ||
                   (active.tagName === 'INPUT' && active.type === 'text' && active.id !== 'nv_vin'));
@@ -554,7 +605,7 @@
 })();
 </script>
 <script>
-const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
+const VEHICLE_APIconst VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
 const PRESEL_CUST  = "{{ preselected_customer or '' }}";
 const PRESEL_VEH   = "{{ preselected_vehicle or '' }}";
 window.IS_KUPEC = {{ 'true' if current_user.role == 'kupec' else 'false' }};
