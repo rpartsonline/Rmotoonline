@@ -252,6 +252,7 @@ class Note(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     done_at    = db.Column(db.DateTime)
+    creator_seen_done = db.Column(db.Boolean, default=False)  # je ustvarjalec videl da je obdelano
 
     created_by = db.relationship("User")
 
@@ -437,7 +438,7 @@ TRUCK_TIRE_BRANDS = [
 ]
 
 
-# ── Moto platforma: evidenca naročil delov ────────────────────────────────────
+# ── Moto platforma: naročila delov ───────────────────────────────────────────
 
 MOTO_BRANDS = [
     "Honda", "Yamaha", "Kawasaki", "Suzuki", "KTM", "BMW", "Ducati",

@@ -25,14 +25,16 @@ def list_notes():
 
     # Zabeleži čas ogleda (za oblaček novih beležk)
     session["notes_last_visit"] = datetime.utcnow().isoformat()
-    # Zabeleži ogled obdelanih (za povratno info ustvarjalcu)
-    session["notes_done_seen"] = datetime.utcnow().isoformat()
 
-    # Moje beležke ki so bile pravkar obdelane (povratna info)
-    moje_obdelane = (Note.query
-                     .filter_by(created_by_id=current_user.id, done=True)
-                     .order_by(Note.done_at.desc())
-                     .limit(10).all())
+    # Povratna info: moje beležke ki so bile obdelane in jih še nisem videl
+    obdelane_zame = (Note.query
+                     .filter_by(created_by_id=current_user.id, done=True,
+                                creator_seen_done=False)
+                     .order_by(Note.done_at.desc()).all())
+    if obdelane_zame:
+        for n in obdelane_zame:
+            n.creator_seen_done = True
+        db.session.commit()
 
     # Števila nezaključenih po osebi
     counts = {p: Note.query.filter_by(person=p, done=False).count() for p in NOTE_PEOPLE}
@@ -42,7 +44,7 @@ def list_notes():
         notes=notes,
         people=NOTE_PEOPLE,
         counts=counts,
-        moje_obdelane=moje_obdelane,
+        obdelane_zame=obdelane_zame,
         person_filter=person_filter,
         show=show,
     )

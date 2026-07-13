@@ -70,6 +70,61 @@
 @media (max-width: 991px) {
   .topbar-toggle { display: flex !important; }
 }
+
+/* ── Izboljšana mobilna verzija ──────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Večji tap-tarči za prste */
+  .sb-link { padding: 14px 18px !important; font-size: 1.05rem; }
+  .btn { min-height: 44px; }
+  .btn-sm { min-height: 38px; }
+
+  /* Page header manjši na mobilnem */
+  .page-hdr h1 { font-size: 1.4rem; }
+  .page-hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .page-hdr .btn { width: 100%; }
+
+  /* Tabele: horizontalni scroll namesto stiskanja */
+  .table-responsive { -webkit-overflow-scrolling: touch; }
+  table { font-size: 0.88rem; }
+  th, td { padding: 8px 6px !important; white-space: nowrap; }
+
+  /* Kartice polna širina */
+  .stat-card { padding: 16px !important; }
+  .stat-card .num { font-size: 1.8rem; }
+
+  /* Form polja večja */
+  .form-control, .form-select { min-height: 44px; font-size: 1rem; }
+  input[type="text"], input[type="tel"], input[type="email"], textarea { font-size: 16px !important; } /* prepreči zoom na iOS */
+
+  /* Oblački manjši na mobilnem */
+  .notif-bubble { padding: 8px 14px 8px 12px !important; font-size: 0.82rem !important; }
+
+  /* Filter forme: vsak element polno širino */
+  .card-plain .row > [class*="col-"] { margin-bottom: 8px; }
+
+  /* Modali polna širina */
+  .modal-dialog { margin: 8px; }
+
+  /* Breadcrumb manjši */
+  .breadcrumb { font-size: 0.8rem; }
+
+  /* Skrij manj pomembne stolpce v tabelah (če ima .hide-mobile) */
+  .hide-mobile { display: none !important; }
+}
+
+/* Zelo majhni zasloni (telefoni pokončno) */
+@media (max-width: 480px) {
+  .content-wrap, .main-content { padding: 12px !important; }
+  .tbl-card, .form-section, .card-plain { border-radius: 10px; }
+  .page-hdr h1 { font-size: 1.25rem; }
+  h1 { font-size: 1.3rem; }
+  h4 { font-size: 1.1rem; }
+}
+
+/* Boljši scroll za sidebar na mobilnem */
+@media (max-width: 991px) {
+  .sidebar { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+}
 </style>
   <title>{% block title %}Naročilnice{% endblock %} – R-MotoShop</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
@@ -380,6 +435,7 @@
 @keyframes pulse-red    { 0%,100%{box-shadow:0 4px 16px rgba(220,38,38,.4);}  50%{box-shadow:0 4px 28px rgba(220,38,38,.8);} }
 @keyframes pulse-orange { 0%,100%{box-shadow:0 4px 16px rgba(234,88,12,.4);}  50%{box-shadow:0 4px 28px rgba(234,88,12,.8);} }
 @keyframes pulse-yellow { 0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);} 50%{box-shadow:0 4px 28px rgba(245,158,11,.8);} }
+@keyframes pulse-green  { 0%,100%{box-shadow:0 4px 16px rgba(22,163,74,.4);}  50%{box-shadow:0 4px 28px rgba(22,163,74,.8);} }
 .notif-bubble { position:fixed; z-index:9999; border-radius:999px; padding:10px 18px 10px 14px;
   text-decoration:none; font-weight:700; font-size:.88rem; color:#fff;
   display:flex; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); }
@@ -422,15 +478,16 @@
   <span class="nb-count">{{ note_notif_count }}</span>
 </a>
 {% set _nb_bottom = _nb_bottom + 64 %}
+{% set _nb_bottom = _nb_bottom + 64 %}
 {% endif %}
 
 {# ── Povratna info: moje beležke so obdelane ── #}
-{% if current_user.is_authenticated and current_user.role != 'kupec' and note_done_count > 0 %}
+{% if current_user.is_authenticated and current_user.role != 'kupec' and done_notif_count > 0 %}
 <a href="{{ url_for('notes.list_notes') }}"
    class="notif-bubble"
-   style="bottom:{{ _nb_bottom }}px; right:24px; background:#16a34a; animation:pulse-yellow 2s infinite;">
-  <i class="bi bi-check-circle fs-6"></i> Obdelano
-  <span class="nb-count">{{ note_done_count }}</span>
+   style="bottom:{{ _nb_bottom }}px; right:24px; background:#16a34a; animation:pulse-green 2s infinite;">
+  <i class="bi bi-check-circle-fill fs-6"></i> Beležka obdelana
+  <span class="nb-count">{{ done_notif_count }}</span>
 </a>
 {% endif %}
 
