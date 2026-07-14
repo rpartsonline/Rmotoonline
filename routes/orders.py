@@ -233,12 +233,18 @@ def _render_list(kind):
         except ValueError:
             pass
     if search:
-        q = q.filter(Order.order_number.ilike(f"%{search}%"))
+        q = q.join(Customer, Order.customer_id == Customer.id).filter(
+            db.or_(
+                Order.order_number.ilike(f"%{search}%"),
+                Customer.name.ilike(f"%{search}%"),
+                Customer.phone.ilike(f"%{search}%"),
+            )
+        )
 
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
 
-    # Narocila danes
+    # Narocila danes (UTC -> lokalni cas)
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow_start = today_start + timedelta(days=1)
     today_count = (Order.query
