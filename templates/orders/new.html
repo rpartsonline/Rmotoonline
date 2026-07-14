@@ -114,7 +114,6 @@
     <div class="input-group">
       <input type="text" name="new_vehicle_vin" id="nv_vin" class="form-control"
              placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
-             value="{{ form_data.get('new_vehicle_vin', '') }}"
              style="font-family:monospace; letter-spacing:.06em; text-transform:uppercase">
       <button type="button" class="btn btn-outline-primary" data-vs="decode">
         <i class="bi bi-search me-1"></i>Razčleni
@@ -148,20 +147,18 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Znamka *</label>
       <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off"
-             value="{{ form_data.get('new_vehicle_brand', '') }}">
+             placeholder="Začni tipkati…" autocomplete="off">
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Model *</label>
       <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off"
-             value="{{ form_data.get('new_vehicle_model', '') }}">
+             placeholder="Začni tipkati…" autocomplete="off">
     </div>
     <div class="col-md-2">
       <label class="form-label small fw-semibold">Letnik</label>
       <select name="new_vehicle_year" id="nv_year" class="form-select">
         <option value="">—</option>
-        {% for y in range(2027, 1979, -1) %}<option value="{{ y }}" {% if form_data.get('new_vehicle_year')==y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-md-4">
@@ -180,11 +177,11 @@
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Prostornina (l)</label>
-      <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0" value="{{ form_data.get('new_vehicle_displacement', '') }}">
+      <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0">
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Moč (kW)</label>
-      <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110" value="{{ form_data.get('new_vehicle_power', '') }}">
+      <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110">
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Menjalnik</label>
@@ -206,7 +203,7 @@
   <div class="mt-3">
     <label class="form-label small fw-semibold">Opomba naročila</label>
     <textarea name="notes" class="form-control" rows="3"
-              placeholder="Kaj potrebuješ / dodatne informacije…">{{ form_data.get('notes', '') }}</textarea>
+              placeholder="Kaj potrebuješ / dodatne informacije…"></textarea>
   </div>
 </div>
 {% else %}
@@ -224,8 +221,7 @@
     <div class="col-md-9">
       <label class="form-label small fw-semibold">Opomba</label>
       <input type="text" name="notes" class="form-control"
-             placeholder="Npr. stranka pokliče ko je pripravljeno…"
-             value="{{ form_data.get('notes', '') }}">
+             placeholder="Npr. stranka pokliče ko je pripravljeno…">
     </div>
   </div>
   <div class="mt-3">
@@ -609,7 +605,7 @@
 })();
 </script>
 <script>
-const VEHICLE_APIconst VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
+const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
 const PRESEL_CUST  = "{{ preselected_customer or '' }}";
 const PRESEL_VEH   = "{{ preselected_vehicle or '' }}";
 window.IS_KUPEC = {{ 'true' if current_user.role == 'kupec' else 'false' }};
