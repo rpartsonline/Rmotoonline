@@ -33,7 +33,23 @@
 <div class="row g-3 mb-3">
   {% for sb in status_breakdown %}
   <div class="col-6 col-md-3">
+    {% if sb.key == 'naroceno' %}
+    <div class="stat-card">
+      <div class="num text-info">{{ today_count }}</div>
+      <div class="lbl"><i class="bi bi-calendar3 me-1"></i>Narocil danes</div>
+    </div>
+    {% else %}
     <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}" class="text-decoration-none">
+      <div class="stat-card" style="{% if status_filter == sb.key %}outline:2px solid;{% endif %}">
+        <div class="num text-{{ sb.color }}">{{ sb.count }}</div>
+        <div class="lbl">{{ sb.label }}</div>
+      </div>
+    </a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}" class="text-decoration-none">
       <div class="stat-card">
         <div class="num text-{{ sb.color }}">{{ sb.count }}</div>
         <div class="lbl">{{ sb.label }}</div>
