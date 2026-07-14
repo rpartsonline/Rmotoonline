@@ -299,6 +299,19 @@ def _handle_new(kind):
         f = request.form
         is_kupec = getattr(current_user, "role", "") == "kupec"
 
+        # ── Telefon obstoječe stranke: shrani TAKOJ (ne glede na uspeh naročila) ──
+        try:
+            upd_cust_id = f.get("update_customer_id", "").strip()
+            upd_phone   = f.get("update_customer_phone", "").strip()
+            if upd_cust_id and upd_phone and upd_cust_id.isdigit():
+                upd_cust = Customer.query.get(int(upd_cust_id))
+                if upd_cust and (upd_cust.phone or "") != upd_phone:
+                    upd_cust.phone = upd_phone
+                    db.session.commit()
+        except Exception as _phone_err:
+            print(f"Telefon shranjevanje: {_phone_err}")
+            db.session.rollback()
+
         # ── Obvezna polja (ime, telefon vedno; znamka vozila samo pri naročilih) ──
         errors = []
         existing_cust = f.get("customer_id", "").strip()
@@ -358,7 +371,7 @@ def _handle_new(kind):
                 name = f.get("new_customer_name", "").strip()
                 if not name:
                     flash("Ime stranke je obvezno.", "danger")
-                    return _render_new_order_form(kind)
+                    return _render_new_order_form(kind, form_data=request.form)
                 customer = Customer(
                     name    = name,
                     phone   = f.get("new_customer_phone", "").strip(),
@@ -488,17 +501,6 @@ def _handle_new(kind):
 
         db.session.commit()
         what = "Povpraševanje" if kind == "povprasevanje" else "Naročilo"
-        # Posodobi telefon stranke če je bil dodan/spremenjen
-        try:
-            upd_cust_id = f.get("update_customer_id", "").strip()
-            upd_phone   = f.get("update_customer_phone", "").strip()
-            if upd_cust_id and upd_phone and upd_cust_id.isdigit():
-                upd_cust = Customer.query.get(int(upd_cust_id))
-                if upd_cust and upd_cust.phone != upd_phone:
-                    upd_cust.phone = upd_phone
-                    db.session.commit()
-        except Exception:
-            pass
         flash(f"{what} {order.order_number} je bilo uspešno ustvarjeno.", "success")
         return redirect(url_for("orders.order_detail", order_id=order.id))
 
