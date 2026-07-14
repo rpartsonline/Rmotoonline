@@ -33,9 +33,8 @@
 <div class="row g-3 mb-3">
   {% for sb in status_breakdown %}
   <div class="col-6 col-md-3">
-    <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}"
-       class="text-decoration-none">
-      <div class="stat-card" style="{% if status_filter == sb.key %}outline:2px solid;{% endif %}">
+    <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}" class="text-decoration-none">
+      <div class="stat-card">
         <div class="num text-{{ sb.color }}">{{ sb.count }}</div>
         <div class="lbl">{{ sb.label }}</div>
       </div>
@@ -50,9 +49,9 @@
   <form method="GET" class="row g-2 align-items-end">
     <input type="hidden" name="kind" value="{{ kind }}">
     <div class="col-md-3">
-      <label class="form-label small text-muted mb-1">Išči (številka)</label>
+      <label class="form-label small text-muted mb-1">Išči (številka / stranka)</label>
       <input type="text" name="search" class="form-control form-control-sm"
-             placeholder="NAR-2024-…" value="{{ search }}">
+             placeholder="NAR-2024-… ali ime stranke" value="{{ search }}">
     </div>
     <div class="col-md-2">
       <label class="form-label small text-muted mb-1">Status</label>
