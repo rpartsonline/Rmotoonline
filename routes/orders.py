@@ -238,6 +238,11 @@ def _render_list(kind):
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
 
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = Order.query.filter_by(kind=kind).filter(
+        Order.created_at >= today_start
+    ).count()
+
     # Kupec si je ogledal seznam → obvestila „naročeno" označimo kot prebrana
     if is_kupec:
         changed = False
@@ -276,6 +281,7 @@ def _render_list(kind):
         new_url=url_for(cfg["new_endpoint"]),
         list_url=url_for(cfg["list_endpoint"]),
         status_breakdown=breakdown,
+        today_count=today_count,
     )
 
 

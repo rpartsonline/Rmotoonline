@@ -28,28 +28,25 @@
   {% endif %}
 </div>
 
-<!-- ── Status okenca ─────────────────────────────────────────────────────── -->
+<!-- ── Stat cards ─────────────────────────────────────────────────────────── -->
 {% if status_breakdown %}
-<div class="d-flex gap-2 flex-wrap mb-3">
-  <a href="{% if kind == 'povprasevanje' %}{{ url_for('orders.list_inquiries') }}{% else %}{{ url_for('orders.list_orders') }}{% endif %}"
-     class="text-decoration-none">
-    <div class="px-3 py-2 rounded border {% if not status_filter %}border-primary bg-primary text-white{% else %}bg-white text-dark{% endif %}"
-         style="font-size:0.88rem; cursor:pointer; min-width:90px; text-align:center;">
-      <div class="fw-bold fs-5">{{ orders|length if not status_filter else status_breakdown|sum(attribute='count') }}</div>
-      <div class="small">Vsa</div>
+<div class="row g-3 mb-3">
+  {% for sb in status_breakdown %}{% if sb.key != 'naroceno' %}
+  <div class="col-6 col-lg-4">
+    <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="num text-{{ sb.color }}">{{ sb.count }}</div>
+        <div class="lbl">{{ sb.label }}</div>
+      </div>
+    </a>
+  </div>
+  {% endif %}{% endfor %}
+  <div class="col-6 col-lg-4">
+    <div class="stat-card">
+      <div class="num text-info">{{ today_count }}</div>
+      <div class="lbl"><i class="bi bi-calendar3 me-1"></i>Naročil danes</div>
     </div>
-  </a>
-  {% for sb in status_breakdown %}
-  <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}"
-     class="text-decoration-none">
-    <div class="px-3 py-2 rounded border {% if status_filter == sb.key %}border-{{ sb.color }}{% endif %}"
-         style="font-size:0.88rem; cursor:pointer; min-width:90px; text-align:center;
-                {% if status_filter == sb.key %}background:var(--bs-{{ sb.color }},#e9ecef); {% endif %}">
-      <div class="fw-bold fs-5 text-{{ sb.color }}">{{ sb.count }}</div>
-      <div class="small"><span class="badge bg-{{ sb.color }} badge-status">{{ sb.label }}</span></div>
-    </div>
-  </a>
-  {% endfor %}
+  </div>
 </div>
 {% endif %}
 
