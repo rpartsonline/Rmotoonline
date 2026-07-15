@@ -120,14 +120,14 @@
       </button>
     </div>
     <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
-      <label class="btn btn-primary btn-sm mb-0">
+      <button type="button" class="btn btn-primary btn-sm" id="nv_vin_cam_btn">
         <i class="bi bi-camera me-1"></i>Fotografiraj identifikacijsko številko
-        <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" hidden>
-      </label>
-      <label class="btn btn-outline-secondary btn-sm mb-0">
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="nv_vin_up_btn">
         <i class="bi bi-upload me-1"></i>Naloži sliko / printscreen
-        <input type="file" id="nv_vin_upload" accept="image/*" hidden>
-      </label>
+      </button>
+      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;width:0;height:0">
+      <input type="file" id="nv_vin_upload" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:0;height:0">
       <button type="button" class="btn btn-outline-info btn-sm" id="nv_vin_paste_btn">
         <i class="bi bi-clipboard-image me-1"></i>Prilepi (Ctrl+V)
       </button>
@@ -569,13 +569,21 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    // KAMERA (fotografiraj) — glavni gumb
+    // KAMERA — gumb odpre kamero
     var photo = document.getElementById('nv_vin_photo');
-    if (photo) photo.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    var camBtn = document.getElementById('nv_vin_cam_btn');
+    if (camBtn && photo) {
+      camBtn.addEventListener('click', function() { photo.click(); });
+      photo.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    }
 
-    // Upload gumb
+    // UPLOAD — gumb odpre file picker
     var up = document.getElementById('nv_vin_upload');
-    if (up) up.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    var upBtn = document.getElementById('nv_vin_up_btn');
+    if (upBtn && up) {
+      upBtn.addEventListener('click', function() { up.click(); });
+      up.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    }
 
     // Paste gumb
     var pb = document.getElementById('nv_vin_paste_btn');
