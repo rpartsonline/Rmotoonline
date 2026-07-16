@@ -598,11 +598,22 @@
           return;
         }
 
-        // Na računalniku: odpri webcam modal
-        var wcamModal = new bootstrap.Modal(document.getElementById('webcamModal'));
+        // ODPRI MODAL TAKOJ (sinhrono - v user gesture kontekstu)
+        var modalEl  = document.getElementById('webcamModal');
+        var wcamModal = new bootstrap.Modal(modalEl);
         var video    = document.getElementById('wcam-video');
         var snapBtn  = document.getElementById('wcam-snap-btn');
         var status   = document.getElementById('wcam-status');
+
+        status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Vzpostavljam kamero…';
+        snapBtn.disabled = true;
+        wcamModal.show();
+
+        // Potem inicializiraj kamero
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          status.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Kamera ni na voljo. Uporabi gumb <b>Naloži sliko</b>.</span>';
+          return;
+        }
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } })
           .then(function(stream) {
@@ -610,23 +621,19 @@
             video.srcObject = stream;
             video.onloadedmetadata = function() {
               snapBtn.disabled = false;
-              status.textContent = 'Usmeri kamero na VIN številko in pritisni Fotografiraj';
+              status.innerHTML = '<span class="text-success"><i class="bi bi-camera me-1"></i>Usmeri kamero na VIN in pritisni Fotografiraj</span>';
             };
-            wcamModal.show();
           })
-          .catch(function() {
-            // Ni webcam → odpri navaden file picker
-            var tmp = document.createElement('input');
-            tmp.type = 'file'; tmp.accept = 'image/*';
-            tmp.onchange = function() { if (this.files[0]) sendImageForOCR(this.files[0]); };
-            tmp.click();
+          .catch(function(err) {
+            status.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Kamera zavrnjena. Dovoli dostop v brskalniku ali uporabi <b>Naloži sliko</b>.</span>';
           });
 
         // Zaustavi kamero ko se modal zapre
-        document.getElementById('webcamModal').addEventListener('hidden.bs.modal', function() {
+        modalEl.addEventListener('hidden.bs.modal', function() {
           if (wcamStream) { wcamStream.getTracks().forEach(function(t){ t.stop(); }); wcamStream = null; }
           snapBtn.disabled = true;
           status.textContent = '';
+          video.srcObject = null;
         }, { once: true });
 
         // Posnemi sliko
