@@ -147,12 +147,14 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Znamka *</label>
       <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off">
+             placeholder="Začni tipkati…" autocomplete="off" list="nv_brand_list">
+      <datalist id="nv_brand_list"></datalist>
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Model *</label>
       <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off">
+             placeholder="Začni tipkati…" autocomplete="off" list="nv_model_list">
+      <datalist id="nv_model_list"></datalist>
     </div>
     <div class="col-md-2">
       <label class="form-label small fw-semibold">Letnik</label>
@@ -161,7 +163,19 @@
         {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Pogon</label>
+      <select name="new_vehicle_fuel" id="nv_fuel" class="form-select">
+        <option value="">—</option>
+        <option value="Bencin">Bencin</option>
+        <option value="Dizel">Dizel</option>
+        <option value="Električni">Električni</option>
+        <option value="Hibridni">Hibridni</option>
+        <option value="Plug-in hibrid">Plug-in hibrid</option>
+        <option value="LPG">LPG / Plin</option>
+        <option value="Vodik">Vodik</option>
+        <option value="CNG">CNG</option>
+      </select>
     </div>
   </div>
 
@@ -170,10 +184,9 @@
   <div class="row g-3 mb-2">
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Tip motorja</label>
-      <select name="new_vehicle_engine_type" id="nv_engine" class="form-select">
-        <option value="">—</option>
-        {% for et in engine_types %}<option value="{{ et }}">{{ et|capitalize }}</option>{% endfor %}
-      </select>
+      <input type="text" name="new_vehicle_engine_type" id="nv_engine" class="form-control"
+             placeholder="npr. CAY, N47, CDI…" autocomplete="off" list="nv_engine_list">
+      <datalist id="nv_engine_list"></datalist>
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Prostornina (l)</label>
