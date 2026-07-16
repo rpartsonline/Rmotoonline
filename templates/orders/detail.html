@@ -8,8 +8,50 @@
 </ol>
 {% endblock %}
 
+{% block extra_head %}
+<style>
+@media print {
+  /* Skrij vse navigacijske elemente */
+  .sidebar, .topbar, .no-print,
+  .alert, .breadcrumb, .card-plain .form-section-title + form,
+  #delivery-field, .btn, button, form,
+  .col-lg-4 { display: none !important; }
+
+  /* Cel zaslon */
+  .main-wrap { margin: 0 !important; padding: 0 !important; }
+  .container-fluid { padding: 0 !important; }
+  .col-lg-8 { width: 100% !important; flex: 0 0 100% !important; max-width: 100% !important; }
+  body { background: #fff !important; }
+
+  /* Print header */
+  .print-header { display: flex !important; }
+
+  /* Lepa tabela */
+  .table { font-size: 11pt; }
+  .card-plain { border: 1px solid #ddd !important; margin-bottom: 12px !important; border-radius: 6px !important; padding: 10px !important; }
+  .page-hdr { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
+  .order-num { font-size: 18pt !important; font-weight: 900; }
+  .badge { border: 1px solid #333 !important; color: #000 !important; background: #eee !important; }
+  .info-row { border-bottom: 1px solid #eee; padding: 3px 0; }
+  @page { margin: 15mm; }
+}
+.print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-hdr">
+<!-- Print header - viden samo pri tiskanju -->
+<div class="print-header" style="display:none; justify-content:space-between; align-items:center; border-bottom:2px solid #1e293b; padding-bottom:10px; margin-bottom:16px;">
+  <div>
+    <div style="font-size:22pt; font-weight:900; color:#1e293b;">Bartog Ajdovščina</div>
+    <div style="font-size:10pt; color:#555;">R-MotoShop · www.r-motoshop.si</div>
+  </div>
+  <div style="text-align:right; font-size:9pt; color:#777;">
+    Tiskano: <script>document.write(new Date().toLocaleDateString('sl-SI'))</script>
+  </div>
+</div>
+
+<div class="page-hdr no-print">
   <div>
     <h1>
       <span class="order-num">{{ order.order_number }}</span>
@@ -20,13 +62,16 @@
       <span class="chip-source ms-2">{{ order.source }}</span>
     </div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 no-print">
     <a href="{{ list_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Nazaj
     </a>
+    <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-printer me-1"></i>Natisni
+    </button>
     {% if current_user.is_admin %}
     <form method="POST" action="{{ url_for('orders.delete_order', order_id=order.id) }}"
-          onsubmit="return confirm('Res izbrisati naročilo {{ order.order_number }}?')">
+          onsubmit="return confirm('Res izbrisati {{ order.order_number }}?')">
       <button class="btn btn-outline-danger btn-sm">
         <i class="bi bi-trash me-1"></i>Izbriši
       </button>
