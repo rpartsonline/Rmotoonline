@@ -126,8 +126,9 @@
       <button type="button" class="btn btn-outline-secondary btn-sm" id="nv_vin_up_btn">
         <i class="bi bi-upload me-1"></i>Naloži sliko / printscreen
       </button>
-      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;width:0;height:0">
-      <input type="file" id="nv_vin_upload" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:0;height:0">
+      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <input type="file" id="nv_vin_photo_desk" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <input type="file" id="nv_vin_upload" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
       <button type="button" class="btn btn-outline-info btn-sm" id="nv_vin_paste_btn">
         <i class="bi bi-clipboard-image me-1"></i>Prilepi (Ctrl+V)
       </button>
@@ -147,14 +148,14 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Znamka *</label>
       <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off" list="nv_brand_list">
-      <datalist id="nv_brand_list"></datalist>
+             placeholder="Začni tipkati…" autocomplete="off" list="nv_brand_dl">
+      <datalist id="nv_brand_dl"></datalist>
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Model *</label>
       <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off" list="nv_model_list">
-      <datalist id="nv_model_list"></datalist>
+             placeholder="Začni tipkati…" autocomplete="off" list="nv_model_dl">
+      <datalist id="nv_model_dl"></datalist>
     </div>
     <div class="col-md-2">
       <label class="form-label small fw-semibold">Letnik</label>
@@ -167,14 +168,14 @@
       <label class="form-label small fw-semibold">Pogon</label>
       <select name="new_vehicle_fuel" id="nv_fuel" class="form-select">
         <option value="">—</option>
-        <option value="Bencin">Bencin</option>
-        <option value="Dizel">Dizel</option>
-        <option value="Električni">Električni</option>
-        <option value="Hibridni">Hibridni</option>
-        <option value="Plug-in hibrid">Plug-in hibrid</option>
-        <option value="LPG">LPG / Plin</option>
-        <option value="Vodik">Vodik</option>
-        <option value="CNG">CNG</option>
+        <option>Bencin</option>
+        <option>Dizel</option>
+        <option>Električni</option>
+        <option>Hibridni</option>
+        <option>Plug-in hibrid</option>
+        <option>LPG / Plin</option>
+        <option>CNG</option>
+        <option>Vodik</option>
       </select>
     </div>
   </div>
@@ -185,8 +186,8 @@
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Tip motorja</label>
       <input type="text" name="new_vehicle_engine_type" id="nv_engine" class="form-control"
-             placeholder="npr. CAY, N47, CDI…" autocomplete="off" list="nv_engine_list">
-      <datalist id="nv_engine_list"></datalist>
+             placeholder="npr. CAY, N47, CDI…" autocomplete="off" list="nv_engine_dl">
+      <datalist id="nv_engine_dl"></datalist>
     </div>
     <div class="col-md-3">
       <label class="form-label small fw-semibold">Prostornina (l)</label>
@@ -582,81 +583,34 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    // KAMERA — mobilni odpre kamero, računalnik odpre webcam modal
-    var photo  = document.getElementById('nv_vin_photo');
+    // Detekcija naprave
+    var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // File inputi
+    var photoMob  = document.getElementById('nv_vin_photo');       // z capture (mobitel)
+    var photoDesk = document.getElementById('nv_vin_photo_desk');  // brez capture (računalnik)
+    var up        = document.getElementById('nv_vin_upload');
+
+    if (photoMob)  photoMob.addEventListener('change',  function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    if (photoDesk) photoDesk.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    if (up)        up.addEventListener('change',        function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+
+    // FOTOGRAFIRAJ gumb
     var camBtn = document.getElementById('nv_vin_cam_btn');
-    var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-    var wcamStream = null;
-
-    if (camBtn && photo) {
-      // Na mobilnem: file input z capture="environment"
-      photo.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
-
+    if (camBtn) {
       camBtn.addEventListener('click', function() {
         if (isMobile) {
-          photo.click();
-          return;
+          if (photoMob) photoMob.click();
+        } else {
+          if (photoDesk) photoDesk.click();
         }
-
-        // ODPRI MODAL TAKOJ (sinhrono - v user gesture kontekstu)
-        var modalEl  = document.getElementById('webcamModal');
-        var wcamModal = new bootstrap.Modal(modalEl);
-        var video    = document.getElementById('wcam-video');
-        var snapBtn  = document.getElementById('wcam-snap-btn');
-        var status   = document.getElementById('wcam-status');
-
-        status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Vzpostavljam kamero…';
-        snapBtn.disabled = true;
-        wcamModal.show();
-
-        // Potem inicializiraj kamero
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          status.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Kamera ni na voljo. Uporabi gumb <b>Naloži sliko</b>.</span>';
-          return;
-        }
-
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } })
-          .then(function(stream) {
-            wcamStream = stream;
-            video.srcObject = stream;
-            video.onloadedmetadata = function() {
-              snapBtn.disabled = false;
-              status.innerHTML = '<span class="text-success"><i class="bi bi-camera me-1"></i>Usmeri kamero na VIN in pritisni Fotografiraj</span>';
-            };
-          })
-          .catch(function(err) {
-            status.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Kamera zavrnjena. Dovoli dostop v brskalniku ali uporabi <b>Naloži sliko</b>.</span>';
-          });
-
-        // Zaustavi kamero ko se modal zapre
-        modalEl.addEventListener('hidden.bs.modal', function() {
-          if (wcamStream) { wcamStream.getTracks().forEach(function(t){ t.stop(); }); wcamStream = null; }
-          snapBtn.disabled = true;
-          status.textContent = '';
-          video.srcObject = null;
-        }, { once: true });
-
-        // Posnemi sliko
-        snapBtn.onclick = function() {
-          var canvas = document.getElementById('wcam-canvas');
-          canvas.width  = video.videoWidth;
-          canvas.height = video.videoHeight;
-          canvas.getContext('2d').drawImage(video, 0, 0);
-          canvas.toBlob(function(blob) {
-            var file = new File([blob], 'vin-webcam.jpg', { type: 'image/jpeg' });
-            wcamModal.hide();
-            sendImageForOCR(file);
-          }, 'image/jpeg', 0.95);
-        };
       });
     }
 
-    // UPLOAD — gumb odpre file picker
-    var up = document.getElementById('nv_vin_upload');
+    // NALOŽI gumb
     var upBtn = document.getElementById('nv_vin_up_btn');
     if (upBtn && up) {
       upBtn.addEventListener('click', function() { up.click(); });
-      up.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
     }
 
     // Paste gumb
@@ -1014,4 +968,54 @@ document.addEventListener('DOMContentLoaded', function() {
 .om-del { border:none; background:none; color:#cbd5e1; font-size:1.4rem; line-height:1; cursor:pointer; padding:0 6px; }
 .om-del:hover { color:#ef4444; }
 </style>
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+var VD={"Volkswagen":{m:["Golf","Polo","Passat","Tiguan","Touareg","T-Roc","T-Cross","Arteon","Sharan","Touran","Caddy","Transporter","Crafter","Amarok","Up!","ID.3","ID.4","ID.5","Scirocco","Jetta"],e:["AAZ","ABF","AEH","AEJ","AEX","AFN","AGN","AGU","AHF","AHU","AHW","AJM","AKL","AKQ","AKR","ALH","ALZ","AQA","AQM","AQY","AXD","AXE","AXR","BAD","BAG","BCA","BHW","BKC","BKD","BKG","BKP","BLF","BLG","BLS","BME","BMN","BNM","BWA","BXE","BXF","BXN","CAA","CAB","CAD","CAE","CAF","CAG","CAH","CAJ","CAK","CAL","CAM","CAN","CAP","CAR","CAS","CAT","CAU","CAW","CAX","CAY","CAZ","CBF","CBZ","CDA","CDB","CDH","CFHC","CJAA","CJBA","CLCA","CNSA","CPKA","CRCA","CREA","CRKB","CZCA","CZDA","CZDB"]},
+"Audi":{m:["A1","A2","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","R8","e-tron","Q4 e-tron","RS3","RS4","RS5","RS6","RS7","S3","S4","S5","S6","S7","S8","SQ5","SQ7","SQ8"],e:["AAH","ABB","ABH","ABZ","ACK","ADR","AEB","AEW","AFB","AFN","AGN","AHC","AHH","AJL","AJM","AJQ","AKA","AKE","AKN","AKQ","AKR","AKT","ALF","ALT","ANB","ANF","APR","AQA","AQL","AQT","ARE","ARJ","ASN","ATQ","ATT","AUK","AUM","AUQ","AUX","AVF","BAG","BAR","BGB","BKF","BKG","BVA","BWE","BWW","CAB","CAE","CAF","CAH","CAK","CAL","CAN","CAP","CAR","CAS","CAX","CAY","CDHA","CDNC","CDUC","CJKA","CLAA","CMUA","CRBC","CREA","CRVA","CSUA","CUAA","CZSA"]},
+"BMW":{m:["Serija 1","Serija 2","Serija 3","Serija 4","Serija 5","Serija 6","Serija 7","Serija 8","X1","X2","X3","X4","X5","X6","X7","Z3","Z4","M2","M3","M4","M5","M8","i3","i4","i5","i7","i8","iX","iX1","iX3"],e:["M10","M20","M21","M30","M40","M41","M42","M43","M44","M47","M50","M51","M52","M54","M57","M60","M62","N13","N14","N18","N20","N26","N43","N45","N46","N47","N52","N53","N54","N55","N57","N62","N63","N74","S14","S38","S54","S58","S63","S65","B16","B38","B46","B47","B48","B57","B58","B68"]},
+"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","E-Class","S-Class","CLA","CLS","GLA","GLB","GLC","GLE","GLS","G-Class","SL","SLC","AMG GT","V-Class","Sprinter","Vito","EQA","EQB","EQC","EQE","EQS"],e:["OM601","OM602","OM603","OM604","OM605","OM606","OM611","OM612","OM613","OM616","OM617","OM626","OM640","OM642","OM646","OM647","OM648","OM651","OM654","OM656","M102","M103","M104","M111","M112","M113","M116","M117","M119","M120","M133","M156","M157","M177","M271","M272","M273","M274","M276","M278","M282","M285"]},
+"Toyota":{m:["Yaris","Corolla","Camry","Avensis","Auris","Prius","RAV4","Land Cruiser","Hilux","Supra","GR86","C-HR","Aygo","Proace","bZ4X"],e:["1A","2A","3A","4A","5A","1B","2B","3B","1C","2C","3C","2E","5E","1FZ","2GR","3GR","1GD","2GD","1HD","1HZ","2JZ","1KD","2KD","1KR","1NR","2NR","1NZ","2NZ","1TR","2TR","1UR","2UR","1VD","1ZZ","2ZZ","3ZZ","M15A","M20A","A25A"]},
+"Honda":{m:["Civic","Accord","CR-V","HR-V","Jazz","Insight","Legend","Fit","City","e"],e:["B16A","B18C","B20B","D13B","D14A","D15B","D16A","D16Y","D17A","F20B","F22A","H22A","H23A","J30A","J35A","K20A","K20Z","K24A","K24Z","L12B","L13Z","L15A","L15B","N22A","N22B","R18A","R20A"]},
+"Ford":{m:["Fiesta","Focus","Mondeo","Kuga","Puma","EcoSport","Galaxy","S-Max","Mustang","Mustang Mach-E","Transit","Transit Custom","Transit Connect","Ranger"],e:["DURATEC","DURATORQ","ECOBLUE","ECOBOOST","SIGMA","ZETEC","PUMA","TI-VCT","TDCI","TDDI","CYCLONE","MODULAR","COYOTE","POWERSTROKE"]},
+"Renault":{m:["Clio","Megane","Laguna","Scenic","Espace","Kadjar","Captur","Koleos","Zoe","Kangoo","Master","Trafic","Twingo","Arkana","Austral"],e:["E7J","F3R","F4R","F7R","F8Q","F9Q","G8T","G9T","H4Bt","HR16","K4M","K7M","K9K","M4R","M5M","M9R","R9M","TCe90","TCe100","TCe130","TCe150","dCi90","dCi110","dCi130","dCi150"]},
+"Peugeot":{m:["108","206","207","208","307","308","407","508","2008","3008","5008","Partner","Rifter","Boxer","Expert","e-208","e-2008"],e:["TU1","TU3","TU5","EW7","EW10","EW12","EP6","EP3","HM01","DW8","DW10","DW12","DT17","EC5","RFJ","RFN","XU5","XU7","XU9"]},
+"Opel":{m:["Corsa","Astra","Vectra","Zafira","Insignia","Mokka","Crossland","Grandland","Meriva","Antara","Vivaro","Movano","Combo","Agila","Cascada"],e:["X10XE","X12XE","X14XE","X14NE","X16XEL","X18XE","X20XER","Z10XE","Z12XE","Z12XEP","Z14XEP","Z16XER","Z16XE","Z18XER","Z20NET","Z20LER","Z20LEH","A12XER","A14NEL","A16LET","A16XER","A20DTH","A20NFT","B14NEL","B16DTH","D16DTH"]},
+"Skoda":{m:["Fabia","Octavia","Superb","Rapid","Kamiq","Karoq","Kodiaq","Scala","Enyaq","Citigo","Yeti","Felicia"],e:["AEE","AGN","AGP","AGR","AHL","AHW","AKL","AKQ","ALP","AQM","ASG","ATD","AUA","AUB","AWY","AXR","AYD","AZQ","BAD","BAG","BCA","BKB","BKC","BKY","BME","BMN","BNM","BWA","BXE","BXF","BXN","CAY","CBZ","CHHB","CHPA","CJAA","CLCA","CMBA","CNNB","CRKB","CZDA","CZDB","DADA"]},
+"Seat":{m:["Ibiza","Leon","Toledo","Arona","Ateca","Tarraco","Alhambra","Mii","Altea","Cordoba"],e:["AEH","AEJ","AER","AFT","AGN","AHL","AHW","AKL","AKQ","AKR","AQM","AUA","AUB","AVC","AWY","AXR","AYD","BAD","BCA","BKC","BKY","BXE","CAY","CBZ","CFJB","CHHB","CHPA","CJAA","CLCA","CRKB","CZDA"]},
+"Fiat":{m:["500","Punto","Bravo","Tipo","Stilo","Doblo","Fiorino","Scudo","Ducato","Panda","500X","500L","Croma"],e:["169A1","169A4","176B2","188A2","188A3","188A5","188A8","188B2","192A1","192A5","937A1","937A2","937A3","937A5","939A1","939A2","939A3","939A4","939A5","940A1","940B1","940C1","199A2","199A3","199A4","199B2","312A2","330A1"]},
+"Nissan":{m:["Micra","Note","Leaf","Juke","Qashqai","X-Trail","Pathfinder","Navara","GT-R","370Z","Almera","Primera","Ariya"],e:["GA14DE","GA15DE","GA16DE","HR12DE","HR15DE","HR16DE","MR16DDT","MR20DE","MR20DD","QG15DE","QG18DE","QR20DE","QR25DE","SR18DE","SR20DE","VQ20DE","VQ25DE","VQ35DE","VQ40DE","YD22DD","ZD30DD","K9K","M9R"]},
+"Mazda":{m:["Mazda2","Mazda3","Mazda6","CX-3","CX-30","CX-5","CX-9","CX-60","MX-5","MX-30","RX-8"],e:["B3","B5","B6","BP","GY","J5","KF","L3","L5","L8","LF","PE","PY","RF","SH","WL","ZJ","ZL","ZY"]},
+"Hyundai":{m:["i10","i20","i30","i40","Accent","Elantra","Sonata","Tucson","Santa Fe","Kona","Ioniq","Ioniq 5","Ioniq 6","Nexo","Staria"],e:["D4BA","D4BB","D4BF","D4CB","D4EB","D4EA","D4HA","G4BA","G4EC","G4ED","G4EE","G4FA","G4FC","G4FD","G4FG","G4GC","G4KC","G4KD","G4KE","G4KH","G4NA","G4NB","G4ND","G6BA","G6DB","G6DC","G6DH","G6EA"]},
+"Kia":{m:["Picanto","Rio","Ceed","ProCeed","Stinger","Sportage","Sorento","Niro","EV6","EV9","Soul","Stonic","XCeed"],e:["D4BB","D4CB","D4EA","D4FA","D4FB","D4HA","G4BA","G4ED","G4EE","G4FA","G4FC","G4FD","G4FG","G4GC","G4KC","G4KD","G4KE","G4KH","G4NA","G4NB","G4ND","G6BA","G6BV","G6CU","G6DB","G6DC","G6DH","G6EA"]},
+"Subaru":{m:["Impreza","Legacy","Outback","Forester","XV","Crosstrek","WRX","BRZ","Levorg"],e:["EJ15","EJ16","EJ18","EJ20","EJ22","EJ25","EJ251","EJ253","EJ255","EJ257","EE20","FA20","FA24","FB16","FB20","FB25"]},
+"Mitsubishi":{m:["Colt","Carisma","Lancer","Galant","Eclipse","Eclipse Cross","Outlander","ASX","Pajero","L200","Space Star"],e:["4A90","4A91","4B10","4B11","4B12","4D56","4G13","4G18","4G19","4G63","4G64","4G69","4G93","4G94","4M40","4M41","4N13","4N14","6B31","6G72","6G74","6G75"]},
+"Suzuki":{m:["Swift","Splash","SX4","Vitara","Grand Vitara","Jimny","Alto","Baleno","Ignis","Across","Swace"],e:["G10","G13","G13BB","H10A","J18A","J20A","K12B","K15B","M13A","M15A","M16A","N13A","R28A","Z13DTJ"]},
+"Citroen":{m:["C1","C2","C3","C4","C5","C8","DS3","DS4","DS5","C3 Aircross","C5 Aircross","Berlingo","Dispatch","Jumper","Spacetourer"],e:["TU1","TU3","TU5","EW7","EW10","EW12","EP6","EP3","HM01","DW8","DW10","DW12","DT17","BHX","BHZ","KFW","NFU","NFS","NFV"]},
+"Volvo":{m:["S40","S60","S70","S80","S90","V40","V50","V60","V70","V90","XC40","XC60","XC70","XC90","C30","C70","EX30","EX90"],e:["B4164S","B4184S","B4194T","B4204S","B4204T","B5234T","B5244S","B5244T","B5254T","B5284T","B6284T","D3","D4","D5","D5244T","T4","T5","T6","T8"]},
+"Dacia":{m:["Logan","Sandero","Duster","Lodgy","Dokker","Spring","Jogger"],e:["K9K","H4Bt","F4R","F8Q","F9Q","TCe90","TCe100","TCe130","dCi90","dCi110","EAC","EH1"]},
+"Alfa Romeo":{m:["Giulia","Stelvio","147","156","159","166","GT","GTV","Spider","Mito","Giulietta","Brera","Tonale"],e:["AR32310","AR32302","AR67601","AR37101","939A5","940A1","940B1","960A1","960A3","1750TBi"]},
+"Jeep":{m:["Renegade","Compass","Cherokee","Grand Cherokee","Wrangler","Gladiator","Avenger"],e:["EAD","EAG","EAH","EAJ","EAK","Pentastar","Hurricane","PowerTech","CRD","MultiJet"]},
+"Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Sport","Range Rover Velar","Range Rover Evoque"],e:["204DTA","204DTD","204PTD","224DT","276DT","276DTA","306DT","306PS","508PN","508PS"]},
+"Porsche":{m:["911","Cayenne","Macan","Panamera","Taycan","Boxster","Cayman","718"],e:["M44","M64","M96","M97","M48","MA1","MDG","MEA","MEB"]}};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var bInp=document.getElementById('nv_brand');
+  var mDl=document.getElementById('nv_model_dl');
+  var eDl=document.getElementById('nv_engine_dl');
+  var bDl=document.getElementById('nv_brand_dl');
+  if (!bInp) return;
+  Object.keys(VD).sort().forEach(function(b){var o=document.createElement('option');o.value=b;bDl.appendChild(o);});
+  function upd(brand) {
+    var key=Object.keys(VD).find(function(k){return k.toLowerCase()===brand.toLowerCase();});
+    var d=key?VD[key]:null; if(!d) return;
+    mDl.innerHTML=''; d.m.forEach(function(v){var o=document.createElement('option');o.value=v;mDl.appendChild(o);});
+    eDl.innerHTML=''; d.e.forEach(function(v){var o=document.createElement('option');o.value=v;eDl.appendChild(o);});
+  }
+  bInp.addEventListener('input',function(){upd(this.value);});
+  bInp.addEventListener('change',function(){upd(this.value);});
+  if(bInp.value) upd(bInp.value);
+});
+</script>
 {% endblock %}
