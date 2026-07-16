@@ -552,4 +552,38 @@ function addItemRow() {
   }
 })();
 </script>
+
+<script>
+// Pred tiskanjem skrij prazne vrstice (ki kažejo samo "–")
+window.addEventListener('beforeprint', function() {
+  document.querySelectorAll('.info-row, .info-grid .info-row').forEach(function(row) {
+    var vals = row.querySelectorAll('span:not(.lbl), div:not(.lbl), a');
+    var isEmpty = true;
+    vals.forEach(function(el) {
+      var t = el.textContent.trim();
+      if (t && t !== '–' && t !== '-' && t !== '') isEmpty = false;
+    });
+    if (isEmpty) row.setAttribute('data-print-hidden', '1');
+    if (isEmpty) row.style.display = 'none';
+  });
+  // Skrij tudi prazne kartice vozila če je samo "/ /" ali podobno
+  document.querySelectorAll('.card-plain').forEach(function(card) {
+    var visible = 0;
+    card.querySelectorAll('.info-row').forEach(function(r) {
+      if (!r.getAttribute('data-print-hidden')) visible++;
+    });
+    if (visible === 0) card.setAttribute('data-card-hidden', '1');
+  });
+});
+window.addEventListener('afterprint', function() {
+  document.querySelectorAll('[data-print-hidden]').forEach(function(el) {
+    el.style.display = '';
+    el.removeAttribute('data-print-hidden');
+  });
+  document.querySelectorAll('[data-card-hidden]').forEach(function(el) {
+    el.removeAttribute('data-card-hidden');
+  });
+});
+</script>
+
 {% endblock %}
