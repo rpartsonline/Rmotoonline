@@ -467,6 +467,30 @@
 </div>
 
 </form>
+
+<!-- Webcam modal za računalnik -->
+<div class="modal fade" id="vinWebcamModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="border-radius:14px;border:none;overflow:hidden">
+      <div class="modal-header" style="background:linear-gradient(135deg,#1e293b,#334155)">
+        <h5 class="modal-title text-white fw-bold"><i class="bi bi-camera-video me-2"></i>Fotografiraj VIN številko</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0 text-center bg-black">
+        <video id="wcam-vid" autoplay playsinline muted style="max-width:100%;max-height:55vh;display:block;margin:0 auto"></video>
+        <canvas id="wcam-cv" style="display:none"></canvas>
+        <div id="wcam-stat" class="py-2 small" style="min-height:32px"></div>
+      </div>
+      <div class="modal-footer justify-content-center border-0 pb-3 bg-black">
+        <button type="button" class="btn btn-primary px-5" id="wcam-snap" disabled>
+          <i class="bi bi-camera-fill me-2"></i>Fotografiraj
+        </button>
+        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Prekliči</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -597,13 +621,51 @@
 
     // FOTOGRAFIRAJ gumb
     var camBtn = document.getElementById('nv_vin_cam_btn');
+    var wcStream = null;
     if (camBtn) {
       camBtn.addEventListener('click', function() {
         if (isMobile) {
           if (photoMob) photoMob.click();
-        } else {
-          if (photoDesk) photoDesk.click();
+          return;
         }
+        // Računalnik: odpri webcam modal TAKOJ (sinhrono)
+        var mEl = document.getElementById('vinWebcamModal');
+        if (!mEl) { if (photoDesk) photoDesk.click(); return; }
+        var wModal = new bootstrap.Modal(mEl);
+        var vid    = document.getElementById('wcam-vid');
+        var snap   = document.getElementById('wcam-snap');
+        var wstat  = document.getElementById('wcam-stat');
+        wstat.innerHTML = '<span class="text-warning">Vzpostavljam kamero…</span>';
+        snap.disabled = true;
+        wModal.show();
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          wstat.innerHTML = '<span class="text-danger">Kamera ni podprta. Uporabi <b>Naloži sliko</b>.</span>';
+          return;
+        }
+        navigator.mediaDevices.getUserMedia({video:{width:{ideal:1920},height:{ideal:1080}}})
+          .then(function(stream) {
+            wcStream = stream; vid.srcObject = stream;
+            vid.onloadedmetadata = function() {
+              snap.disabled = false;
+              wstat.innerHTML = '<span class="text-success">Usmeri kamero na VIN in pritisni Fotografiraj</span>';
+            };
+          })
+          .catch(function(err) {
+            wstat.innerHTML = '<span class="text-danger">Dostop zavrnjen: ' + err.message + '. Dovoli kamero v brskalniku.</span>';
+          });
+        mEl.addEventListener('hidden.bs.modal', function() {
+          if (wcStream) { wcStream.getTracks().forEach(function(t){t.stop();}); wcStream=null; }
+          snap.disabled=true; vid.srcObject=null; wstat.textContent='';
+        }, {once:true});
+        snap.onclick = function() {
+          var cv = document.getElementById('wcam-cv');
+          cv.width=vid.videoWidth; cv.height=vid.videoHeight;
+          cv.getContext('2d').drawImage(vid,0,0);
+          cv.toBlob(function(blob){
+            var f=new File([blob],'vin-cam.jpg',{type:'image/jpeg'});
+            wModal.hide(); sendImageForOCR(f);
+          },'image/jpeg',0.95);
+        };
       });
     }
 
