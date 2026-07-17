@@ -15,6 +15,33 @@
 
 <form method="POST" id="order-form" enctype="multipart/form-data" action="{{ form_action|default(url_for('orders.new_order')) }}">
 
+{% if current_user.role == 'kupec' %}
+<!-- ── 0. KONTAKTNA OSEBA (samo za kupce / bartog QR) ────────────────────── -->
+<div class="form-section" style="border:2px solid #3b82f6; border-radius:10px; padding:16px; margin-bottom:16px; background:#eff6ff;">
+  <div class="form-section-title" style="color:#1d4ed8;">
+    <i class="bi bi-person-badge me-2"></i>Kontaktna oseba <span class="text-danger">*</span>
+  </div>
+  <p class="small text-muted mb-3">Vpiši podatke stranke ki naroča — da vemo kdo je.</p>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Ime in priimek <span class="text-danger">*</span></label>
+      <input type="text" id="kupec_ime" class="form-control" placeholder="npr. Janez Novak" required
+             style="border-color:#3b82f6;">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Telefon <span class="text-danger">*</span></label>
+      <input type="tel" id="kupec_tel" class="form-control" placeholder="npr. 041 123 456" required
+             style="border-color:#3b82f6;">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">E-pošta <span class="text-danger">*</span></label>
+      <input type="email" id="kupec_email" class="form-control" placeholder="npr. ime@email.com" required
+             style="border-color:#3b82f6;">
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── 1. STRANKA ─────────────────────────────────────────────────────────── -->
 <div class="form-section">
   <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
@@ -1078,4 +1105,45 @@ document.addEventListener('DOMContentLoaded', function() {
   if(bInp.value) upd(bInp.value);
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('order-form');
+  if (!form) return;
+
+  var imeInp   = document.getElementById('kupec_ime');
+  var telInp   = document.getElementById('kupec_tel');
+  var emailInp = document.getElementById('kupec_email');
+  if (!imeInp) return; // Ni kupec, nič ne delamo
+
+  form.addEventListener('submit', function(e) {
+    var ime   = imeInp.value.trim();
+    var tel   = telInp.value.trim();
+    var email = emailInp.value.trim();
+
+    if (!ime || !tel || !email) {
+      e.preventDefault();
+      alert('Prosim izpolni vse podatke kontaktne osebe (Ime in priimek, Telefon, E-pošta).');
+      return false;
+    }
+
+    // Vstavi kontaktne podatke v notes polje
+    var notesFields = form.querySelectorAll('textarea[name="notes"], input[name="notes"]');
+    var kontaktInfo = '▶ Kontakt: ' + ime + ' | ' + tel + ' | ' + email + '
+';
+    notesFields.forEach(function(f) {
+      f.value = kontaktInfo + (f.value ? '
+' + f.value : '');
+    });
+  });
+
+  // Vizualna validacija v realnem času
+  [imeInp, telInp, emailInp].forEach(function(inp) {
+    inp.addEventListener('blur', function() {
+      this.style.borderColor = this.value.trim() ? '#22c55e' : '#ef4444';
+    });
+  });
+});
+</script>
+
 {% endblock %}
