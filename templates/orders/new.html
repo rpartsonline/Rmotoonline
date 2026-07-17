@@ -17,6 +17,9 @@
 
 {% if current_user.role == 'kupec' %}
 <!-- ── 0. KONTAKTNA OSEBA (samo za kupce / bartog QR) ────────────────────── -->
+<!-- Skrita polja - vedno v formi, server jih prebere -->
+<input type="hidden" name="new_customer_name" id="kupec_name_hid" value="">
+<input type="hidden" name="new_customer_phone" id="kupec_phone_hid" value="">
 <div class="form-section" style="border:2px solid #3b82f6; border-radius:10px; padding:16px; margin-bottom:16px; background:#eff6ff;">
   <div class="form-section-title" style="color:#1d4ed8;">
     <i class="bi bi-person-badge me-2"></i>Kontaktna oseba <span class="text-danger">*</span>
@@ -26,12 +29,14 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Ime in priimek <span class="text-danger">*</span></label>
       <input type="text" id="kupec_ime" class="form-control" placeholder="npr. Janez Novak"
-             style="border-color:#3b82f6;" autocomplete="name">
+             style="border-color:#3b82f6;" autocomplete="name"
+             oninput="document.getElementById('kupec_name_hid').value=this.value">
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Telefon <span class="text-danger">*</span></label>
       <input type="text" id="kupec_tel" class="form-control" placeholder="npr. 041 123 456"
-             style="border-color:#3b82f6;" autocomplete="tel">
+             style="border-color:#3b82f6;" autocomplete="tel"
+             oninput="document.getElementById('kupec_phone_hid').value=this.value">
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">E-pošta <span class="text-muted fw-normal">(neobvezno)</span></label>
@@ -1127,25 +1132,11 @@ document.addEventListener('DOMContentLoaded', function() {
       return false;
     }
 
-    // Za kupce: server vedno zahteva new_customer_name + new_customer_phone
-    // (is_kupec vedno ustvari novo stranko, ne glede na linked_customer_id)
-    var phoneHid = form.querySelector('input[name="new_customer_phone"]');
-    if (!phoneHid) {
-      phoneHid = document.createElement('input');
-      phoneHid.type = 'hidden';
-      phoneHid.name = 'new_customer_phone';
-      form.appendChild(phoneHid);
-    }
-    phoneHid.value = tel;
-
-    var nameHid = form.querySelector('input[name="new_customer_name"]');
-    if (!nameHid) {
-      nameHid = document.createElement('input');
-      nameHid.type = 'hidden';
-      nameHid.name = 'new_customer_name';
-      form.appendChild(nameHid);
-    }
-    nameHid.value = ime;
+    // Posodobi skrita polja (za vsak slučaj)
+    var ph = document.getElementById('kupec_phone_hid');
+    if (ph) ph.value = tel;
+    var nh = document.getElementById('kupec_name_hid');
+    if (nh) nh.value = ime;
 
     // Vstavi kontaktne podatke v notes polje
     var notesFields = form.querySelectorAll('textarea[name="notes"], input[name="notes"]');
