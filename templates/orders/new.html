@@ -1127,21 +1127,25 @@ document.addEventListener('DOMContentLoaded', function() {
       return false;
     }
 
-    // Nastavi telefon stranke (če kupec ustvarja novo stranko - bartog brez linked_customer_id)
-    var custIdInp = form.querySelector('input[name="customer_id"]');
-    if (custIdInp && custIdInp.value === 'new') {
-      var phoneHid = form.querySelector('input[name="new_customer_phone"]');
-      if (!phoneHid) {
-        phoneHid = document.createElement('input');
-        phoneHid.type = 'hidden';
-        phoneHid.name = 'new_customer_phone';
-        form.appendChild(phoneHid);
-      }
-      phoneHid.value = tel;
-      // Nastavi tudi ime stranke iz kontaktnih podatkov
-      var nameHid = form.querySelector('input[name="new_customer_name"]');
-      if (nameHid && !nameHid.value) nameHid.value = ime;
+    // Za kupce: server vedno zahteva new_customer_name + new_customer_phone
+    // (is_kupec vedno ustvari novo stranko, ne glede na linked_customer_id)
+    var phoneHid = form.querySelector('input[name="new_customer_phone"]');
+    if (!phoneHid) {
+      phoneHid = document.createElement('input');
+      phoneHid.type = 'hidden';
+      phoneHid.name = 'new_customer_phone';
+      form.appendChild(phoneHid);
     }
+    phoneHid.value = tel;
+
+    var nameHid = form.querySelector('input[name="new_customer_name"]');
+    if (!nameHid) {
+      nameHid = document.createElement('input');
+      nameHid.type = 'hidden';
+      nameHid.name = 'new_customer_name';
+      form.appendChild(nameHid);
+    }
+    nameHid.value = ime;
 
     // Vstavi kontaktne podatke v notes polje
     var notesFields = form.querySelectorAll('textarea[name="notes"], input[name="notes"]');
