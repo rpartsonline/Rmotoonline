@@ -162,8 +162,8 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('moto.narocila') }}"
-         class="sb-link {% if request.endpoint == 'moto.narocila' or request.endpoint == 'moto.uredi' %}active{% endif %}">
+      <a href="{{ url_for('orders.list_orders') }}"
+         class="sb-link {% if request.endpoint in ['orders.list_orders','orders.new_order'] %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
       </a>
     </li>
