@@ -40,8 +40,6 @@ INQUIRY_STATUSES = [
     ("ponudba",       "Ponudba poslana stranki",   "warning"),
     ("narocena_caka", "Naročena – čakamo dobavo",  "success"),
     ("dobavljeno",    "Dobavljeno",                "secondary"),
-    ("ni_dobave",     "Ni dobave",                 "dark"),
-    ("ne_zeli",       "Stranka ne želi naročiti",  "dark"),
 ]
 INQUIRY_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in INQUIRY_STATUSES}
 
@@ -481,3 +479,66 @@ class MotoOrder(db.Model):
 
     def __repr__(self):
         return f"<MotoOrder {self.id} – {self.stranka}>"
+
+
+# ── Moto platforma: osobje ────────────────────────────────────────────────────
+MOTO_STAFF_NAMES = ["Mojca Čermelj", "Ervin Nemec"]
+
+
+# ── Moto platforma: rezervacije ───────────────────────────────────────────────
+MOTO_STORITVE = [
+    ("ebike",       "Rent E-Bike",        "bi-bicycle"),
+    ("moto",        "Rent Motorbike",      "bi-bicycle-fill"),
+    ("pnevmatika",  "Menjava pnevmatik",   "bi-circle"),
+]
+MOTO_STORITEV_DICT = {s[0]: {"label": s[1], "icon": s[2]} for s in MOTO_STORITVE}
+
+MOTO_REZ_STATUS = [
+    ("potrjena",   "Potrjena",   "success"),
+    ("caka",       "V čakanju",  "warning"),
+    ("preklicana", "Preklicana", "secondary"),
+    ("zakljucena", "Zaključena", "dark"),
+]
+MOTO_REZ_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in MOTO_REZ_STATUS}
+
+
+class MotoRezervacija(db.Model):
+    __tablename__ = "moto_rezervacije"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    vrsta       = db.Column(db.String(20), nullable=False)   # ebike | moto | pnevmatika
+    stranka     = db.Column(db.String(200), nullable=False)
+    telefon     = db.Column(db.String(50))
+    datum       = db.Column(db.Date, nullable=False)
+    cas_od      = db.Column(db.String(5))   # HH:MM
+    cas_do      = db.Column(db.String(5))
+    opomba      = db.Column(db.Text)
+    status      = db.Column(db.String(20), default="potrjena")
+    zaposleni_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    zaposleni = db.relationship("User")
+
+    @property
+    def status_info(self):
+        return MOTO_REZ_STATUS_DICT.get(self.status, {"label": self.status, "color": "secondary"})
+
+    @property
+    def storitev_label(self):
+        return MOTO_STORITEV_DICT.get(self.vrsta, {}).get("label", self.vrsta)
+
+
+# ── Moto platforma: beležka ───────────────────────────────────────────────────
+class MotoBelezka(db.Model):
+    __tablename__ = "moto_belezka"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    vsebina    = db.Column(db.Text, nullable=False)
+    avtor_id   = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    avtor = db.relationship("User")
+
+    def __repr__(self):
+        return f"<MotoBelezka {self.id}>"

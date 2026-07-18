@@ -1,0 +1,224 @@
+{% extends 'moto/base_moto.html' %}
+{% block title %}{{ info.label }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('moto.narocila') }}">Moto</a></li>
+  <li class="breadcrumb-item active">{{ info.label }}</li>
+</ol>
+{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-sm btn-moto btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaRez">
+  <i class="bi bi-plus-lg me-1"></i>Nova rezervacija
+</button>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .moto-tabs .nav-link { color:#555;font-weight:600; border-radius:8px 8px 0 0; }
+  .moto-tabs .nav-link.active { background:#2e8b57;color:#fff;border-color:#2e8b57; }
+  .stat-bar { display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:8px; }
+  .stat-bar-col { display:flex;flex-direction:column;align-items:center;flex:1; }
+  .stat-bar-fill { background:#2e8b57;border-radius:4px 4px 0 0;width:100%;min-height:4px;transition:height .3s; }
+  .stat-bar-lbl { font-size:9px;color:#888;margin-top:3px;text-align:center;white-space:nowrap; }
+  .stat-bar-val { font-size:10px;font-weight:700;color:#2e8b57; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi {{ info.icon }} me-2 text-primary"></i>{{ info.label }}</h1>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs moto-tabs mb-0" style="border-bottom:2px solid #2e8b57;">
+  <li class="nav-item">
+    <a class="nav-link {% if tab=='rezervacije' %}active{% endif %}"
+       href="{{ url_for('moto.storitev', vrsta=vrsta, tab='rezervacije') }}">
+      <i class="bi bi-calendar-check me-1"></i>Rezervacije
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab=='analize' %}active{% endif %}"
+       href="{{ url_for('moto.storitev', vrsta=vrsta, tab='analize') }}">
+      <i class="bi bi-bar-chart me-1"></i>Analize po mesecih
+    </a>
+  </li>
+</ul>
+
+<!-- ── TAB: REZERVACIJE ────────────────────────────────────────────────────── -->
+{% if tab == 'rezervacije' %}
+<div class="tbl-card" style="border-radius:0 14px 14px 14px;">
+  <div class="tbl-header d-flex align-items-center justify-content-between">
+    <h6 class="tbl-header-title mb-0">Rezervacije — {{ info.label }}</h6>
+    <div class="d-flex gap-2">
+      {% for key, lbl, col in statusi %}
+      <a href="{{ url_for('moto.storitev', vrsta=vrsta, tab='rezervacije', status=key) }}"
+         class="btn btn-sm {% if status_f == key %}btn-{{ col }}{% else %}btn-outline-secondary{% endif %}">
+        {{ lbl }}
+      </a>
+      {% endfor %}
+      {% if status_f %}
+      <a href="{{ url_for('moto.storitev', vrsta=vrsta, tab='rezervacije') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-x"></i>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Stranka</th><th>Datum</th><th>Čas</th><th>Status</th><th>Opomba</th><th>Zaposleni</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rezervacije %}
+        <tr>
+          <td>
+            <div class="fw-bold">{{ r.stranka }}</div>
+            {% if r.telefon %}<div class="small text-muted">{{ r.telefon }}</div>{% endif %}
+          </td>
+          <td class="text-nowrap">{{ r.datum|sl_date }}</td>
+          <td class="text-nowrap small">
+            {% if r.cas_od %}{{ r.cas_od }}{% if r.cas_do %} – {{ r.cas_do }}{% endif %}{% else %}–{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('moto.rez_status', vrsta=vrsta, rez_id=r.id) }}">
+              <select name="status" class="form-select form-select-sm" onchange="this.form.submit()"
+                style="font-size:12px;font-weight:600;min-width:120px;">
+                {% for key, lbl, col in statusi %}
+                <option value="{{ key }}" {% if r.status==key %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </td>
+          <td class="small text-muted">{{ r.opomba or '–' }}</td>
+          <td class="small text-muted">{{ r.zaposleni.full_name if r.zaposleni else '–' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('moto.rez_izbrisi', vrsta=vrsta, rez_id=r.id) }}"
+                  onsubmit="return confirm('Izbriši rezervacijo za {{ r.stranka }}?')">
+              <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-5">
+          <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>Ni rezervacij.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── TAB: ANALIZE ────────────────────────────────────────────────────────── -->
+{% else %}
+<div class="tbl-card" style="border-radius:0 14px 14px 14px;">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title">Analize po mesecih — {{ info.label }}</h6>
+  </div>
+  <div class="p-4">
+    <!-- Grafični prikaz -->
+    {% set max_val = meseci|map(attribute='stevilo')|max or 1 %}
+    <div class="stat-bar">
+      {% for m in meseci %}
+      {% set h = (m.stevilo / max_val * 70)|int %}
+      <div class="stat-bar-col">
+        <div class="stat-bar-val">{{ m.stevilo }}</div>
+        <div class="stat-bar-fill" style="height:{{ [h,4]|max }}px;"
+             title="{{ m.mesec }}: {{ m.stevilo }} rezervacij"></div>
+        <div class="stat-bar-lbl">{{ m.kratko }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Tabela -->
+    <table class="table table-sm mt-4">
+      <thead>
+        <tr>
+          <th>Mesec</th>
+          <th class="text-center">Rezervacije</th>
+          <th>Grafično</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in meseci|reverse %}
+        <tr>
+          <td class="fw-semibold">{{ m.mesec }}</td>
+          <td class="text-center">
+            <span class="badge" style="background:#2e8b57;font-size:13px;">{{ m.stevilo }}</span>
+          </td>
+          <td style="width:200px;">
+            {% if m.stevilo %}
+            <div style="background:#d1fae5;border-radius:4px;height:16px;width:{{ [m.stevilo / max_val * 180,4]|max|int }}px;"></div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td>Skupaj (12 mes.)</td>
+          <td class="text-center">{{ meseci|sum(attribute='stevilo') }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: Nova rezervacija -->
+<div class="modal fade" id="modalNovaRez" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius:14px;border:none;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#1a6b3c,#2e8b57);border-radius:14px 14px 0 0;">
+        <h5 class="modal-title text-white fw-bold">
+          <i class="bi bi-calendar-plus me-2"></i>Nova rezervacija — {{ info.label }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('moto.nova_rezervacija', vrsta=vrsta) }}">
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Ime stranke *</label>
+              <input type="text" name="stranka" class="form-control" placeholder="npr. Janez Novak" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Telefon</label>
+              <input type="text" name="telefon" class="form-control" placeholder="041 123 456">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Datum *</label>
+              <input type="date" name="datum" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Čas od</label>
+              <input type="time" name="cas_od" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Čas do</label>
+              <input type="time" name="cas_do" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Opomba</label>
+              <input type="text" name="opomba" class="form-control" placeholder="npr. tip kolesa, posebne zahteve...">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Prekliči</button>
+          <button type="submit" class="btn btn-moto btn-primary px-4">
+            <i class="bi bi-check-lg me-1"></i>Dodaj rezervacijo
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

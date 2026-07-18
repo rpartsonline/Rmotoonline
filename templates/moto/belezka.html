@@ -1,0 +1,62 @@
+{% extends 'moto/base_moto.html' %}
+{% block title %}Beležka{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('moto.narocila') }}">Moto</a></li>
+  <li class="breadcrumb-item active">Beležka</li>
+</ol>
+{% endblock %}
+
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-journal-text me-2 text-primary"></i>Beležka</h1>
+</div>
+
+<div class="row g-3">
+  <!-- Nova beležka -->
+  <div class="col-lg-4">
+    <div class="tbl-card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-pencil me-2"></i>Nov zapis</h6>
+      <form method="post" action="{{ url_for('moto.belezka_nova') }}">
+        <textarea name="vsebina" class="form-control mb-2" rows="5"
+                  placeholder="Vpiši opombo, nalogo, informacijo..." required></textarea>
+        <button type="submit" class="btn btn-moto btn-primary w-100">
+          <i class="bi bi-plus-lg me-1"></i>Dodaj zapis
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Seznam zapisov -->
+  <div class="col-lg-8">
+    {% if zapisi %}
+      {% for z in zapisi %}
+      <div class="tbl-card p-3 mb-3" style="border-left:4px solid #2e8b57;">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="small text-muted">
+            <i class="bi bi-person-circle me-1"></i>{{ z.avtor.full_name if z.avtor else '–' }}
+            &nbsp;·&nbsp;
+            <i class="bi bi-clock me-1"></i>{{ z.updated_at|sl_datetime }}
+          </div>
+          <form method="post" action="{{ url_for('moto.belezka_izbrisi', zapis_id=z.id) }}"
+                onsubmit="return confirm('Izbriši zapis?')">
+            <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+        <p class="mb-0" style="white-space:pre-wrap;">{{ z.vsebina }}</p>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="tbl-card p-5 text-center text-muted">
+        <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
+        Ni zapisov. Dodaj prvega!
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

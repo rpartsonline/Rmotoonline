@@ -76,7 +76,7 @@ def create_app():
     @app.context_processor
     def inject_alerts():
         from datetime import timedelta
-        from models import Order, Note, today_local
+        from models import Order, today_local
         new_count = 0
         deliv_count = 0
         deliv_red = False
@@ -104,38 +104,11 @@ def create_app():
                     employee_id=current_user.id, notify_customer=True).count()
         except Exception:
             pass
-        # Neobdelane beležke za trenutnega zaposlenega
-        note_notif_count = 0
-        try:
-            if (current_user.is_authenticated
-                    and getattr(current_user, "role", "") not in ("kupec",)
-                    and getattr(current_user, "full_name", None)):
-                note_notif_count = Note.query.filter_by(
-                    person=current_user.full_name,
-                    done=False
-                ).count()
-        except Exception as _note_err:
-            print(f"Note notif err: {_note_err}")
-
-        # Povratna info: obdelane beležke ki jih je JAZ ustvaril, pa še nisem videl
-        done_notif_count = 0
-        try:
-            if current_user.is_authenticated and getattr(current_user, "role", "") not in ("kupec",):
-                done_notif_count = Note.query.filter_by(
-                    created_by_id=current_user.id,
-                    done=True,
-                    creator_seen_done=False
-                ).count()
-        except Exception as _done_err:
-            print(f"Done notif err: {_done_err}")
-
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
-            "note_notif_count": note_notif_count,
-            "done_notif_count": done_notif_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
@@ -150,7 +123,6 @@ def create_app():
     from routes.staff import staff_bp
     from routes.complaints import complaints_bp
     from routes.create_accounts import create_acc_bp
-    from routes.moto import moto_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -163,7 +135,6 @@ def create_app():
     app.register_blueprint(staff_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(create_acc_bp)
-    app.register_blueprint(moto_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -189,6 +160,7 @@ def create_app():
         _seed_admin(db, User)
         _seed_staff(db, User)
         _seed_kupec(db, User)
+        _seed_moto_staff(db, User)
 
     return app
 
@@ -212,6 +184,9 @@ def _ensure_schema(db):
             print("✅  Dodan stolpec 'delivery_date' v tabelo orders.")
     except Exception as e:
         print(f"⚠️  Migracija preskočena: {e}")
+
+    # moto_rezervacije + moto_belezka (nove tabele - db.create_all() jih ustvari avtomatično)
+    # Migracija users.moto_staff ni potrebna - rabimo samo MOTO_STAFF_NAMES list
 
     # delivery_stops.tires
     try:
@@ -251,16 +226,6 @@ def _ensure_schema(db):
     except Exception as e:
         print(f"⚠️  Migracija (users.role) preskočena: {e}")
 
-
-    # Migracija: notes.creator_seen_done (povratna info ustvarjalcu)
-    try:
-        ncols = [c["name"] for c in inspect(db.engine).get_columns("notes")]
-        if "creator_seen_done" not in ncols:
-            db.session.execute(text("ALTER TABLE notes ADD COLUMN creator_seen_done BOOLEAN DEFAULT FALSE"))
-            db.session.commit()
-            print("✅  Dodan stolpec 'creator_seen_done' v tabelo notes.")
-    except Exception as e:
-        print(f"Migracija notes.creator_seen_done: {e}")
     # orders.notify_customer
     try:
         ocols = [c["name"] for c in inspect(db.engine).get_columns("orders")]
@@ -335,3 +300,22 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+def _seed_moto_staff(db, User):
+    """Ustvari moto zaposlena Mojca in Ervin, če še ne obstajata."""
+    from models import MOTO_STAFF_NAMES
+    moto_staff = [
+        ("mojca", "Mojca Čermelj"),
+        ("ervin", "Ervin Nemec"),
+    ]
+    created = []
+    for username, full_name in moto_staff:
+        if not User.query.filter_by(username=username).first():
+            u = User(username=username, full_name=full_name, is_admin=False)
+            u.set_password(os.environ.get("MOTO_STAFF_PASSWORD", "Moto123!"))
+            db.session.add(u)
+            created.append(username)
+    if created:
+        db.session.commit()
+        print(f"✅ Ustvarjeni moto zaposleni: {', '.join(created)} (geslo Moto123!).")
