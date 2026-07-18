@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db
 
@@ -33,11 +33,6 @@ def login():
         if user and user.is_active_user and user.check_password(password):
             login_user(user, remember=remember)
             next_page = request.args.get("next")
-            from models import MOTO_STAFF_NAMES
-            if user.full_name in MOTO_STAFF_NAMES:
-                return redirect(url_for("moto.narocila"))
-            if user.is_admin:
-                return redirect(url_for("moto.platform_select"))
             return redirect(next_page or url_for("main.dashboard"))
 
         flash("Napačno uporabniško ime ali geslo.", "danger")
@@ -53,19 +48,17 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
-@auth_bp.route("/platforma")
+@auth_bp.route("/platform-choice")
 @login_required
-def platform_select():
+def platform_choice():
     if not current_user.is_admin:
         return redirect(url_for("main.dashboard"))
     return render_template("platform_select.html")
 
 
-@auth_bp.route("/platforma/izberi/<platforma>")
-@login_required
+@auth_bp.route("/platform-choice/set/<platforma>")
+@login_required  
 def set_platform(platforma):
-    if not current_user.is_admin:
-        return redirect(url_for("main.dashboard"))
     if platforma == "moto":
         return redirect(url_for("moto.narocila"))
     return redirect(url_for("main.dashboard"))
