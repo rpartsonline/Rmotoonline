@@ -104,11 +104,18 @@ def create_app():
                     employee_id=current_user.id, notify_customer=True).count()
         except Exception:
             pass
+        note_notif_count = 0
+        try:
+            from models import Note
+            note_notif_count = Note.query.filter_by(done=False).count()
+        except Exception:
+            pass
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
+            "note_notif_count": note_notif_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
