@@ -1,78 +1,29 @@
 {% extends 'moto/base_moto.html' %}
 {% block title %}Uredi naročilo #{{ o.id }}{% endblock %}
-
-{% block breadcrumb %}
-<ol class="breadcrumb mb-0 small">
-  <li class="breadcrumb-item"><a href="{{ url_for('moto.narocila') }}">Moto naročila</a></li>
-  <li class="breadcrumb-item active">Uredi #{{ o.id }}</li>
-</ol>
-{% endblock %}
-
-{% block extra_head %}
-<style>
-  .edit-card { background:#fff; border-radius:14px; box-shadow:0 1px 8px rgba(30,100,60,0.09); overflow:hidden; max-width:660px; }
-  .edit-hdr { background:linear-gradient(135deg,#1a6b3c,#2e8b57); padding:16px 22px; color:#fff; font-weight:800; font-size:16px; }
-  .flbl { font-size:13px; font-weight:600; color:#444; margin-bottom:4px; display:block; }
-  .finp { border:1.5px solid #c8e6d0; border-radius:8px; padding:9px 12px; font-size:14px; background:#fafffe; width:100%; }
-  .finp:focus { border-color:#2e8b57; box-shadow:0 0 0 3px rgba(46,139,87,0.1); outline:none; }
-  .btn-moto { background:#2e8b57 !important; border-color:#2e8b57 !important; }
-  .btn-moto:hover { background:#1a6b3c !important; }
-</style>
-{% endblock %}
-
+{% block breadcrumb %}<ol class="breadcrumb mb-0 small"><li class="breadcrumb-item"><a href="{{ url_for('moto.narocila') }}">Moto naročila</a></li><li class="breadcrumb-item active">Uredi #{{ o.id }}</li></ol>{% endblock %}
+{% block topbar_actions %}{% endblock %}
 {% block content %}
-<div class="edit-card">
-  <div class="edit-hdr">
-    <i class="bi bi-pencil-square me-2"></i>Uredi naročilo #{{ o.id }} – {{ o.stranka }}
+<div style="background:#fff;border-radius:14px;box-shadow:0 1px 8px rgba(30,100,60,.09);overflow:hidden;max-width:660px;">
+  <div style="background:linear-gradient(135deg,#1a6b3c,#2e8b57);padding:16px 22px;color:#fff;font-weight:800;font-size:16px;">
+    <i class="bi bi-pencil-square me-2"></i>Uredi naročilo #{{ o.id }} — {{ o.stranka }}
   </div>
   <form method="post" class="p-4">
     <div class="row g-3">
-      <div class="col-12">
-        <label class="flbl">Ime stranke *</label>
-        <input type="text" name="stranka" class="finp form-control" value="{{ o.stranka }}" required>
+      <div class="col-12"><label class="form-label small fw-semibold">Ime stranke *</label><input type="text" name="stranka" class="form-control" value="{{ o.stranka }}" required></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Telefon</label><input type="tel" name="telefon" class="form-control" value="{{ o.telefon or '' }}"></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Znamka motorja</label>
+        <select name="znamka" class="form-select"><option value="">— izberi —</option>{% for b in brands %}<option value="{{ b }}" {% if o.znamka==b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select>
       </div>
-      <div class="col-md-6">
-        <label class="flbl">Telefon</label>
-        <input type="tel" name="telefon" class="finp form-control" value="{{ o.telefon or '' }}">
-      </div>
-      <div class="col-md-6">
-        <label class="flbl">Znamka motorja</label>
-        <select name="znamka" class="finp form-select">
-          <option value="">— izberi —</option>
-          {% for b in brands %}
-          <option value="{{ b }}" {% if o.znamka==b %}selected{% endif %}>{{ b }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="flbl">Model motorja</label>
-        <input type="text" name="model_motorja" class="finp form-control" value="{{ o.model_motorja or '' }}">
-      </div>
-      <div class="col-md-6">
-        <label class="flbl">Letnik</label>
-        <input type="number" name="letnik" class="finp form-control" value="{{ o.letnik or '' }}" min="1970" max="2030">
-      </div>
-      <div class="col-12">
-        <label class="flbl">Nadomestni del *</label>
-        <textarea name="nadomestni_del" class="finp form-control" rows="3" required>{{ o.nadomestni_del }}</textarea>
-      </div>
-      <div class="col-md-8">
-        <label class="flbl">Opomba</label>
-        <input type="text" name="opomba" class="finp form-control" value="{{ o.opomba or '' }}">
-      </div>
-      <div class="col-md-4">
-        <label class="flbl">Status</label>
-        <select name="status" class="finp form-select">
-          {% for key, label, color in statuses %}
-          <option value="{{ key }}" {% if o.status==key %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Model motorja</label><input type="text" name="model_motorja" class="form-control" value="{{ o.model_motorja or '' }}"></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Letnik</label><input type="number" name="letnik" class="form-control" value="{{ o.letnik or '' }}" min="1970" max="2030"></div>
+      <div class="col-12"><label class="form-label small fw-semibold">Nadomestni del *</label><textarea name="nadomestni_del" class="form-control" rows="3" required>{{ o.nadomestni_del }}</textarea></div>
+      <div class="col-md-8"><label class="form-label small fw-semibold">Opomba</label><input type="text" name="opomba" class="form-control" value="{{ o.opomba or '' }}"></div>
+      <div class="col-md-4"><label class="form-label small fw-semibold">Status</label>
+        <select name="status" class="form-select">{% for key,label,color in statuses %}<option value="{{ key }}" {% if o.status==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
       </div>
     </div>
     <div class="d-flex gap-2 mt-4">
-      <button type="submit" class="btn btn-moto btn-primary px-4">
-        <i class="bi bi-floppy me-1"></i>Shrani
-      </button>
+      <button type="submit" class="btn btn-moto btn-primary px-4"><i class="bi bi-floppy me-1"></i>Shrani</button>
       <a href="{{ url_for('moto.narocila') }}" class="btn btn-outline-secondary">Prekliči</a>
     </div>
   </form>

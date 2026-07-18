@@ -1,115 +1,85 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Moto{% endblock %} – R-MotoShop</title>
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
-  <meta name="theme-color" content="#1a3a28">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <style>
-    .sidebar { background: #0f2117 !important; }
-    .sb-header { background: linear-gradient(135deg,#1a6b3c,#2e8b57) !important; padding:0 !important; }
-    .moto-brand { display:flex;align-items:center;gap:10px;padding:14px 18px;text-decoration:none; }
-    .moto-brand-ico { width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
-    .moto-brand-txt strong { display:block;color:#fff;font-size:14px;font-weight:800; }
-    .moto-brand-txt small  { color:rgba(255,255,255,.55);font-size:10px;text-transform:uppercase;letter-spacing:.5px; }
-    .sb-link { color:rgba(255,255,255,.65) !important; }
-    .sb-link:hover, .sb-link.active { background:rgba(61,170,110,.18) !important; color:#5dbb87 !important; }
-    .sb-link.active { border-left:3px solid #3daa6e !important; }
-    .sb-section { color:rgba(255,255,255,.28) !important; font-size:11px !important; }
-    .sb-switch { margin:4px 12px;padding:8px 14px;border-radius:8px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);color:#7cb8ff !important;font-size:13px;display:flex;align-items:center;gap:8px;text-decoration:none;transition:background .15s; }
-    .sb-switch:hover { background:rgba(59,130,246,.2) !important; }
-    .btn-moto { background:#2e8b57 !important;border-color:#2e8b57 !important; }
-    .btn-moto:hover { background:#1a6b3c !important;border-color:#1a6b3c !important; }
+    .sidebar{background:#0f2117 !important;}
+    .sb-header{background:linear-gradient(135deg,#1a6b3c,#2e8b57) !important;padding:0 !important;}
+    .moto-brand{display:flex;align-items:center;gap:10px;padding:14px 18px;text-decoration:none;}
+    .moto-brand-ico{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .moto-brand-txt strong{display:block;color:#fff;font-size:14px;font-weight:800;}
+    .moto-brand-txt small{color:rgba(255,255,255,.55);font-size:10px;text-transform:uppercase;letter-spacing:.5px;}
+    .sb-link{color:rgba(255,255,255,.65) !important;}
+    .sb-link:hover,.sb-link.active{background:rgba(61,170,110,.18) !important;color:#5dbb87 !important;}
+    .sb-link.active{border-left:3px solid #3daa6e !important;}
+    .sb-section{color:rgba(255,255,255,.28) !important;font-size:11px !important;}
+    .sb-switch{margin:4px 12px;padding:8px 14px;border-radius:8px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);color:#7cb8ff !important;font-size:13px;display:flex;align-items:center;gap:8px;text-decoration:none;}
+    .btn-moto{background:#2e8b57 !important;border-color:#2e8b57 !important;}
+    .btn-moto:hover{background:#1a6b3c !important;}
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
     <a href="{{ url_for('moto.narocila') }}" class="moto-brand">
       <div class="moto-brand-ico">🏍</div>
-      <div class="moto-brand-txt">
-        <strong>R-MotoShop</strong>
-        <small>Ajdovščina</small>
-      </div>
+      <div class="moto-brand-txt"><strong>R-MotoShop</strong><small>Ajdovščina</small></div>
     </a>
   </div>
-
   <ul class="sb-nav">
-    <!-- Naročila -->
     <li>
-      <a href="{{ url_for('moto.narocila') }}"
-         class="sb-link {% if request.endpoint == 'moto.narocila' %}active{% endif %}">
+      <a href="{{ url_for('moto.narocila') }}" class="sb-link {% if request.endpoint=='moto.narocila' %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
       </a>
     </li>
-
-    <!-- Beležka - samo moto osobje -->
     {% if current_user.full_name in ['Mojca Čermelj','Ervin Nemec'] or current_user.is_admin %}
     <li>
-      <a href="{{ url_for('moto.belezka') }}"
-         class="sb-link {% if request.endpoint == 'moto.belezka' or request.endpoint and 'belezka' in request.endpoint %}active{% endif %}">
+      <a href="{{ url_for('moto.belezka') }}" class="sb-link {% if 'belezka' in (request.endpoint or '') %}active{% endif %}">
         <i class="bi bi-journal-text"></i><span>Beležka</span>
       </a>
     </li>
     {% endif %}
-
-    <!-- STORITVE -->
     <li class="sb-section mt-3">Storitve</li>
     <li>
-      <a href="{{ url_for('moto.storitev', vrsta='ebike') }}"
-         class="sb-link {% if request.endpoint == 'moto.storitev' and request.view_args.get('vrsta')=='ebike' %}active{% endif %}">
+      <a href="{{ url_for('moto.storitev', vrsta='ebike') }}" class="sb-link {% if request.endpoint=='moto.storitev' and request.view_args.get('vrsta')=='ebike' %}active{% endif %}">
         <i class="bi bi-bicycle"></i><span>Rent E-Bike</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('moto.storitev', vrsta='moto') }}"
-         class="sb-link {% if request.endpoint == 'moto.storitev' and request.view_args.get('vrsta')=='moto' %}active{% endif %}">
+      <a href="{{ url_for('moto.storitev', vrsta='moto') }}" class="sb-link {% if request.endpoint=='moto.storitev' and request.view_args.get('vrsta')=='moto' %}active{% endif %}">
         <i class="bi bi-bicycle-fill"></i><span>Rent Motorbike</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('moto.storitev', vrsta='pnevmatika') }}"
-         class="sb-link {% if request.endpoint == 'moto.storitev' and request.view_args.get('vrsta')=='pnevmatika' %}active{% endif %}">
+      <a href="{{ url_for('moto.storitev', vrsta='pnevmatika') }}" class="sb-link {% if request.endpoint=='moto.storitev' and request.view_args.get('vrsta')=='pnevmatika' %}active{% endif %}">
         <i class="bi bi-circle"></i><span>Menjava pnevmatik</span>
       </a>
     </li>
-
-    <!-- Zamenjaj platformo -->
+    {% if current_user.is_admin %}
     <li class="sb-section mt-3">Platforma</li>
     <li>
-      {% if current_user.is_admin %}
       <a href="{{ url_for('moto.platform_select') }}" class="sb-switch">
         <i class="bi bi-arrow-left-right"></i><span>Zamenjaj platformo</span>
       </a>
-      {% endif %}
     </li>
+    {% endif %}
   </ul>
-
   <div class="sb-footer">
-    <div class="sb-user">
-      <i class="bi bi-person-circle"></i>
-      <span>{{ current_user.full_name }}</span>
-    </div>
-    <a href="{{ url_for('auth.logout') }}" class="sb-logout">
-      <i class="bi bi-box-arrow-right me-1"></i><span>Odjava</span>
-    </a>
+    <div class="sb-user"><i class="bi bi-person-circle"></i><span>{{ current_user.full_name }}</span></div>
+    <a href="{{ url_for('auth.logout') }}" class="sb-logout"><i class="bi bi-box-arrow-right me-1"></i><span>Odjava</span></a>
   </div>
 </nav>
-
 <div class="main-wrap" id="main-wrap">
   <div class="topbar">
     <button class="topbar-toggle" id="sbToggle"><i class="bi bi-list fs-5"></i></button>
-    <nav aria-label="breadcrumb" class="ms-2 d-none d-md-block">
-      {% block breadcrumb %}{% endblock %}
-    </nav>
+    <nav aria-label="breadcrumb" class="ms-2 d-none d-md-block">{% block breadcrumb %}{% endblock %}</nav>
     <div class="ms-auto d-flex align-items-center gap-2">
       {% block topbar_actions %}
       <button class="btn btn-sm btn-moto btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoNarocilo">
@@ -118,7 +88,6 @@
       {% endblock %}
     </div>
   </div>
-
   <div class="container-fluid px-4 pt-3">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for cat, msg in messages %}
@@ -128,15 +97,11 @@
       {% endfor %}{% endif %}
     {% endwith %}
   </div>
-
-  <div class="container-fluid px-4 pb-5">
-    {% block content %}{% endblock %}
-  </div>
+  <div class="container-fluid px-4 pb-5">{% block content %}{% endblock %}</div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script>
-  document.getElementById('sbToggle').addEventListener('click', () => {
+  document.getElementById('sbToggle').addEventListener('click',()=>{
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.getElementById('main-wrap').classList.toggle('expanded');
   });

@@ -187,9 +187,6 @@ def _ensure_schema(db):
     except Exception as e:
         print(f"⚠️  Migracija preskočena: {e}")
 
-    # moto_rezervacije + moto_belezka (nove tabele - db.create_all() jih ustvari avtomatično)
-    # Migracija users.moto_staff ni potrebna - rabimo samo MOTO_STAFF_NAMES list
-
     # delivery_stops.tires
     try:
         dcols = [c["name"] for c in inspect(db.engine).get_columns("delivery_stops")]
@@ -299,16 +296,11 @@ def _seed_kupec(db, User):
 
 
 
-
 def _seed_moto_staff(db, User):
-    """Ustvari moto zaposlena Mojca in Ervin, če še ne obstajata."""
-    from models import MOTO_STAFF_NAMES
-    moto_staff = [
-        ("mojca", "Mojca Čermelj"),
-        ("ervin", "Ervin Nemec"),
-    ]
+    """Ustvari moto zaposlena Mojca in Ervin."""
+    staff = [("mojca", "Mojca Čermelj"), ("ervin", "Ervin Nemec")]
     created = []
-    for username, full_name in moto_staff:
+    for username, full_name in staff:
         if not User.query.filter_by(username=username).first():
             u = User(username=username, full_name=full_name, is_admin=False)
             u.set_password(os.environ.get("MOTO_STAFF_PASSWORD", "Moto123!"))
@@ -316,10 +308,10 @@ def _seed_moto_staff(db, User):
             created.append(username)
     if created:
         db.session.commit()
-        print(f"✅ Ustvarjeni moto zaposleni: {', '.join(created)} (geslo Moto123!).")
+        print(f"✅ Moto zaposleni: {', '.join(created)}")
+
 
 app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
-

@@ -1,143 +1,73 @@
 {% extends 'moto/base_moto.html' %}
 {% block title %}Moto naročila{% endblock %}
-
-{% block breadcrumb %}
-<ol class="breadcrumb mb-0 small">
-  <li class="breadcrumb-item active">🏍️ Moto naročila delov</li>
-</ol>
-{% endblock %}
-
+{% block breadcrumb %}<ol class="breadcrumb mb-0 small"><li class="breadcrumb-item active">🏍️ Naročila</li></ol>{% endblock %}
 {% block extra_head %}
 <style>
-  .page-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
-  .page-hdr h1 { font-size:21px; font-weight:800; color:#1a2e1f; margin:0; }
-  .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
-  @media(max-width:600px){ .stat-strip{grid-template-columns:repeat(2,1fr);} }
-  .stat-card { background:#fff; border-radius:12px; padding:15px 18px; box-shadow:0 1px 6px rgba(30,100,60,0.08); }
-  .stat-card .num { font-size:26px; font-weight:800; }
-  .stat-card .lbl { font-size:12px; color:#888; }
-  .tbl-card { background:#fff; border-radius:14px; box-shadow:0 1px 8px rgba(30,100,60,0.09); overflow:hidden; }
-  .tbl-card-hdr { display:flex; align-items:center; justify-content:space-between; padding:13px 18px; border-bottom:1px solid #eaf4ef; background:#f7fdf9; }
-  .tbl-card-hdr h6 { margin:0; font-weight:700; color:#1a2e1f; font-size:15px; }
-  .search-bar { display:flex; gap:10px; padding:12px 18px; background:#f7fdf9; border-bottom:1px solid #eaf4ef; flex-wrap:wrap; align-items:center; }
-  .search-bar input { flex:1; min-width:180px; padding:8px 13px; border-radius:8px; border:1.5px solid #c8e6d0; font-size:14px; outline:none; background:#fff; }
-  .filter-btns { display:flex; gap:5px; flex-wrap:wrap; }
-  .fbtn { padding:6px 11px; border-radius:7px; border:1.5px solid #c8e6d0; background:#fff; font-size:12px; font-weight:600; cursor:pointer; color:#555; text-decoration:none; transition:all 0.15s; }
-  .fbtn.active, .fbtn:hover { background:#2e8b57; border-color:#2e8b57; color:#fff; }
-  .moto-table th { background:#f0faf4; color:#2e8b57; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #c8e6d0 !important; padding:10px 14px; }
-  .moto-table td { padding:11px 14px; vertical-align:middle; border-bottom:1px solid #f0faf4 !important; }
-  .moto-table tbody tr:hover { background:#f7fdf9; }
-  .moto-table tbody tr:last-child td { border-bottom:none !important; }
-  .status-sel { padding:4px 9px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; outline:none; border-width:1.5px; border-style:solid; }
-  .empty-state { text-align:center; padding:52px 24px; color:#999; }
-  .empty-state .ico { font-size:50px; margin-bottom:10px; }
-  /* modal form */
-  .flbl { font-size:13px; font-weight:600; color:#444; margin-bottom:4px; display:block; }
-  .finp { border:1.5px solid #c8e6d0; border-radius:8px; padding:9px 12px; font-size:14px; background:#fafffe; width:100%; }
-  .finp:focus { border-color:#2e8b57; box-shadow:0 0 0 3px rgba(46,139,87,0.1); outline:none; }
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:600px){.stat-strip{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:#fff;border-radius:12px;padding:15px 18px;box-shadow:0 1px 6px rgba(30,100,60,.08);}
+.stat-card .num{font-size:26px;font-weight:800;}
+.stat-card .lbl{font-size:12px;color:#888;}
+.tbl-card{background:#fff;border-radius:14px;box-shadow:0 1px 8px rgba(30,100,60,.09);overflow:hidden;}
+.tbl-card-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid #eaf4ef;background:#f7fdf9;}
+.tbl-card-hdr h6{margin:0;font-weight:700;color:#1a2e1f;font-size:15px;}
+.search-bar{display:flex;gap:10px;padding:12px 18px;background:#f7fdf9;border-bottom:1px solid #eaf4ef;flex-wrap:wrap;align-items:center;}
+.search-bar input{flex:1;min-width:180px;padding:8px 13px;border-radius:8px;border:1.5px solid #c8e6d0;font-size:14px;outline:none;background:#fff;}
+.fbtn{padding:6px 11px;border-radius:7px;border:1.5px solid #c8e6d0;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#555;text-decoration:none;}
+.fbtn.active,.fbtn:hover{background:#2e8b57;border-color:#2e8b57;color:#fff;}
+.moto-table th{background:#f0faf4;color:#2e8b57;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #c8e6d0 !important;padding:10px 14px;}
+.moto-table td{padding:11px 14px;vertical-align:middle;border-bottom:1px solid #f0faf4 !important;}
+.moto-table tbody tr:hover{background:#f7fdf9;}
+.status-sel{padding:4px 9px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;outline:none;border-width:1.5px;border-style:solid;}
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="page-hdr">
-  <h1><i class="bi bi-clipboard-check me-2" style="color:#2e8b57"></i>Moto naročila delov</h1>
-  <button class="btn btn-sm btn-moto btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoNarocilo">
-    <i class="bi bi-plus-lg me-1"></i>Novo naročilo
-  </button>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <h1 style="font-size:21px;font-weight:800;color:#1a2e1f;margin:0;"><i class="bi bi-clipboard-check me-2" style="color:#2e8b57"></i>Moto naročila delov</h1>
+  <button class="btn btn-sm btn-moto btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoNarocilo"><i class="bi bi-plus-lg me-1"></i>Novo naročilo</button>
 </div>
-
-<!-- Statistike -->
 <div class="stat-strip">
-  <div class="stat-card" style="border-top:3px solid #2e8b57">
-    <div class="num" style="color:#2e8b57">{{ counts.vse }}</div>
-    <div class="lbl">📋 Skupaj</div>
-  </div>
-  <div class="stat-card" style="border-top:3px solid #f59e0b">
-    <div class="num" style="color:#f59e0b">{{ counts.cakanje }}</div>
-    <div class="lbl">⏳ V čakanju</div>
-  </div>
-  <div class="stat-card" style="border-top:3px solid #3b82f6">
-    <div class="num" style="color:#3b82f6">{{ counts.naroceno }}</div>
-    <div class="lbl">📦 Naročeno</div>
-  </div>
-  <div class="stat-card" style="border-top:3px solid #10b981">
-    <div class="num" style="color:#10b981">{{ counts.prispelo }}</div>
-    <div class="lbl">✅ Prispelo</div>
-  </div>
+  <div class="stat-card" style="border-top:3px solid #2e8b57"><div class="num" style="color:#2e8b57">{{ counts.vse }}</div><div class="lbl">📋 Skupaj</div></div>
+  <div class="stat-card" style="border-top:3px solid #f59e0b"><div class="num" style="color:#f59e0b">{{ counts.cakanje }}</div><div class="lbl">⏳ V čakanju</div></div>
+  <div class="stat-card" style="border-top:3px solid #3b82f6"><div class="num" style="color:#3b82f6">{{ counts.naroceno }}</div><div class="lbl">📦 Naročeno</div></div>
+  <div class="stat-card" style="border-top:3px solid #10b981"><div class="num" style="color:#10b981">{{ counts.prispelo }}</div><div class="lbl">✅ Prispelo</div></div>
 </div>
-
-<!-- Tabela -->
 <div class="tbl-card">
-  <div class="tbl-card-hdr">
-    <h6><i class="bi bi-list-ul me-2"></i>Seznam naročil</h6>
-  </div>
-
+  <div class="tbl-card-hdr"><h6><i class="bi bi-list-ul me-2"></i>Seznam naročil</h6></div>
   <form method="get" class="search-bar">
     <input type="text" name="q" value="{{ q }}" placeholder="🔍  Išči po stranki, modelu, delu...">
-    <div class="filter-btns">
-      <a href="{{ url_for('moto.narocila') }}" class="fbtn {% if not status_filter %}active{% endif %}">
-        Vsa ({{ counts.vse }})
-      </a>
-      {% for key, label, color in statuses %}
-      <a href="{{ url_for('moto.narocila', status=key, q=q) }}"
-         class="fbtn {% if status_filter == key %}active{% endif %}">
-        {{ label }} ({{ counts[key] }})
-      </a>
+    <div class="d-flex gap-1 flex-wrap">
+      <a href="{{ url_for('moto.narocila') }}" class="fbtn {% if not status_filter %}active{% endif %}">Vsa ({{ counts.vse }})</a>
+      {% for key,label,color in statuses %}
+      <a href="{{ url_for('moto.narocila', status=key, q=q) }}" class="fbtn {% if status_filter==key %}active{% endif %}">{{ label }} ({{ counts[key] }})</a>
       {% endfor %}
     </div>
   </form>
-
   {% if orders %}
   <div class="table-responsive">
     <table class="table moto-table mb-0">
-      <thead>
-        <tr>
-          <th>#</th><th>Stranka</th><th>Motor</th><th>Nadomestni del</th>
-          <th>Datum</th><th>Status</th><th></th>
-        </tr>
-      </thead>
+      <thead><tr><th>#</th><th>Stranka</th><th>Motor</th><th>Nadomestni del</th><th>Datum</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for o in orders %}
+        {% set sc={'cakanje':'#f59e0b','naroceno':'#3b82f6','prispelo':'#10b981','zakljuceno':'#6b7280'} %}
+        {% set sb={'cakanje':'#fffbeb','naroceno':'#eff6ff','prispelo':'#ecfdf5','zakljuceno':'#f9fafb'} %}
         <tr>
           <td class="text-muted small">{{ o.id }}</td>
-          <td>
-            <div class="fw-bold" style="color:#1a2e1f;font-size:14px">{{ o.stranka }}</div>
-            {% if o.telefon %}<div class="text-muted small">{{ o.telefon }}</div>{% endif %}
-          </td>
-          <td>
-            <div class="fw-semibold" style="color:#2e8b57;font-size:14px">
-              {{ o.znamka or '' }} {{ o.model_motorja or '' }}
-            </div>
-            {% if o.letnik %}<div class="text-muted small">Letnik: {{ o.letnik }}</div>{% endif %}
-          </td>
-          <td style="max-width:200px">
-            <div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.nadomestni_del }}</div>
-            {% if o.opomba %}<div class="text-muted small fst-italic">{{ o.opomba }}</div>{% endif %}
-          </td>
+          <td><div class="fw-bold" style="color:#1a2e1f;font-size:14px">{{ o.stranka }}</div>{% if o.telefon %}<div class="text-muted small">{{ o.telefon }}</div>{% endif %}</td>
+          <td><div class="fw-semibold" style="color:#2e8b57;font-size:14px">{{ o.znamka or '' }} {{ o.model_motorja or '' }}</div>{% if o.letnik %}<div class="text-muted small">Letnik: {{ o.letnik }}</div>{% endif %}</td>
+          <td style="max-width:200px"><div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.nadomestni_del }}</div>{% if o.opomba %}<div class="text-muted small fst-italic">{{ o.opomba }}</div>{% endif %}</td>
           <td class="text-muted small text-nowrap">{{ o.created_at|sl_date }}</td>
           <td>
             <form method="post" action="{{ url_for('moto.update_status', order_id=o.id) }}">
-              {% set sc = {'cakanje':'#f59e0b','naroceno':'#3b82f6','prispelo':'#10b981','zakljuceno':'#6b7280'} %}
-              {% set sb = {'cakanje':'#fffbeb','naroceno':'#eff6ff','prispelo':'#ecfdf5','zakljuceno':'#f9fafb'} %}
-              <select name="status" class="status-sel"
-                style="border-color:{{ sc.get(o.status,'#aaa') }};color:{{ sc.get(o.status,'#aaa') }};background:{{ sb.get(o.status,'#fff') }}"
-                onchange="this.form.submit()">
-                {% for key, label, color in statuses %}
-                <option value="{{ key }}" {% if o.status==key %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
+              <select name="status" class="status-sel" style="border-color:{{ sc.get(o.status,'#aaa') }};color:{{ sc.get(o.status,'#aaa') }};background:{{ sb.get(o.status,'#fff') }}" onchange="this.form.submit()">
+                {% for key,label,color in statuses %}<option value="{{ key }}" {% if o.status==key %}selected{% endif %}>{{ label }}</option>{% endfor %}
               </select>
             </form>
           </td>
           <td class="text-nowrap">
-            <a href="{{ url_for('moto.uredi', order_id=o.id) }}"
-               class="btn btn-sm me-1" style="background:#f0faf4;color:#2e8b57;border:none">
-              <i class="bi bi-pencil"></i>
-            </a>
-            <form method="post" action="{{ url_for('moto.izbrisi', order_id=o.id) }}" class="d-inline"
-                  onsubmit="return confirm('Izbriši naročilo za {{ o.stranka }}?')">
-              <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none">
-                <i class="bi bi-trash"></i>
-              </button>
+            <a href="{{ url_for('moto.uredi', order_id=o.id) }}" class="btn btn-sm me-1" style="background:#f0faf4;color:#2e8b57;border:none"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{{ url_for('moto.izbrisi', order_id=o.id) }}" class="d-inline" onsubmit="return confirm('Izbriši?')">
+              <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none"><i class="bi bi-trash"></i></button>
             </form>
           </td>
         </tr>
@@ -146,66 +76,34 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">
-    <div class="ico">🏍️</div>
-    <div style="font-size:16px;color:#555">Ni naročil za prikaz</div>
-    <div class="small mt-1">Klikni »Novo naročilo« za začetek</div>
-  </div>
+  <div class="text-center py-5 text-muted"><div style="font-size:50px">🏍️</div><div class="mt-2">Ni naročil</div></div>
   {% endif %}
 </div>
-
-<!-- Modal: Novo naročilo -->
+<!-- Modal -->
 <div class="modal fade" id="modalNovoNarocilo" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content" style="border-radius:14px;border:none">
       <div class="modal-header" style="background:linear-gradient(135deg,#1a6b3c,#2e8b57);border-radius:14px 14px 0 0">
-        <h5 class="modal-title text-white fw-bold">
-          <i class="bi bi-plus-circle me-2"></i>Novo naročilo moto dela
-        </h5>
+        <h5 class="modal-title text-white fw-bold"><i class="bi bi-plus-circle me-2"></i>Novo naročilo moto dela</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="post" action="{{ url_for('moto.novo') }}">
         <div class="modal-body p-4">
           <div class="row g-3">
-            <div class="col-12">
-              <label class="flbl">Ime stranke *</label>
-              <input type="text" name="stranka" class="finp form-control" placeholder="npr. Janez Novak" required>
+            <div class="col-12"><label class="form-label small fw-semibold">Ime stranke *</label><input type="text" name="stranka" class="form-control" placeholder="npr. Janez Novak" required></div>
+            <div class="col-md-6"><label class="form-label small fw-semibold">Telefon</label><input type="tel" name="telefon" class="form-control" placeholder="041 123 456"></div>
+            <div class="col-md-6"><label class="form-label small fw-semibold">Znamka motorja</label>
+              <select name="znamka" class="form-select"><option value="">— izberi —</option>{% for b in brands %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
             </div>
-            <div class="col-md-6">
-              <label class="flbl">Telefon</label>
-              <input type="tel" name="telefon" class="finp form-control" placeholder="041 123 456">
-            </div>
-            <div class="col-md-6">
-              <label class="flbl">Znamka motorja</label>
-              <select name="znamka" class="finp form-select">
-                <option value="">— izberi —</option>
-                {% for b in brands %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="flbl">Model motorja</label>
-              <input type="text" name="model_motorja" class="finp form-control" placeholder="npr. CBR 600, Duke 390">
-            </div>
-            <div class="col-md-6">
-              <label class="flbl">Letnik</label>
-              <input type="number" name="letnik" class="finp form-control" placeholder="npr. 2019" min="1970" max="2030">
-            </div>
-            <div class="col-12">
-              <label class="flbl">Nadomestni del / kaj potrebuje *</label>
-              <textarea name="nadomestni_del" class="finp form-control" rows="3"
-                        placeholder="npr. Sprednja zavorna ploščica, oljni filter, veriga 520..." required></textarea>
-            </div>
-            <div class="col-12">
-              <label class="flbl">Opomba</label>
-              <input type="text" name="opomba" class="finp form-control" placeholder="npr. Pokliči ko prispe...">
-            </div>
+            <div class="col-md-6"><label class="form-label small fw-semibold">Model motorja</label><input type="text" name="model_motorja" class="form-control" placeholder="npr. CBR 600, Duke 390"></div>
+            <div class="col-md-6"><label class="form-label small fw-semibold">Letnik</label><input type="number" name="letnik" class="form-control" placeholder="npr. 2019" min="1970" max="2030"></div>
+            <div class="col-12"><label class="form-label small fw-semibold">Nadomestni del *</label><textarea name="nadomestni_del" class="form-control" rows="3" placeholder="npr. Sprednja zavorna ploščica..." required></textarea></div>
+            <div class="col-12"><label class="form-label small fw-semibold">Opomba</label><input type="text" name="opomba" class="form-control" placeholder="npr. Pokliči ko prispe..."></div>
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Prekliči</button>
-          <button type="submit" class="btn btn-moto btn-primary px-4">
-            <i class="bi bi-check-lg me-1"></i>Dodaj naročilo
-          </button>
+          <button type="submit" class="btn btn-moto btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Dodaj naročilo</button>
         </div>
       </form>
     </div>

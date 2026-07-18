@@ -1,7 +1,7 @@
 from functools import wraps
 from datetime import date, datetime
 from calendar import month_abbr
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from models import (db, MotoOrder, MOTO_ORDER_STATUSES, MOTO_ORDER_STATUS_DICT, MOTO_BRANDS,
                     MotoRezervacija, MOTO_STORITVE, MOTO_STORITEV_DICT,
@@ -12,7 +12,6 @@ moto_bp = Blueprint("moto", __name__, url_prefix="/moto")
 
 
 def moto_access_required(f):
-    """Admin ali moto zaposleni (Mojca, Ervin)."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not current_user.is_authenticated:
@@ -24,10 +23,12 @@ def moto_access_required(f):
     return decorated
 
 
-def is_moto_staff():
-    return current_user.is_authenticated and (
-        current_user.is_admin or current_user.full_name in MOTO_STAFF_NAMES
-    )
+# ── Platform select ───────────────────────────────────────────────────────────
+
+@moto_bp.route("/platforma")
+@login_required
+def platform_select():
+    return render_template("platform_select.html")
 
 
 # ── Naročila ──────────────────────────────────────────────────────────────────
@@ -42,14 +43,12 @@ def narocila():
     if status_filter:
         query = query.filter_by(status=status_filter)
     if q:
-        query = query.filter(
-            db.or_(
-                MotoOrder.stranka.ilike(f"%{q}%"),
-                MotoOrder.model_motorja.ilike(f"%{q}%"),
-                MotoOrder.nadomestni_del.ilike(f"%{q}%"),
-                MotoOrder.znamka.ilike(f"%{q}%"),
-            )
-        )
+        query = query.filter(db.or_(
+            MotoOrder.stranka.ilike(f"%{q}%"),
+            MotoOrder.model_motorja.ilike(f"%{q}%"),
+            MotoOrder.nadomestni_del.ilike(f"%{q}%"),
+            MotoOrder.znamka.ilike(f"%{q}%"),
+        ))
     orders = query.order_by(MotoOrder.created_at.desc()).all()
     counts = {s[0]: MotoOrder.query.filter_by(status=s[0]).count() for s in MOTO_ORDER_STATUSES}
     counts["vse"] = MotoOrder.query.count()
@@ -135,39 +134,7 @@ def izbrisi(order_id):
     return redirect(url_for("moto.narocila"))
 
 
-# ── Storitve (skupne funkcije) ────────────────────────────────────────────────
-
-def _storitev_page(vrsta):
-    """Skupna logika za vse storitve (ebike, moto, pnevmatika)."""
-    info = MOTO_STORITEV_DICT.get(vrsta, {})
-    tab = request.args.get("tab", "rezervacije")
-
-    # Rezervacije
-    q = MotoRezervacija.query.filter_by(vrsta=vrsta)
-    status_f = request.args.get("status", "")
-    if status_f:
-        q = q.filter_by(status=status_f)
-    rezervacije = q.order_by(MotoRezervacija.datum.desc(), MotoRezervacija.cas_od).all()
-
-    # Analize po mesecih (zadnjih 12 mesecev)
-    now = datetime.utcnow()
-    meseci = []
-    for i in range(11, -1, -1):
-        m = (now.month - i - 1) % 12 + 1
-        y = now.year - ((now.month - i - 1) // 12)
-        count = MotoRezervacija.query.filter_by(vrsta=vrsta).filter(
-            db.extract("year", MotoRezervacija.datum) == y,
-            db.extract("month", MotoRezervacija.datum) == m,
-        ).count()
-        meseci.append({"mesec": f"{m:02d}/{y}", "kratko": f"{month_abbr[m]} {y}", "stevilo": count})
-
-    return render_template("moto/storitve/storitev.html",
-        vrsta=vrsta, info=info, tab=tab,
-        rezervacije=rezervacije, meseci=meseci,
-        statusi=MOTO_REZ_STATUS, status_dict=MOTO_REZ_STATUS_DICT,
-        status_f=status_f,
-        storitve=MOTO_STORITVE)
-
+# ── Storitve ──────────────────────────────────────────────────────────────────
 
 @moto_bp.route("/storitev/<vrsta>")
 @login_required
@@ -176,35 +143,58 @@ def storitev(vrsta):
     if vrsta not in MOTO_STORITEV_DICT:
         flash("Neznana storitev.", "danger")
         return redirect(url_for("moto.narocila"))
-    return _storitev_page(vrsta)
+    info = MOTO_STORITEV_DICT[vrsta]
+    tab = request.args.get("tab", "rezervacije")
+    status_f = request.args.get("status", "")
+    q = MotoRezervacija.query.filter_by(vrsta=vrsta)
+    if status_f:
+        q = q.filter_by(status=status_f)
+    rezervacije = q.order_by(MotoRezervacija.datum.desc()).all()
+    now = datetime.utcnow()
+    meseci = []
+    for i in range(11, -1, -1):
+        m = (now.month - i - 1) % 12 + 1
+        y = now.year - ((now.month - i - 1) // 12)
+        try:
+            m_start = date(y, m, 1)
+            m_end = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+            count = MotoRezervacija.query.filter_by(vrsta=vrsta).filter(
+                MotoRezervacija.datum >= m_start,
+                MotoRezervacija.datum < m_end,
+            ).count()
+        except Exception:
+            count = 0
+        meseci.append({"mesec": f"{m:02d}/{y}", "kratko": f"{month_abbr[m]} {y}", "stevilo": count})
+    max_val = max((m["stevilo"] for m in meseci), default=1) or 1
+    return render_template("moto/storitve/storitev.html",
+        vrsta=vrsta, info=info, tab=tab,
+        rezervacije=rezervacije, meseci=meseci, max_val=max_val,
+        statusi=MOTO_REZ_STATUS, status_dict=MOTO_REZ_STATUS_DICT,
+        status_f=status_f, storitve=MOTO_STORITVE)
 
 
 @moto_bp.route("/storitev/<vrsta>/nova-rezervacija", methods=["POST"])
 @login_required
 @moto_access_required
 def nova_rezervacija(vrsta):
-    if vrsta not in MOTO_STORITEV_DICT:
-        return redirect(url_for("moto.narocila"))
     stranka = request.form.get("stranka", "").strip()
     datum_raw = request.form.get("datum", "").strip()
     if not stranka or not datum_raw:
         flash("Ime stranke in datum sta obvezna.", "danger")
-        return redirect(url_for("moto.storitev", vrsta=vrsta, tab="rezervacije"))
+        return redirect(url_for("moto.storitev", vrsta=vrsta))
     try:
         datum = date.fromisoformat(datum_raw)
     except ValueError:
         flash("Napačen datum.", "danger")
-        return redirect(url_for("moto.storitev", vrsta=vrsta, tab="rezervacije"))
+        return redirect(url_for("moto.storitev", vrsta=vrsta))
     r = MotoRezervacija(
-        vrsta=vrsta,
-        stranka=stranka,
+        vrsta=vrsta, stranka=stranka,
         telefon=request.form.get("telefon", "").strip() or None,
         datum=datum,
         cas_od=request.form.get("cas_od", "").strip() or None,
         cas_do=request.form.get("cas_do", "").strip() or None,
         opomba=request.form.get("opomba", "").strip() or None,
-        status="potrjena",
-        zaposleni_id=current_user.id,
+        status="potrjena", zaposleni_id=current_user.id,
     )
     db.session.add(r)
     db.session.commit()
@@ -235,7 +225,7 @@ def rez_izbrisi(vrsta, rez_id):
     return redirect(url_for("moto.storitev", vrsta=vrsta, tab="rezervacije"))
 
 
-# ── Beležka (samo moto osobje) ───────────────────────────────────────────────
+# ── Beležka ───────────────────────────────────────────────────────────────────
 
 @moto_bp.route("/belezka")
 @login_required
@@ -269,11 +259,3 @@ def belezka_izbrisi(zapis_id):
     db.session.commit()
     flash("Zapis izbrisan.", "info")
     return redirect(url_for("moto.belezka"))
-
-
-# ── Platform select ───────────────────────────────────────────────────────────
-
-@moto_bp.route("/platforma")
-@login_required
-def platform_select():
-    return render_template("platform_select.html")
