@@ -296,10 +296,6 @@ def _seed_kupec(db, User):
         print("✅  Ustvarjen kupec 'bartog' (Bartog Ajdovščina, geslo Bartog123!).")
 
 
-app = create_app()
-
-if __name__ == "__main__":
-    app.run(debug=True)
 
 
 def _seed_moto_staff(db, User):
@@ -319,3 +315,9 @@ def _seed_moto_staff(db, User):
     if created:
         db.session.commit()
         print(f"✅ Ustvarjeni moto zaposleni: {', '.join(created)} (geslo Moto123!).")
+
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
