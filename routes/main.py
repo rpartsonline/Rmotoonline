@@ -42,9 +42,6 @@ def dashboard():
     # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
         return redirect(url_for("main.kupec_home"))
-    # Če je izbrana moto platforma → moto naročila
-    if session.get("platform") == "moto":
-        return redirect(url_for("moto.narocila"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
