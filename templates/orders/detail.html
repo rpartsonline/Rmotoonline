@@ -65,6 +65,11 @@
     </div>
   </div>
   <div class="d-flex gap-2 no-print">
+    {% if kind == 'povprasevanje' and current_user.role != 'kupec' %}
+    <button type="button" onclick="posljiPovprasevanjeMail()" class="btn btn-success btn-sm">
+      <i class="bi bi-envelope-arrow-up me-1"></i>Pošlji po mailu
+    </button>
+    {% endif %}
     <a href="{{ list_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Nazaj
     </a>
@@ -559,6 +564,84 @@
 // novega naročila, da se pri naslednjem "Novo naročilo" ne obnovijo stari podatki.
 try { sessionStorage.removeItem("rmoto_new_order_draft"); } catch (e) {}
 </script>
+
+{% if kind == 'povprasevanje' and current_user.role != 'kupec' %}
+<script>
+// ── Pošlji povpraševanje po e-pošti (odpre e-poštni program) ──────────────────
+// Vključi SAMO podatke o vozilu, VIN/šasijo in kataloške postavke.
+// NE vključi nobenih podatkov o stranki (ime, telefon, e-pošta, naslov).
+window.INQUIRY_MAIL = {
+  stevilka: {{ order.order_number | tojson }},
+  vozilo: {
+    znamka:      {{ (order.vehicle.brand if order.vehicle else '') | tojson }},
+    model:       {{ (order.vehicle.model if order.vehicle else '') | tojson }},
+    letnik:      {{ (order.vehicle.year if (order.vehicle and order.vehicle.year) else '') | tojson }},
+    motor:       {{ (order.vehicle.engine_type if order.vehicle else '') | tojson }},
+    prostornina: {{ (order.vehicle.engine_displacement if order.vehicle else '') | tojson }},
+    moc:         {{ (order.vehicle.engine_power_kw if order.vehicle else '') | tojson }},
+    menjalnik:   {{ (order.vehicle.transmission if order.vehicle else '') | tojson }},
+    vin:         {{ (order.vehicle.vin if (order.vehicle and order.vehicle.vin) else '') | tojson }}
+  },
+  postavke: [
+    {% for item in order.items %}
+    {
+      naziv:    {{ item.description | tojson }},
+      ident:    {{ (item.bartog_id or '') | tojson }},
+      kolicina: {{ (item.quantity|int if item.quantity == item.quantity|int else item.quantity) | tojson }},
+      enota:    {{ (item.unit or '') | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  stSlik: {{ (order.images|length) if order.images else 0 }}
+};
+
+function posljiPovprasevanjeMail() {
+  var d = window.INQUIRY_MAIL;
+  var L = [];
+  L.push('Pozdravljeni,');
+  L.push('');
+  L.push('Prosim za ponudbo oz. preverbo razpoložljivosti spodnjih delov za to vozilo:');
+  L.push('');
+  L.push('VOZILO');
+  if (d.vozilo.znamka || d.vozilo.model)
+    L.push('- Vozilo: ' + [d.vozilo.znamka, d.vozilo.model].filter(Boolean).join(' '));
+  if (d.vozilo.letnik)      L.push('- Letnik: ' + d.vozilo.letnik);
+  if (d.vozilo.motor)       L.push('- Tip motorja: ' + d.vozilo.motor);
+  if (d.vozilo.prostornina) L.push('- Prostornina: ' + d.vozilo.prostornina + ' l');
+  if (d.vozilo.moc)         L.push('- Moč: ' + d.vozilo.moc + ' kW');
+  if (d.vozilo.menjalnik)   L.push('- Menjalnik: ' + d.vozilo.menjalnik);
+  if (d.vozilo.vin)         L.push('- VIN / šasijska št.: ' + d.vozilo.vin);
+  if (!(d.vozilo.znamka || d.vozilo.model || d.vozilo.vin)) L.push('- (podatki o vozilu niso vpisani)');
+  L.push('');
+  L.push('DELI / KATALOŠKE ŠTEVILKE');
+  if (d.postavke.length) {
+    d.postavke.forEach(function (p, i) {
+      var v = (i + 1) + '. ' + p.naziv;
+      if (p.ident)    v += '  |  kat. št.: ' + p.ident;
+      if (p.kolicina) v += '  |  kol.: ' + p.kolicina + (p.enota ? ' ' + p.enota : '');
+      L.push(v);
+    });
+  } else {
+    L.push('(ni vpisanih postavk)');
+  }
+  L.push('');
+  if (d.stSlik > 0) {
+    L.push('Opomba: k temu sporočilu prosim priložite ' + d.stSlik +
+           ' slik(o) vozila / prometnega dovoljenja (ročno pripnite iz naročila).');
+    L.push('');
+  }
+  L.push('Hvala in lep pozdrav,');
+  L.push('Bartog Ajdovščina');
+
+  var subject = 'Povpraševanje ' + d.stevilka +
+    ((d.vozilo.znamka || d.vozilo.model) ? ' – ' + [d.vozilo.znamka, d.vozilo.model].filter(Boolean).join(' ') : '');
+  var href = 'mailto:?subject=' + encodeURIComponent(subject) +
+             '&body=' + encodeURIComponent(L.join('\r\n'));
+  window.location.href = href;
+}
+</script>
+{% endif %}
+
 <script>
 const UNIT_OPTIONS = `{% for u in item_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}`;
 
