@@ -172,22 +172,51 @@
 
 <!-- Plavajoči oblački (samo zaposleni/admin) -->
 {% if current_user.role != 'kupec' %}
-<!-- Plavajoč oblaček: nova naročila -->
+<style>
+  /* Plavajoči oblački – samostojno pozicioniranje (zloženi desno spodaj) */
+  .new-orders-badge, .delivery-badge, .notes-badge {
+    position: fixed !important; right: 22px !important; z-index: 1050;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 11px 18px; border-radius: 40px; color: #fff !important;
+    text-decoration: none; font-weight: 700; font-size: .95rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  }
+  .new-orders-badge .nob-count, .delivery-badge .nob-count, .notes-badge .nob-count {
+    background: rgba(255,255,255,.28); border-radius: 999px;
+    min-width: 24px; height: 24px; padding: 0 7px;
+    display: inline-flex; align-items: center; justify-content: center; font-size: .85rem;
+  }
+  .new-orders-badge { bottom: 22px !important;  background: #2563eb !important; }  /* modra */
+  .delivery-badge   { bottom: 82px !important;  background: #f59e0b !important; }  /* privzeto oranžna (dan prej) */
+  .delivery-badge.is-red { background: #ef4444 !important; }                      /* rdeča (na dan dobave) */
+  .notes-badge      { bottom: 142px !important; background: #16a34a !important; } /* zelena */
+</style>
+
+<!-- Oblaček: nova naročila -->
 <a href="{{ url_for('orders.list_orders', status='novo') }}" id="new-orders-badge"
-   class="new-orders-badge" title="Nova naročila"
+   class="new-orders-badge" title="Novo naročilo"
    style="{% if not new_orders_count %}display:none;{% endif %}">
   <i class="bi bi-bell-fill"></i>
-  <span class="nob-text">Nova naročila</span>
+  <span class="nob-text">Novo naročilo</span>
   <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
 </a>
 
-<!-- Plavajoč oblaček: dobava materiala -->
+<!-- Oblaček: dostava dela (povpraševanja) – oranžna dan prej, rdeča na dan dobave -->
 <a href="{{ url_for('orders.list_inquiries', status='narocena_caka') }}" id="delivery-badge"
-   class="delivery-badge {% if delivery_alert_red %}is-red{% endif %}" title="Dobava materiala"
+   class="delivery-badge {% if delivery_alert_red %}is-red{% endif %}" title="Dostava dela"
    style="{% if not delivery_alert_count %}display:none;{% endif %}">
   <i class="bi bi-truck"></i>
-  <span class="nob-text">Dobava materiala</span>
+  <span class="nob-text">Dostava dela</span>
   <span class="nob-count" id="delivery-count">{{ delivery_alert_count }}</span>
+</a>
+
+<!-- Oblaček: obdelana beležka (moja beležka, ki jo je sodelavec potrdil) -->
+<a href="{{ url_for('notes.list_notes') }}" id="notes-badge"
+   class="notes-badge" title="Beležka obdelana"
+   style="{% if not my_notes_done_count %}display:none;{% endif %}">
+  <i class="bi bi-journal-check"></i>
+  <span class="nob-text">Beležka obdelana</span>
+  <span class="nob-count" id="notes-done-count">{{ my_notes_done_count }}</span>
 </a>
 {% endif %}
 
@@ -222,6 +251,22 @@
           badge.classList.toggle('is-red', !!d.red);
           badge.style.display = '';
         } else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 60000);
+  })();
+
+  (function () {
+    const url = "{{ url_for('main.notes_done_count') }}";
+    const badge = document.getElementById('notes-badge');
+    const cnt = document.getElementById('notes-done-count');
+    if (!badge || !cnt) return;
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
       } catch (e) {}
     }
     setInterval(poll, 60000);

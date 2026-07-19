@@ -213,3 +213,18 @@ def delivery_alert():
         "count": len(due),
         "red": any(o.delivery_date <= today for o in due),
     })
+
+
+@main_bp.route("/api/notes-done-count")
+@login_required
+def notes_done_count():
+    """Št. mojih beležk, ki jih je sodelavec potrdil kot urejene in jih še nisem videl."""
+    from models import Note
+    cnt = 0
+    try:
+        cnt = Note.query.filter_by(
+            created_by_id=current_user.id, done=True,
+            creator_seen_done=False).count()
+    except Exception:
+        pass
+    return jsonify({"count": cnt})

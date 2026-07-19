@@ -112,6 +112,17 @@ def create_app():
             done_notif_count = Note.query.filter_by(done=True).count()
         except Exception:
             pass
+        # Moje beležke, ki jih je sodelavec potrdil kot urejene in jih še nisem videl
+        my_notes_done_count = 0
+        try:
+            from flask_login import current_user
+            from models import Note
+            if current_user.is_authenticated:
+                my_notes_done_count = Note.query.filter_by(
+                    created_by_id=current_user.id, done=True,
+                    creator_seen_done=False).count()
+        except Exception:
+            pass
         return {
             "new_orders_count": new_count,
             "delivery_alert_count": deliv_count,
@@ -119,6 +130,7 @@ def create_app():
             "kupec_notif_count": kupec_notif,
             "note_notif_count": note_notif_count,
             "done_notif_count": done_notif_count,
+            "my_notes_done_count": my_notes_done_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
