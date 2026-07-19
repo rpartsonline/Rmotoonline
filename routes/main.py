@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, jsonify, redirect, url_for, request, session
 from flask_login import login_required, current_user
-from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, Note, NOTE_PEOPLE, INQUIRY_STATUSES
+from models import Order, Customer, Vehicle, STATUS_DICT, INQUIRY_STATUSES, INQUIRY_STATUS_DICT, Note, NOTE_PEOPLE
 
 main_bp = Blueprint("main", __name__)
 
@@ -102,7 +102,6 @@ def dashboard():
     ).count()
 
     # Povpraševanja po statusih
-    from models import INQUIRY_STATUSES, INQUIRY_STATUS_DICT
     inquiry_status_counts = {}
     for key, label, color in INQUIRY_STATUSES:
         count = Order.query.filter_by(kind="povprasevanje", status=key).count()
