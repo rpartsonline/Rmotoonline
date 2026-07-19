@@ -105,9 +105,11 @@ def create_app():
         except Exception:
             pass
         note_notif_count = 0
+        done_notif_count = 0
         try:
             from models import Note
             note_notif_count = Note.query.filter_by(done=False).count()
+            done_notif_count = Note.query.filter_by(done=True).count()
         except Exception:
             pass
         return {
@@ -116,6 +118,7 @@ def create_app():
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
             "note_notif_count": note_notif_count,
+            "done_notif_count": done_notif_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
