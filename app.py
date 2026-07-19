@@ -105,11 +105,9 @@ def create_app():
         except Exception:
             pass
         note_notif_count = 0
-        done_notif_count = 0
         try:
             from models import Note
             note_notif_count = Note.query.filter_by(done=False).count()
-            done_notif_count = Note.query.filter_by(done=True).count()
         except Exception:
             pass
         return {
@@ -118,7 +116,6 @@ def create_app():
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
             "note_notif_count": note_notif_count,
-            "done_notif_count": done_notif_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────
@@ -133,7 +130,6 @@ def create_app():
     from routes.staff import staff_bp
     from routes.complaints import complaints_bp
     from routes.create_accounts import create_acc_bp
-    from routes.moto import moto_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -146,7 +142,6 @@ def create_app():
     app.register_blueprint(staff_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(create_acc_bp)
-    app.register_blueprint(moto_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -172,7 +167,6 @@ def create_app():
         _seed_admin(db, User)
         _seed_staff(db, User)
         _seed_kupec(db, User)
-        _seed_moto_staff(db, User)
 
     return app
 
@@ -305,20 +299,6 @@ def _seed_kupec(db, User):
         print("✅  Ustvarjen kupec 'bartog' (Bartog Ajdovščina, geslo Bartog123!).")
 
 
-
-def _seed_moto_staff(db, User):
-    """Ustvari moto zaposlena Mojca in Ervin."""
-    staff = [("mojca", "Mojca Čermelj"), ("ervin", "Ervin Nemec")]
-    created = []
-    for username, full_name in staff:
-        if not User.query.filter_by(username=username).first():
-            u = User(username=username, full_name=full_name, is_admin=False)
-            u.set_password(os.environ.get("MOTO_STAFF_PASSWORD", "Moto123!"))
-            db.session.add(u)
-            created.append(username)
-    if created:
-        db.session.commit()
-        print(f"✅ Moto zaposleni: {', '.join(created)}")
 
 
 app = create_app()
