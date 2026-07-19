@@ -632,6 +632,12 @@ def update_status(order_id):
     if new_status == "naroceno":
         order.notify_customer = True
         telefon = order.customer.phone if order.customer else None
+        cust_name = order.customer.name if order.customer else "?"
+        has_key = bool(os.environ.get("INFOBIP_API_KEY"))
+        has_url = bool(os.environ.get("INFOBIP_BASE_URL"))
+        print(f"[NAROCENO] {order.order_number} | stranka='{cust_name}' | "
+              f"telefon='{telefon}' | INFOBIP_API_KEY={'da' if has_key else 'NE'} | "
+              f"INFOBIP_BASE_URL={'da' if has_url else 'NE'}")
         if telefon:
             send_sms(telefon,
                 "Pozdravljeni! Vaše naročilo je bilo uspešno obdelano. "
@@ -640,6 +646,9 @@ def update_status(order_id):
                 "Hvala za vaše zaupanje!\n"
                 "Ekipa Bartog Ajdovščina"
             )
+        else:
+            print(f"[NAROCENO] SMS NI poslan – stranka '{cust_name}' nima "
+                  f"vpisane telefonske številke.")
 
     order.status     = new_status
     order.updated_at = datetime.utcnow()
