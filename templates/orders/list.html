@@ -160,10 +160,21 @@
           <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
           <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
-            <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-eye"></i>
-            </a>
+            <div class="d-flex gap-1 justify-content-end">
+              <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
+                 class="btn btn-sm btn-outline-primary" title="Odpri naročilo">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if current_user.is_admin %}
+              <form method="POST" action="{{ url_for('orders.delete_order', order_id=o.id) }}"
+                    class="d-inline m-0"
+                    onsubmit="return confirm('Izbrisati naročilo {{ o.order_number }} ({{ o.customer.name }})?\nTega dejanja ni mogoče razveljaviti.');">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Izbriši naročilo">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% else %}
