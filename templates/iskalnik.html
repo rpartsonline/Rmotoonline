@@ -91,20 +91,26 @@
 // Privzeti dobavitelji. {koda} se zamenja z vpisano kodo.
 // type: 'url' = odpre z vgrajeno kodo | 'paste' = odpre stran, kodo prilepiš
 var PRIVZETI = [
-  { ime: 'Euroton',        url: 'https://euroton.si/avtodeli/TdCatalogueAlt.aspx', type: 'paste' },
-  { ime: 'Parts Europe',   url: 'https://www.partseurope.eu/search?q={koda}',      type: 'url' },
-  { ime: 'VDM',            url: 'https://www.vdm.si/',                              type: 'paste' },
-  { ime: 'Apollo',         url: 'https://www.apollo.si/',                          type: 'paste' },
-  { ime: 'orderusedcarparts', url: 'https://www.orderusedcarparts.com/?s={koda}',  type: 'url' },
+  { ime: 'KA3',          url: 'https://www.google.com/search?q=KA3+avtodeli+{koda}',        type: 'url' },
+  { ime: 'GMT',          url: 'https://www.google.com/search?q=GMT+avtodeli+{koda}',        type: 'url' },
+  { ime: 'C.I.A.K',      url: 'https://www.ciak.hr/',           type: 'paste' },
+  { ime: 'Tokić',        url: 'https://webshop.tokic.hr/',      type: 'paste' },
+  { ime: 'Auto Partner', url: 'https://www.autopartner.com/',   type: 'paste' },
+  { ime: 'Profi Auto',   url: 'https://www.profiauto.pl/',      type: 'paste' },
+  { ime: 'Auto Kelly',   url: 'https://www.autokelly.cz/',      type: 'paste' },
+  { ime: 'Auto Roma',    url: 'https://www.google.com/search?q=Auto+Roma+avtodeli+{koda}',  type: 'url' },
+  { ime: 'Inter Cars',   url: 'https://www.intercars.eu/',      type: 'paste' },
+  { ime: 'Voza',         url: 'https://www.google.com/search?q=Voza+avtodeli+{koda}',       type: 'url' },
+  { ime: 'Romunija',     url: 'https://www.google.com/search?q=avtodeli+Romunija+{koda}',   type: 'url' },
 ];
 
 function loadDobavitelji() {
   var saved = null;
-  try { saved = JSON.parse(sessionStorage.getItem('dobavitelji')); } catch(e) {}
+  try { saved = JSON.parse(sessionStorage.getItem('dobavitelji_v2')); } catch(e) {}
   return (saved && saved.length) ? saved : PRIVZETI.slice();
 }
 function saveDobavitelji(list) {
-  try { sessionStorage.setItem('dobavitelji', JSON.stringify(list)); } catch(e) {}
+  try { sessionStorage.setItem('dobavitelji_v2', JSON.stringify(list)); } catch(e) {}
 }
 
 var DOBAVITELJI = loadDobavitelji();
