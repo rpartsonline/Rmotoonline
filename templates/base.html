@@ -96,6 +96,12 @@
         <i class="bi bi-person-gear"></i><span>Uporabniki</span>
       </a>
     </li>
+    <li>
+      <a href="{{ url_for('main.iskalnik_dobaviteljev') }}"
+         class="sb-link {% if request.endpoint == 'main.iskalnik_dobaviteljev' %}active{% endif %}">
+        <i class="bi bi-search"></i><span>Iskalnik avtodelov</span>
+      </a>
+    </li>
     {% endif %}
   </ul>
 
