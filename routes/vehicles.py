@@ -154,19 +154,37 @@ def edit_vehicle(vehicle_id):
 @login_required
 def api_models(make):
     make_q = _strip_diacritics(make).strip()
-    url = f"{VPIC_BASE}/getmodelsformake/{urllib.parse.quote(make_q)}?format=json"
-    try:
+
+    def _fetch_models(url):
         req = urllib.request.Request(url, headers={"User-Agent": "narocilnice"})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read().decode())
-        names = sorted({
+        return {
             (row.get("Model_Name") or "").strip()
             for row in data.get("Results", [])
             if row.get("Model_Name")
-        })
-        return jsonify({"ok": True, "models": names})
+        }
+
+    base_url = f"{VPIC_BASE}/getmodelsformake/{urllib.parse.quote(make_q)}?format=json"
+    # Samo motorna kolesa za to znamko – da jih lahko odštejemo (Avto platforma → brez motorjev)
+    moto_url = (f"{VPIC_BASE}/getmodelsformakeyear/make/"
+                f"{urllib.parse.quote(make_q)}/vehicletype/motorcycle?format=json")
+
+    try:
+        all_models = _fetch_models(base_url)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "models": []}), 502
+
+    # Odstrani motorna kolesa. Če ta poizvedba ne uspe, raje pokažemo vse
+    # (bolje kot da bi funkcija padla in ne bi bilo nobenih modelov).
+    try:
+        moto_models = _fetch_models(moto_url)
+    except Exception:
+        moto_models = set()
+
+    moto_lower = {m.lower() for m in moto_models}
+    names = sorted(m for m in all_models if m.lower() not in moto_lower)
+    return jsonify({"ok": True, "models": names})
 
 
 # ── API: razčlenjevanje VIN (vPIC) ────────────────────────────────────────────
