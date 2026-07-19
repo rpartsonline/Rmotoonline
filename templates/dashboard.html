@@ -63,6 +63,29 @@
   </div>
 </div>
 
+<!-- ── Stanje povpraševanj ─────────────────────────────────────────────────── -->
+<div class="tbl-card mb-4">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-chat-left-text me-2"></i>Stanje povpraševanj</h6>
+    <a href="{{ url_for('orders.list_inquiries') }}" class="btn btn-sm btn-outline-secondary">Vsa</a>
+  </div>
+  <div class="p-3">
+    <div class="row g-2">
+      {% for key, info in inquiry_status_counts.items() %}
+      <div class="col-6 col-md-3">
+        <a href="{{ url_for('orders.list_inquiries', status=key) }}" class="text-decoration-none">
+          <div class="d-flex align-items-center justify-content-between p-2 rounded"
+               style="background:#f8fafc; border:1px solid #e5eaf2;">
+            <span class="badge bg-{{ info.color }} badge-status">{{ info.label }}</span>
+            <span class="fw-bold text-dark">{{ info.count }}</span>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
 <div class="row g-3">
   <!-- Recent orders -->
   <div class="col-lg-7">

@@ -42,6 +42,9 @@ def dashboard():
     # Kupec ima svojo pozdravno stran
     if getattr(current_user, "role", "") == "kupec":
         return redirect(url_for("main.kupec_home"))
+    # Če je izbrana moto platforma → moto naročila
+    if session.get("platform") == "moto":
+        return redirect(url_for("moto.narocila"))
     start, end = _today_utc_range()
     today_orders = Order.query.filter_by(kind="narocilo").filter(
         Order.created_at >= start, Order.created_at < end
@@ -101,6 +104,13 @@ def dashboard():
         kind="narocilo", status="poslano_povprasevanje"
     ).count()
 
+    # Povpraševanja po statusih
+    from models import INQUIRY_STATUSES, INQUIRY_STATUS_DICT
+    inquiry_status_counts = {}
+    for key, label, color in INQUIRY_STATUSES:
+        count = Order.query.filter_by(kind="povprasevanje", status=key).count()
+        inquiry_status_counts[key] = {"label": label, "color": color, "count": count}
+
     return render_template(
         "dashboard.html",
         today_orders=today_orders,
@@ -118,6 +128,7 @@ def dashboard():
         note_counts=note_counts,
         recent_orders=recent_orders,
         pending_orders=pending_orders,
+        inquiry_status_counts=inquiry_status_counts,
     )
 
 
