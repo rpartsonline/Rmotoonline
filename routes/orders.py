@@ -35,9 +35,14 @@ def send_sms(telefon, sporocilo):
     if not api_key or not base_url:
         print("SMS ni poslan – manjka INFOBIP_API_KEY ali INFOBIP_BASE_URL")
         return False
+    # HTTPSConnection pričakuje SAMO gostitelja (brez https:// in brez poti).
+    # Če je v INFOBIP_BASE_URL shranjen cel URL (npr. https://xxxx.api.infobip.com),
+    # ga tukaj očistimo, da povezava ne pade tiho v izjemo → SMS se ne pošlje.
+    host = base_url.strip().replace("https://", "").replace("http://", "")
+    host = host.split("/")[0].strip().rstrip(":")
     try:
         import http.client, json as _json
-        conn = http.client.HTTPSConnection(base_url)
+        conn = http.client.HTTPSConnection(host, timeout=15)
         payload = _json.dumps({
             "messages": [{
                 "destinations": [{"to": telefon}],
@@ -53,10 +58,11 @@ def send_sms(telefon, sporocilo):
         conn.request("POST", "/sms/3/messages", payload, headers)
         res = conn.getresponse()
         data = res.read()
-        print(f"SMS status: {res.status}, odgovor: {data.decode('utf-8')[:200]}")
-        return res.status == 200
+        body = data.decode("utf-8", "replace")
+        print(f"SMS -> {telefon} | host={host} | status={res.status} | odgovor={body[:300]}")
+        return res.status in (200, 201)
     except Exception as e:
-        print(f"SMS izjema: {e}")
+        print(f"SMS izjema (host={host}): {e}")
         return False
 
 
