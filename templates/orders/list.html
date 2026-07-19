@@ -31,7 +31,7 @@
 <!-- ── Stat cards (kot na pregledu) ──────────────────────────────────────── -->
 {% if status_breakdown %}
 <div class="row g-3 mb-3">
-  {% for sb in status_breakdown %}{% if sb.key in ['novo', 'v_obdelavi'] %}
+  {% for sb in status_breakdown %}{% if sb.key != 'naroceno' %}
   <div class="col-4">
     <a href="?status={{ sb.key }}{% if kind == 'povprasevanje' %}&kind=povprasevanje{% endif %}" class="text-decoration-none">
       <div class="card border-0 shadow-sm h-100 p-3">
