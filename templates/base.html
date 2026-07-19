@@ -2,131 +2,19 @@
 <html lang="sl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<style>
-/* ═══ MOBILNA VERZIJA ═══════════════════════════════════════════════ */
-@media (max-width: 991px) {
-  /* Sidebar kot drsni overlay */
-  .sidebar {
-    position: fixed !important;
-    left: 0; top: 0; bottom: 0;
-    width: 260px !important;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    z-index: 1050;
-    box-shadow: 2px 0 20px rgba(0,0,0,0.3);
-  }
-  .sidebar.mobile-open { transform: translateX(0); }
-
-  /* Glavni del čez celo širino */
-  #main-wrap, .main-wrap {
-    margin-left: 0 !important;
-    width: 100% !important;
-  }
-
-  /* Temno ozadje ko je sidebar odprt */
-  .mobile-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1040;
-  }
-  .mobile-overlay.show { display: block; }
-
-  /* Topbar bolj kompakten */
-  .topbar { padding: 8px 12px !important; }
-
-  /* Vsebina manj robov */
-  .container-fluid { padding-left: 12px !important; padding-right: 12px !important; }
-
-  /* Naslovi manjši */
-  .page-hdr h1, h1 { font-size: 1.4rem !important; }
-
-  /* Kartice polna širina, večji razmik za prst */
-  .stat-card { padding: 16px !important; }
-  .stat-card .num { font-size: 1.8rem !important; }
-
-  /* Tabele: horizontalni scroll namesto stiskanja */
-  .table-responsive { -webkit-overflow-scrolling: touch; }
-  table { font-size: 0.85rem; }
-  .table td, .table th { padding: 8px 6px !important; }
-
-  /* Gumbi večji za dotik */
-  .btn { min-height: 40px; }
-  .btn-sm { min-height: 34px; }
-
-  /* Obrazci: polja večja, lažji vnos */
-  .form-control, .form-select { font-size: 16px !important; min-height: 42px; }
-  /* 16px prepreči auto-zoom na iOS */
-
-  /* Oblački manjši in nižje */
-  .notif-bubble { font-size: 0.8rem !important; padding: 8px 14px 8px 12px !important; }
-
-  /* Skrij dolge nize besedila v tabelah */
-  .hide-mobile { display: none !important; }
-}
-
-/* Hamburger vedno viden na mobilnem */
-@media (max-width: 991px) {
-  .topbar-toggle { display: flex !important; }
-}
-
-/* ── Izboljšana mobilna verzija ──────────────────────────────────────── */
-@media (max-width: 767px) {
-  /* Večji tap-tarči za prste */
-  .sb-link { padding: 14px 18px !important; font-size: 1.05rem; }
-  .btn { min-height: 44px; }
-  .btn-sm { min-height: 38px; }
-
-  /* Page header manjši na mobilnem */
-  .page-hdr h1 { font-size: 1.4rem; }
-  .page-hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .page-hdr .btn { width: 100%; }
-
-  /* Tabele: horizontalni scroll namesto stiskanja */
-  .table-responsive { -webkit-overflow-scrolling: touch; }
-  table { font-size: 0.88rem; }
-  th, td { padding: 8px 6px !important; white-space: nowrap; }
-
-  /* Kartice polna širina */
-  .stat-card { padding: 16px !important; }
-  .stat-card .num { font-size: 1.8rem; }
-
-  /* Form polja večja */
-  .form-control, .form-select { min-height: 44px; font-size: 1rem; }
-  input[type="text"], input[type="tel"], input[type="email"], textarea { font-size: 16px !important; } /* prepreči zoom na iOS */
-
-  /* Oblački manjši na mobilnem */
-  .notif-bubble { padding: 8px 14px 8px 12px !important; font-size: 0.82rem !important; }
-
-  /* Filter forme: vsak element polno širino */
-  .card-plain .row > [class*="col-"] { margin-bottom: 8px; }
-
-  /* Modali polna širina */
-  .modal-dialog { margin: 8px; }
-
-  /* Breadcrumb manjši */
-  .breadcrumb { font-size: 0.8rem; }
-
-  /* Skrij manj pomembne stolpce v tabelah (če ima .hide-mobile) */
-  .hide-mobile { display: none !important; }
-}
-
-/* Zelo majhni zasloni (telefoni pokončno) */
-@media (max-width: 480px) {
-  .content-wrap, .main-content { padding: 12px !important; }
-  .tbl-card, .form-section, .card-plain { border-radius: 10px; }
-  .page-hdr h1 { font-size: 1.25rem; }
-  h1 { font-size: 1.3rem; }
-  h4 { font-size: 1.1rem; }
-}
-
-/* Boljši scroll za sidebar na mobilnem */
-@media (max-width: 991px) {
-  .sidebar { overflow-y: auto; -webkit-overflow-scrolling: touch; }
-}
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Naročilnice{% endblock %} – R-MotoShop</title>
+
+  <!-- PWA: namestljiva ikona na telefon/računalnik -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#1e293b">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bartog">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -135,59 +23,43 @@
 <body>
 
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
-{% set platform = session.get('platform', 'avto') %}
-
-
-<!-- ── AVTO SIDEBAR (original) ───────────────────────────────────────────── -->
 <nav class="sidebar" id="sidebar">
   <div class="sb-header">
-    <div style="line-height:1.1;">
-      <div style="font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:1px;">BARTOG</div>
-      <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;">Ajdovščina</div>
-    </div>
-    <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+    <a href="{{ url_for('main.dashboard') }}" class="sb-brand-link" title="Začetna stran">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Bartog Ajdovščina" class="sb-logo">
+      <i class="bi bi-wrench-adjustable-circle-fill sb-logo-mark"></i>
+    </a>
   </div>
+
   <ul class="sb-nav">
+    {% if current_user.role != 'kupec' %}
     <li>
       <a href="{{ url_for('main.dashboard') }}"
-         class="sb-link {% if request.endpoint == 'main.dashboard' %}active">
+         class="sb-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
         <i class="bi bi-speedometer2"></i><span>Pregled</span>
       </a>
     </li>
+    {% endif %}
     <li>
       <a href="{{ url_for('orders.list_orders') }}"
-         class="sb-link {% if request.endpoint == 'orders.list_orders' or request.endpoint == 'orders.new_order' or request.endpoint == 'orders.order_detail' %}active{% endif %}">
+         class="sb-link {% if request.endpoint in ['orders.list_orders', 'orders.new_order'] %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
+        {% if current_user.role == 'kupec' and kupec_notif_count %}
+        <span class="badge bg-success rounded-pill ms-auto">{{ kupec_notif_count }}</span>
+        {% endif %}
       </a>
     </li>
     <li>
       <a href="{{ url_for('orders.list_inquiries') }}"
-         class="sb-link {% if request.endpoint == 'orders.list_inquiries' or request.endpoint == 'orders.new_inquiry' %}active{% endif %}">
-        <i class="bi bi-search"></i><span>Povpraševanje</span>
+         class="sb-link {% if request.endpoint in ['orders.list_inquiries', 'orders.new_inquiry'] %}active{% endif %}">
+        <i class="bi bi-chat-left-text"></i><span>Povpraševanja</span>
       </a>
     </li>
+    {% if current_user.role != 'kupec' %}
     <li>
       <a href="{{ url_for('notes.list_notes') }}"
          class="sb-link {% if request.endpoint and 'notes' in request.endpoint %}active{% endif %}">
         <i class="bi bi-journal-text"></i><span>Beležka</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.leave') }}"
-         class="sb-link {% if request.endpoint == 'staff.leave' or request.endpoint == 'staff.leave_list' %}active{% endif %}">
-        <i class="bi bi-calendar3"></i><span>Dopusti</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('staff.hours') }}"
-         class="sb-link {% if request.endpoint and 'hours' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-clock"></i><span>Ure</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('customers.list_customers') }}"
-         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
     <li>
@@ -197,17 +69,25 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('complaints.list_complaints') }}"
-         class="sb-link {% if request.endpoint and 'complaints' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
+      <a href="{{ url_for('staff.leave') }}"
+         class="sb-link {% if request.endpoint and request.endpoint.startswith('staff.leave') %}active{% endif %}">
+        <i class="bi bi-calendar2-week"></i><span>Dopusti</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('main.iskalnik_dobaviteljev') }}"
-         class="sb-link {% if request.endpoint == 'main.iskalnik_dobaviteljev' %}active{% endif %}">
-        <i class="bi bi-search"></i><span>Iskalnik dobaviteljev</span>
+      <a href="{{ url_for('staff.hours') }}"
+         class="sb-link {% if request.endpoint and 'staff.hours' in request.endpoint or request.endpoint == 'staff.save_hours' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i><span>Ure</span>
       </a>
     </li>
+    <li>
+      <a href="{{ url_for('customers.list_customers') }}"
+         class="sb-link {% if request.endpoint and 'customers' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-people"></i><span>Stranke</span>
+      </a>
+    </li>
+    {% endif %}
+
     {% if current_user.is_admin %}
     <li class="sb-section">Admin</li>
     <li>
@@ -216,9 +96,9 @@
         <i class="bi bi-person-gear"></i><span>Uporabniki</span>
       </a>
     </li>
-    <li class="sb-section">Platforma</li>
     {% endif %}
   </ul>
+
   <div class="sb-footer">
     <div class="sb-user">
       <i class="bi bi-person-circle"></i>
@@ -229,7 +109,6 @@
     </a>
   </div>
 </nav>
-{% endif %}
 
 <!-- ══ MAIN ════════════════════════════════════════════════════════════════ -->
 <div class="main-wrap" id="main-wrap">
@@ -243,15 +122,13 @@
       {% block breadcrumb %}{% endblock %}
     </nav>
     <div class="ms-auto d-flex align-items-center gap-2">
-      {% if request.endpoint and 'inquir' in request.endpoint %}
-      <a href="{{ url_for('orders.new_inquiry') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>Novo povpraševanje
-      </a>
-      {% else %}
       <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Novo naročilo
       </a>
-      {% endif %}
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-secondary d-md-none"
+         title="Odjava">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
     </div>
   </div>
 
@@ -277,107 +154,81 @@
 </div><!-- /main-wrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
-<div class="mobile-overlay" id="mobileOverlay"></div>
 <script>
   const sidebar  = document.getElementById('sidebar');
   const mainWrap = document.getElementById('main-wrap');
-  const overlay  = document.getElementById('mobileOverlay');
-
-  function isMobile() { return window.innerWidth <= 991; }
 
   document.getElementById('sbToggle').addEventListener('click', () => {
-    if (isMobile()) {
-      // Mobilni: odpri/zapri kot overlay
-      sidebar.classList.toggle('mobile-open');
-      if (overlay) overlay.classList.toggle('show');
-    } else {
-      // Desktop: collapse
-      sidebar.classList.toggle('collapsed');
-      if (mainWrap) mainWrap.classList.toggle('expanded');
-    }
+    sidebar.classList.toggle('collapsed');
+    mainWrap.classList.toggle('expanded');
   });
+</script>
 
-  // Klik na temno ozadje zapre sidebar
-  if (overlay) {
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('mobile-open');
-      overlay.classList.remove('show');
-    });
-  }
+<!-- Plavajoči oblački (samo zaposleni/admin) -->
+{% if current_user.role != 'kupec' %}
+<!-- Plavajoč oblaček: nova naročila -->
+<a href="{{ url_for('orders.list_orders', status='novo') }}" id="new-orders-badge"
+   class="new-orders-badge" title="Nova naročila"
+   style="{% if not new_orders_count %}display:none;{% endif %}">
+  <i class="bi bi-bell-fill"></i>
+  <span class="nob-text">Nova naročila</span>
+  <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
+</a>
 
-  // Klik na povezavo v sidebaru zapre meni (mobilni)
-  if (sidebar) {
-    sidebar.querySelectorAll('a').forEach(function(link) {
-      link.addEventListener('click', function() {
-        if (isMobile()) {
-          sidebar.classList.remove('mobile-open');
-          if (overlay) overlay.classList.remove('show');
-        }
-      });
+<!-- Plavajoč oblaček: dobava materiala -->
+<a href="{{ url_for('orders.list_inquiries', status='narocena_caka') }}" id="delivery-badge"
+   class="delivery-badge {% if delivery_alert_red %}is-red{% endif %}" title="Dobava materiala"
+   style="{% if not delivery_alert_count %}display:none;{% endif %}">
+  <i class="bi bi-truck"></i>
+  <span class="nob-text">Dobava materiala</span>
+  <span class="nob-count" id="delivery-count">{{ delivery_alert_count }}</span>
+</a>
+{% endif %}
+
+<script>
+  (function () {
+    const url = "{{ url_for('main.new_orders_count') }}";
+    const badge = document.getElementById('new-orders-badge');
+    const cnt = document.getElementById('new-orders-count');
+    if (!badge || !cnt) return;
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 30000);
+  })();
+
+  (function () {
+    const url = "{{ url_for('main.delivery_alert') }}";
+    const badge = document.getElementById('delivery-badge');
+    const cnt = document.getElementById('delivery-count');
+    if (!badge || !cnt) return;
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) {
+          cnt.textContent = d.count;
+          badge.classList.toggle('is-red', !!d.red);
+          badge.style.display = '';
+        } else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 60000);
+  })();
+</script>
+{% block extra_scripts %}{% endblock %}
+<script>
+  // Registracija service workerja (potreben za namestitev ikone)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     });
   }
 </script>
-{% block extra_scripts %}{% endblock %}
-
-<style>
-@keyframes pulse-red    { 0%,100%{box-shadow:0 4px 16px rgba(220,38,38,.4);}  50%{box-shadow:0 4px 28px rgba(220,38,38,.8);} }
-@keyframes pulse-orange { 0%,100%{box-shadow:0 4px 16px rgba(234,88,12,.4);}  50%{box-shadow:0 4px 28px rgba(234,88,12,.8);} }
-@keyframes pulse-yellow { 0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);} 50%{box-shadow:0 4px 28px rgba(245,158,11,.8);} }
-@keyframes pulse-green  { 0%,100%{box-shadow:0 4px 16px rgba(22,163,74,.4);}  50%{box-shadow:0 4px 28px rgba(22,163,74,.8);} }
-.notif-bubble { position:fixed; z-index:9999; border-radius:999px; padding:10px 18px 10px 14px;
-  text-decoration:none; font-weight:700; font-size:.88rem; color:#fff;
-  display:flex; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); }
-.notif-bubble .nb-count { background:rgba(255,255,255,.25); border-radius:999px;
-  padding:1px 8px; font-size:.85rem; font-weight:900; min-width:24px; text-align:center; }
-</style>
-
-{% set _nb_bottom = 24 %}
-
-{# ── Nova naročila ── #}
-{% if current_user.is_authenticated and current_user.role != 'kupec' and new_orders_count > 0 %}
-<a href="{{ url_for('orders.list_orders', status='novo') }}"
-   class="notif-bubble"
-   style="bottom:{{ _nb_bottom }}px; right:24px; background:#dc2626; animation:pulse-red 2s infinite;">
-  <i class="bi bi-bell-fill fs-6"></i> Nova naročila
-  <span class="nb-count">{{ new_orders_count }}</span>
-</a>
-{% set _nb_bottom = _nb_bottom + 64 %}
-{% endif %}
-
-{# ── Dostava jutri/danes ── #}
-{% if current_user.is_authenticated and current_user.role != 'kupec' and delivery_alert_count > 0 %}
-<a href="{{ url_for('orders.list_orders', status='narocena_caka') }}"
-   class="notif-bubble"
-   style="bottom:{{ _nb_bottom }}px; right:24px;
-          background:{% if delivery_alert_red %}#dc2626{% else %}#ea580c{% endif %};
-          animation:{% if delivery_alert_red %}pulse-red{% else %}pulse-orange{% endif %} 2s infinite;">
-  <i class="bi bi-truck fs-6"></i> Dostava
-  <span class="nb-count">{{ delivery_alert_count }}</span>
-</a>
-{% set _nb_bottom = _nb_bottom + 64 %}
-{% endif %}
-
-{# ── Beležke za zaposlenega (nove zame) ── #}
-{% if current_user.is_authenticated and current_user.role != 'kupec' and note_notif_count > 0 %}
-<a href="{{ url_for('notes.list_notes') }}"
-   class="notif-bubble"
-   style="bottom:{{ _nb_bottom }}px; right:24px; background:#f59e0b; animation:pulse-yellow 2s infinite;">
-  <i class="bi bi-journal-text fs-6"></i> Beležka
-  <span class="nb-count">{{ note_notif_count }}</span>
-</a>
-{% set _nb_bottom = _nb_bottom + 64 %}
-{% set _nb_bottom = _nb_bottom + 64 %}
-{% endif %}
-
-{# ── Povratna info: moje beležke so obdelane ── #}
-{% if current_user.is_authenticated and current_user.role != 'kupec' and done_notif_count > 0 %}
-<a href="{{ url_for('notes.list_notes') }}"
-   class="notif-bubble"
-   style="bottom:{{ _nb_bottom }}px; right:24px; background:#16a34a; animation:pulse-green 2s infinite;">
-  <i class="bi bi-check-circle-fill fs-6"></i> Beležka obdelana
-  <span class="nb-count">{{ done_notif_count }}</span>
-</a>
-{% endif %}
-
 </body>
 </html>
