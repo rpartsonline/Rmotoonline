@@ -529,6 +529,11 @@
 
 {% block extra_scripts %}
 <script>
+// Naročilo je uspešno ustvarjeno (prišli smo na podrobnosti) → počisti osnutek
+// novega naročila, da se pri naslednjem "Novo naročilo" ne obnovijo stari podatki.
+try { sessionStorage.removeItem("rmoto_new_order_draft"); } catch (e) {}
+</script>
+<script>
 const UNIT_OPTIONS = `{% for u in item_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}`;
 
 function addItemRow() {

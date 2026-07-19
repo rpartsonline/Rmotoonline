@@ -175,13 +175,13 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Znamka *</label>
       <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off" list="nv_brand_dl">
+             placeholder="Začni tipkati…" autocomplete="off">
       <datalist id="nv_brand_dl"></datalist>
     </div>
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Model *</label>
       <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
-             placeholder="Začni tipkati…" autocomplete="off" list="nv_model_dl">
+             placeholder="Začni tipkati…" autocomplete="off">
       <datalist id="nv_model_dl"></datalist>
     </div>
     <div class="col-md-2">
@@ -1127,23 +1127,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return false;
     }
 
-<<<<<<< HEAD
-    // Nastavi telefon stranke (če kupec ustvarja novo stranko - bartog brez linked_customer_id)
-    var custIdInp = form.querySelector('input[name="customer_id"]');
-    if (custIdInp && custIdInp.value === 'new') {
-      var phoneHid = form.querySelector('input[name="new_customer_phone"]');
-      if (!phoneHid) {
-        phoneHid = document.createElement('input');
-        phoneHid.type = 'hidden';
-        phoneHid.name = 'new_customer_phone';
-        form.appendChild(phoneHid);
-      }
-      phoneHid.value = tel;
-      // Nastavi tudi ime stranke iz kontaktnih podatkov
-      var nameHid = form.querySelector('input[name="new_customer_name"]');
-      if (nameHid && !nameHid.value) nameHid.value = ime;
-    }
-=======
     // Za kupce: server vedno zahteva new_customer_name + new_customer_phone
     // (is_kupec vedno ustvari novo stranko, ne glede na linked_customer_id)
     var phoneHid = form.querySelector('input[name="new_customer_phone"]');
@@ -1163,15 +1146,12 @@ document.addEventListener('DOMContentLoaded', function() {
       form.appendChild(nameHid);
     }
     nameHid.value = ime;
->>>>>>> parent of e54d725 (frgggre)
 
     // Vstavi kontaktne podatke v notes polje
     var notesFields = form.querySelectorAll('textarea[name="notes"], input[name="notes"]');
-    var kontaktInfo = '▶ Kontakt: ' + ime + ' | ' + tel + (email ? ' | ' + email : '') + '
-';
+    var kontaktInfo = '▶ Kontakt: ' + ime + ' | ' + tel + (email ? ' | ' + email : '') + '\n';
     notesFields.forEach(function(f) {
-      f.value = kontaktInfo + (f.value ? '
-' + f.value : '');
+      f.value = kontaktInfo + (f.value ? '\n' + f.value : '');
     });
   });
 
@@ -1187,111 +1167,118 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <script>
-// ── Auto-save forme v sessionStorage ─────────────────────────────────────
-(function() {
-  var SAVE_KEY = 'rmoto_new_order_draft';
-  var form = document.getElementById('order-form');
+// ── Samodejno shranjevanje obrazca (osnutek) v sessionStorage ──────────────
+// Shrani VSA imenovana polja (tudi označene artikle in izbire) ob vsaki
+// spremembi in jih obnovi ob ponovnem izrisu obrazca (npr. ko strežnik
+// zavrne oddajo zaradi manjkajočega polja). Osnutek se počisti šele na
+// strani podrobnosti naročila (ob uspešno ustvarjenem naročilu).
+(function () {
+  var SAVE_KEY = "rmoto_new_order_draft";
+  var form = document.getElementById("order-form");
   if (!form) return;
 
-  // Polja za shranjevanje (statična)
-  var FIELDS = [
-    // Kontakt (kupec)
-    'kupec_ime', 'kupec_tel', 'kupec_email',
-    // Vozilo
-    'nv_brand', 'nv_model', 'nv_year', 'nv_engine', 'nv_fuel',
-    'new_vehicle_displacement', 'new_vehicle_power',
-    // VIN
-    'new_vehicle_vin',
-    // Stranka (ročni vnos)
-    'new_customer_name', 'new_customer_phone', 'new_customer_email', 'new_customer_address',
-    // Opomba
-    'notes'
-  ];
+  // Katere kontrole shranjujemo (datotek in gumbov ne moremo/ne želimo).
+  function fields() {
+    return Array.prototype.slice.call(
+      form.querySelectorAll("input[name], select[name], textarea[name]")
+    ).filter(function (el) {
+      var t = (el.type || "").toLowerCase();
+      return t !== "file" && t !== "button" && t !== "submit" && t !== "password";
+    });
+  }
 
   function saveForm() {
-    var data = {};
-    FIELDS.forEach(function(name) {
-      var el = document.getElementById(name) || form.querySelector('[name="' + name + '"]');
-      if (el) data[name] = el.value;
+    var scalars = {};   // name -> value (text/select/textarea/hidden/number)
+    var checked = {};   // name -> [values] (checkbox/radio)
+    var multi = {};     // name (konča z []) -> [values]
+    fields().forEach(function (el) {
+      var t = (el.type || "").toLowerCase();
+      var name = el.name;
+      if (t === "checkbox" || t === "radio") {
+        if (el.checked) { (checked[name] = checked[name] || []).push(el.value); }
+        else if (!(name in checked)) { checked[name] = checked[name] || []; }
+      } else if (name.slice(-2) === "[]") {
+        (multi[name] = multi[name] || []).push(el.value);
+      } else {
+        scalars[name] = el.value;
+      }
     });
-    // Shrani tudi trenutno izbrano stranko (text v searchboxu)
-    var custSearch = document.getElementById('customer-search');
-    if (custSearch) data['_customer_search'] = custSearch.value;
-    var custId = document.getElementById('customer-select');
-    if (custId) data['_customer_id'] = custId.value;
-
-    // Shrani postavke (vrstice)
-    var itemRows = [];
-    form.querySelectorAll('tbody tr[data-item-row], .item-row').forEach(function(row) {
-      var rowData = {};
-      row.querySelectorAll('input, select, textarea').forEach(function(inp) {
-        if (inp.name) rowData[inp.name] = inp.value;
-      });
-      if (Object.keys(rowData).length > 0) itemRows.push(rowData);
-    });
-    data['_item_rows'] = itemRows;
-
-    try { sessionStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+    try {
+      sessionStorage.setItem(SAVE_KEY, JSON.stringify(
+        { scalars: scalars, checked: checked, multi: multi }));
+    } catch (e) {}
   }
 
   function restoreForm() {
     var raw;
-    try { raw = sessionStorage.getItem(SAVE_KEY); } catch(e) {}
+    try { raw = sessionStorage.getItem(SAVE_KEY); } catch (e) {}
     if (!raw) return;
     var data;
-    try { data = JSON.parse(raw); } catch(e) { return; }
+    try { data = JSON.parse(raw); } catch (e) { return; }
+    if (!data) return;
+    var scalars = data.scalars || {};
+    var checked = data.checked || {};
+    var multi = data.multi || {};
+    var restoredSomething = false;
 
-    // Obnovi statična polja
-    FIELDS.forEach(function(name) {
-      var el = document.getElementById(name) || form.querySelector('[name="' + name + '"]');
-      if (el && data[name] !== undefined) {
-        el.value = data[name];
-        // Sproži brand update za vozilo
-        if (name === 'nv_brand' && data[name]) {
-          el.dispatchEvent(new Event('change'));
+    // Skalarna polja
+    Object.keys(scalars).forEach(function (name) {
+      var el = form.querySelector("[name=\"" + name + "\"]");
+      if (el && scalars[name] !== undefined && scalars[name] !== "") {
+        el.value = scalars[name];
+        restoredSomething = true;
+        if (name === "new_vehicle_brand" || el.id === "nv_brand") {
+          el.dispatchEvent(new Event("input"));
+          el.dispatchEvent(new Event("change"));
         }
       }
     });
 
-    // Obnovi stranka search
-    if (data['_customer_search']) {
-      var cs = document.getElementById('customer-search');
-      if (cs) cs.value = data['_customer_search'];
-    }
-    if (data['_customer_id']) {
-      var ci = document.getElementById('customer-select');
-      if (ci && ci.value === 'new') ci.value = data['_customer_id'];
-    }
+    // Checkbox / radio
+    Object.keys(checked).forEach(function (name) {
+      var vals = checked[name] || [];
+      form.querySelectorAll("[name=\"" + name + "\"]").forEach(function (el) {
+        var want = vals.indexOf(el.value) !== -1;
+        if (el.checked !== want) {
+          el.checked = want;
+          el.dispatchEvent(new Event("change"));
+          if (want) restoredSomething = true;
+        }
+      });
+    });
 
-    if (data['_item_rows'] && data['_item_rows'].length > 0) {
-      // Opozori uporabnika da so bili podatki obnovljeni
-      setTimeout(function() {
-        var info = document.createElement('div');
-        info.className = 'alert alert-info alert-dismissible fade show';
-        info.innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i><strong>Podatki obnovljeni</strong> — forma je bila avtomatično obnovljena iz prejšnjega vnosa. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    // Večvrstična polja (name konča z []): dodaj manjkajoče vrstice
+    Object.keys(multi).forEach(function (name) {
+      var vals = multi[name] || [];
+      var els = form.querySelectorAll("[name=\"" + name + "\"]");
+      for (var i = 0; i < vals.length; i++) {
+        if (els[i]) { els[i].value = vals[i]; if (vals[i]) restoredSomething = true; }
+      }
+    });
+
+    if (restoredSomething) {
+      setTimeout(function () {
+        if (document.getElementById("rmoto-restored-note")) return;
+        var info = document.createElement("div");
+        info.id = "rmoto-restored-note";
+        info.className = "alert alert-info alert-dismissible fade show";
+        info.innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i>' +
+          '<strong>Podatki obnovljeni</strong> — obrazec smo obnovili iz vašega ' +
+          'prejšnjega vnosa, da vam ni treba pisati znova.' +
+          '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
         form.insertBefore(info, form.firstChild);
       }, 300);
     }
   }
 
-  // Shrani ob vsaki spremembi
-  form.addEventListener('input', saveForm);
-  form.addEventListener('change', saveForm);
+  // Shrani ob vsaki spremembi (osnutek se NE briše ob oddaji – to počne
+  // stran s podrobnostmi naročila, ko je naročilo uspešno ustvarjeno).
+  form.addEventListener("input", saveForm);
+  form.addEventListener("change", saveForm);
 
-  // Počisti ob uspešnem oddajnem
-  form.addEventListener('submit', function() {
-    var imeEl = document.getElementById('kupec_ime');
-    var telEl = document.getElementById('kupec_tel');
-    var imeOk = !imeEl || imeEl.value.trim();
-    var telOk = !telEl || telEl.value.trim();
-    if (imeOk && telOk) {
-      try { sessionStorage.removeItem(SAVE_KEY); } catch(e) {}
-    }
-  });
-
-  // Obnovi ob nalaganju (malenkost zakasni za inicializacijo ostalega JS)
-  document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(restoreForm, 150);
+  // Obnovi ob nalaganju (malce zakasni, da se najprej inicializira ostali JS)
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(restoreForm, 200);
   });
 })();
 </script>
