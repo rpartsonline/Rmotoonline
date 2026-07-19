@@ -23,47 +23,76 @@ orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 # ── SMS helper (Infobip) ──────────────────────────────────────────────────────
 
 def send_sms(telefon, sporocilo):
+    """Pošlje SMS prek Infobip. Vrne (ok: bool, detail: str), kjer je detail
+    človeku berljiv razlog (za prikaz na zaslonu in v logu)."""
     if not telefon:
-        return False
-    telefon = telefon.replace(" ", "").replace("-", "")
-    if telefon.startswith("0"):
+        return (False, "stranka nima telefonske številke")
+    telefon = telefon.replace(" ", "").replace("-", "").replace("/", "")
+    if telefon.startswith("00"):
+        telefon = telefon[2:]
+    elif telefon.startswith("0"):
         telefon = "386" + telefon[1:]
     telefon = telefon.replace("+", "")
     api_key  = os.environ.get("INFOBIP_API_KEY")
     base_url = os.environ.get("INFOBIP_BASE_URL")
     sender   = os.environ.get("INFOBIP_SENDER", "38651300548")
     if not api_key or not base_url:
-        print("SMS ni poslan – manjka INFOBIP_API_KEY ali INFOBIP_BASE_URL")
-        return False
+        msg = "manjka INFOBIP_API_KEY ali INFOBIP_BASE_URL v nastavitvah strežnika (Render → Environment)"
+        print("SMS:", msg)
+        return (False, msg)
     # HTTPSConnection pričakuje SAMO gostitelja (brez https:// in brez poti).
-    # Če je v INFOBIP_BASE_URL shranjen cel URL (npr. https://xxxx.api.infobip.com),
-    # ga tukaj očistimo, da povezava ne pade tiho v izjemo → SMS se ne pošlje.
     host = base_url.strip().replace("https://", "").replace("http://", "")
     host = host.split("/")[0].strip().rstrip(":")
-    try:
-        import http.client, json as _json
+
+    import http.client, json as _json
+
+    def _post(path, payload_obj):
         conn = http.client.HTTPSConnection(host, timeout=15)
-        payload = _json.dumps({
-            "messages": [{
-                "destinations": [{"to": telefon}],
-                "sender": sender,
-                "content": {"text": sporocilo}
-            }]
-        })
         headers = {
             "Authorization": f"App {api_key}",
             "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Accept": "application/json",
         }
-        conn.request("POST", "/sms/3/messages", payload, headers)
+        conn.request("POST", path, _json.dumps(payload_obj), headers)
         res = conn.getresponse()
-        data = res.read()
-        body = data.decode("utf-8", "replace")
-        print(f"SMS -> {telefon} | host={host} | status={res.status} | odgovor={body[:300]}")
-        return res.status in (200, 201)
-    except Exception as e:
-        print(f"SMS izjema (host={host}): {e}")
-        return False
+        body = res.read().decode("utf-8", "replace")
+        conn.close()
+        return res.status, body
+
+    # Poskusi novejši endpoint; če vrne napačen format/404, poskusi še klasičnega.
+    attempts = [
+        ("/sms/3/messages", {
+            "messages": [{
+                "sender": sender,
+                "destinations": [{"to": telefon}],
+                "content": {"text": sporocilo},
+            }]
+        }),
+        ("/sms/2/text/advanced", {
+            "messages": [{
+                "from": sender,
+                "destinations": [{"to": telefon}],
+                "text": sporocilo,
+            }]
+        }),
+    ]
+
+    last = ""
+    for path, payload_obj in attempts:
+        try:
+            status, body = _post(path, payload_obj)
+        except Exception as e:
+            last = f"napaka povezave ({host}): {e}"
+            print("SMS izjema:", last)
+            continue
+        print(f"SMS -> {telefon} | {path} | status={status} | {body[:300]}")
+        if status in (200, 201):
+            return (True, f"poslan na {telefon}")
+        last = f"Infobip status {status}: {body[:160]}"
+        if status not in (400, 404):  # 400/404 → poskusi drug endpoint, sicer nehaj
+            break
+
+    return (False, last or "neznana napaka")
 
 
 ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
@@ -633,22 +662,22 @@ def update_status(order_id):
         order.notify_customer = True
         telefon = order.customer.phone if order.customer else None
         cust_name = order.customer.name if order.customer else "?"
-        has_key = bool(os.environ.get("INFOBIP_API_KEY"))
-        has_url = bool(os.environ.get("INFOBIP_BASE_URL"))
-        print(f"[NAROCENO] {order.order_number} | stranka='{cust_name}' | "
-              f"telefon='{telefon}' | INFOBIP_API_KEY={'da' if has_key else 'NE'} | "
-              f"INFOBIP_BASE_URL={'da' if has_url else 'NE'}")
+        print(f"[NAROCENO] {order.order_number} | stranka='{cust_name}' | telefon='{telefon}'")
         if telefon:
-            send_sms(telefon,
+            ok, detail = send_sms(telefon,
                 "Pozdravljeni! Vaše naročilo je bilo uspešno obdelano. "
                 "Naročene nadomestne dele lahko prevzamete osebno ali pa "
                 "vam jih dostavimo v okviru naših rednih dostavnih terminov.\n"
                 "Hvala za vaše zaupanje!\n"
                 "Ekipa Bartog Ajdovščina"
             )
+            if ok:
+                flash(f"SMS obvestilo poslano stranki ({detail}).", "success")
+            else:
+                flash(f"SMS NI bil poslan: {detail}", "warning")
         else:
-            print(f"[NAROCENO] SMS NI poslan – stranka '{cust_name}' nima "
-                  f"vpisane telefonske številke.")
+            flash(f"SMS NI bil poslan – stranka „{cust_name}“ nima vpisane "
+                  "telefonske številke. Dodaj jo na kartici stranke.", "warning")
 
     order.status     = new_status
     order.updated_at = datetime.utcnow()
