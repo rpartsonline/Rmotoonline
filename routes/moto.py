@@ -15,23 +15,13 @@ def moto_access_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not current_user.is_authenticated:
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("moto_auth.login"))
         if current_user.is_admin or current_user.full_name in MOTO_STAFF_NAMES:
             return f(*args, **kwargs)
         flash("Dostop samo za moto osobje.", "danger")
-        return redirect(url_for("main.dashboard"))
+        return redirect(url_for("moto_auth.login"))
     return decorated
 
-
-# ── Platform select ───────────────────────────────────────────────────────────
-
-@moto_bp.route("/platforma")
-@login_required
-def platform_select():
-    return render_template("platform_select.html")
-
-
-# ── Naročila ──────────────────────────────────────────────────────────────────
 
 @moto_bp.route("/")
 @login_required

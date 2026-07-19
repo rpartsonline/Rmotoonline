@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prijava – R-MotoShop</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{min-height:100vh;background:linear-gradient(135deg,#0f2117,#1a3a28);display:flex;align-items:center;justify-content:center;}
+    .login-card{background:#fff;border-radius:16px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#1a6b3c,#2e8b57);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px;}
+    .btn-moto{background:#2e8b57;border-color:#2e8b57;}
+    .btn-moto:hover{background:#1a6b3c;border-color:#1a6b3c;}
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo text-white fw-bold">🏍</div>
+    <h4 class="text-center fw-bold mb-1">R-MotoShop</h4>
+    <p class="text-center text-muted small mb-4">Ajdovščina — Moto platforma</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} py-2 small">{{ msg }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+    <form method="POST">
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Uporabniško ime</label>
+        <input type="text" name="username" class="form-control" autofocus required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Geslo</label>
+        <input type="password" name="password" class="form-control" required>
+      </div>
+      <div class="mb-3 form-check">
+        <input type="checkbox" name="remember" class="form-check-input" id="remember">
+        <label class="form-check-label small" for="remember">Zapomni si me</label>
+      </div>
+      <button type="submit" class="btn btn-moto btn-primary w-100 fw-bold">Prijava</button>
+    </form>
+  </div>
+</body>
+</html>
