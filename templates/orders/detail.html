@@ -442,6 +442,32 @@
           <input type="text" name="status_note" class="form-control form-control-sm"
                  placeholder="Opomba k spremembi (neobvezno)">
         </div>
+
+        <!-- Izbira SMS besedila (samo pri statusu „Naročeno") -->
+        <div class="mb-2" id="sms-field" style="display:none;">
+          <label class="form-label small fw-semibold text-primary mb-1">
+            <i class="bi bi-chat-dots me-1"></i>SMS stranki – izberi besedilo
+          </label>
+          <div class="d-flex flex-column gap-1">
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="1" class="form-check-input mt-1" checked>
+              <span><strong>Deli na zalogi</strong><br>
+                <span class="text-muted">Naročeni deli so vsi na zalogi v poslovalnici.</span></span>
+            </label>
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="2" class="form-check-input mt-1">
+              <span><strong>Danes po 13.00</strong><br>
+                <span class="text-muted">Deli pridejo danes po 13.00 v poslovalnico.</span></span>
+            </label>
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="3" class="form-check-input mt-1">
+              <span><strong>Naslednji delovni dan</strong><br>
+                <span class="text-muted">Deli pridejo naslednji delovni dan.</span></span>
+            </label>
+          </div>
+          <div class="form-text">Izbrani SMS se pošlje stranki ob potrditvi statusa.</div>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-sm w-100">
           <i class="bi bi-check-lg me-1"></i>Posodobi status
         </button>
@@ -559,12 +585,19 @@ function addItemRow() {
   const field = document.getElementById('delivery-field');
   const daySel = document.getElementById('delivery-select');
   const days = document.getElementById('delivery-days');
-  if (!sel || !field) return;
+  const smsField = document.getElementById('sms-field');
+  if (!sel) return;
 
   function toggle() {
-    const show = sel.value === 'narocena_caka';
-    field.style.display = show ? '' : 'none';
-    if (daySel) daySel.required = show;
+    if (field) {
+      const show = sel.value === 'narocena_caka';
+      field.style.display = show ? '' : 'none';
+      if (daySel) daySel.required = show;
+    }
+    // Izbira SMS besedila samo pri statusu „Naročeno"
+    if (smsField) {
+      smsField.style.display = (sel.value === 'naroceno') ? '' : 'none';
+    }
   }
   sel.addEventListener('change', toggle);
   toggle();

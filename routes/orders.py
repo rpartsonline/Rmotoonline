@@ -95,6 +95,32 @@ def send_sms(telefon, sporocilo):
     return (False, last or "neznana napaka")
 
 
+# ── SMS besedila ob statusu „Naročeno" (3 variante) ───────────────────────────
+
+# Srednji stavek se razlikuje glede na izbrano varianto; ostalo je enako.
+NAROCENO_SMS_SREDINA = {
+    "1": "Naročeni nadomestni deli so vsi na zalogi v poslovalnici "
+         "Bartog Ajdovščina.",
+    "2": "Naročeni nadomestni deli bodo prišli danes po 13.00 v našo "
+         "poslovalnico Bartog Ajdovščina.",
+    "3": "Naročeni nadomestni deli bodo prišli naslednji delovni dan v našo "
+         "poslovalnico Bartog Ajdovščina.",
+}
+
+
+def build_naroceno_sms(order_number, variant="1"):
+    """Sestavi SMS besedilo ob statusu „Naročeno" glede na izbrano varianto."""
+    sredina = NAROCENO_SMS_SREDINA.get(str(variant), NAROCENO_SMS_SREDINA["1"])
+    return (
+        f"Pozdravljeni! Vaše naročilo {order_number} je bilo uspešno obdelano. "
+        f"{sredina} "
+        "Naročene nadomestne dele lahko prevzamete osebno ali pa vam jih "
+        "dostavimo v okviru naših rednih dostavnih terminov.\n"
+        "Hvala za vaše zaupanje!\n"
+        "Ekipa Bartog Ajdovščina"
+    )
+
+
 ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
 
 
@@ -664,13 +690,9 @@ def update_status(order_id):
         cust_name = order.customer.name if order.customer else "?"
         print(f"[NAROCENO] {order.order_number} | stranka='{cust_name}' | telefon='{telefon}'")
         if telefon:
-            ok, detail = send_sms(telefon,
-                "Pozdravljeni! Vaše naročilo je bilo uspešno obdelano. "
-                "Naročene nadomestne dele lahko prevzamete osebno ali pa "
-                "vam jih dostavimo v okviru naših rednih dostavnih terminov.\n"
-                "Hvala za vaše zaupanje!\n"
-                "Ekipa Bartog Ajdovščina"
-            )
+            sms_text = build_naroceno_sms(order.order_number,
+                                          request.form.get("sms_variant", "1"))
+            ok, detail = send_sms(telefon, sms_text)
             if ok:
                 flash(f"SMS obvestilo poslano stranki ({detail}).", "success")
             else:
