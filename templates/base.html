@@ -86,6 +86,12 @@
         <i class="bi bi-people"></i><span>Stranke</span>
       </a>
     </li>
+    <li>
+      <a href="{{ url_for('complaints.list_complaints') }}"
+         class="sb-link {% if request.endpoint and 'complaints' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
+      </a>
+    </li>
     {% endif %}
 
     {% if current_user.is_admin %}
