@@ -157,11 +157,21 @@
         <i class="bi bi-clipboard-image me-1"></i>Prilepi (Ctrl+V)
       </button>
     </div>
-    <!-- Predogled prilepljene slike -->
+    <!-- Predogled slike VIN (shrani se k naročilu) -->
     <div id="nv_paste_preview" class="mt-2" style="display:none;">
-      <img id="nv_paste_img" style="max-height:120px; max-width:100%; border-radius:6px; border:1px solid #dee2e6;">
+      <div class="d-inline-block position-relative">
+        <img id="nv_paste_img" style="max-height:120px; max-width:100%; border-radius:6px; border:1px solid #dee2e6;">
+        <button type="button" id="nv_photo_del" title="Izbriši sliko"
+                class="btn btn-danger btn-sm"
+                style="position:absolute; top:4px; right:4px; padding:2px 7px; line-height:1; border-radius:6px;">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
       <span class="small text-muted ms-2" id="nv_paste_name"></span>
+      <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>Slika bo shranjena k naročilu.</div>
     </div>
+    <!-- Slika VIN se odda kot slika naročila (in se shrani) -->
+    <input type="file" id="vin_photo_store" name="order_images" multiple style="display:none">
     <div id="nv_status" class="small mt-2"></div>
     <div class="form-text">Fotografiraj, naloži sliko ali <strong>prilepi printscreen</strong> (Ctrl+V) prometnega dovoljenja – aplikacija prebere šasijsko številko.</div>
   </div>
@@ -615,6 +625,15 @@
       preview.style.display = '';
       if (previewName) previewName.textContent = file.name || 'slika';
     }
+    // Shrani sliko VIN, da se odda in shrani k naročilu (zadnja slika velja)
+    var vinStore = document.getElementById('vin_photo_store');
+    if (vinStore) {
+      try {
+        var vdt = new DataTransfer();
+        vdt.items.add(file);
+        vinStore.files = vdt.files;
+      } catch (e) {}
+    }
     optimizeImage(file).then(function(dataUrl) {
       return fetch(VIN_OCR_URL, {
         method: 'POST',
@@ -650,6 +669,18 @@
     if (photoMob)  photoMob.addEventListener('change',  function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
     if (photoDesk) photoDesk.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
     if (up)        up.addEventListener('change',        function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+
+    // IZBRIŠI sliko VIN (če je slaba) → počisti shranjeno sliko in predogled
+    var photoDel = document.getElementById('nv_photo_del');
+    if (photoDel) {
+      photoDel.addEventListener('click', function() {
+        var vinStore = document.getElementById('vin_photo_store');
+        if (vinStore) { try { vinStore.files = new DataTransfer().files; } catch (e) {} }
+        if (preview) preview.style.display = 'none';
+        if (previewImg) previewImg.src = '';
+        setStatus('<i class="bi bi-info-circle me-1"></i>Slika odstranjena. Lahko ponovno slikaš ali naložiš.', '#64748b');
+      });
+    }
 
     // FOTOGRAFIRAJ gumb
     var camBtn = document.getElementById('nv_vin_cam_btn');
