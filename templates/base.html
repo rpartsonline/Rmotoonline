@@ -2,7 +2,7 @@
 <html lang="sl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Naročilnice{% endblock %} – R-MotoShop</title>
 
   <!-- PWA: namestljiva ikona na telefon/računalnik -->
@@ -18,6 +18,46 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <style>
+    /* ── Varne mobilne izboljšave (dopolnjujejo obstoječi style.css) ───────── */
+    @media (max-width: 768px) {
+      /* iOS ne "zoomira" ob dotiku polj, če je pisava >=16px */
+      .form-control, .form-select, textarea, input[type="text"],
+      input[type="tel"], input[type="email"], input[type="number"], input[type="date"] {
+        font-size: 16px !important;
+      }
+      /* Udobnejši gumbi in tap-tarče */
+      .btn { padding-top: .5rem; padding-bottom: .5rem; }
+      .btn-sm { padding-top: .35rem; padding-bottom: .35rem; }
+      .sb-link { padding-top: .7rem !important; padding-bottom: .7rem !important; }
+      /* Tabele naj se vodoravno drsijo, ne razbijajo postavitve */
+      .table-responsive { -webkit-overflow-scrolling: touch; }
+      table { font-size: .92rem; }
+      /* Slike in vsebina naj ne uhajajo čez rob */
+      img, video, canvas { max-width: 100%; height: auto; }
+      .container-fluid { overflow-x: hidden; }
+      /* Manjši plavajoči oblački, da ne prekrivajo vsebine */
+      .new-orders-badge, .delivery-badge, .notes-badge {
+        right: 12px !important; padding: 9px 13px !important; font-size: .85rem !important;
+      }
+      .new-orders-badge { bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
+      .delivery-badge   { bottom: calc(66px + env(safe-area-inset-bottom)) !important; }
+      .notes-badge      { bottom: calc(120px + env(safe-area-inset-bottom)) !important; }
+      .nob-text { display: none; }   /* na telefonu pokaži samo ikono + število */
+    }
+    /* Varno območje ob zarezi (iPhone) */
+    @supports (padding: max(0px)) {
+      body { padding-bottom: env(safe-area-inset-bottom); }
+    }
+    /* Gumb za namestitev aplikacije */
+    #pwa-install-btn {
+      position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 1055; display: none; align-items: center; gap: 8px;
+      background: #2563eb; color: #fff; border: none; border-radius: 40px;
+      padding: 11px 18px; font-weight: 700; font-size: .92rem;
+      box-shadow: 0 8px 24px rgba(37,99,235,.35); cursor: pointer;
+    }
+  </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -286,6 +326,70 @@
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     });
   }
+</script>
+
+<!-- ── Namestitev aplikacije (PWA) ──────────────────────────────────────────── -->
+<button id="pwa-install-btn" type="button">
+  <i class="bi bi-download"></i><span>Namesti aplikacijo</span>
+</button>
+
+<!-- Navodila za iPhone / iPad (Safari nima samodejnega poziva) -->
+<div class="modal fade" id="iosInstallModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:14px">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-phone me-2"></i>Namesti na iPhone / iPad</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ol class="mb-0" style="line-height:1.9">
+          <li>V <b>Safariju</b> tapni gumb <b>Deli</b> <i class="bi bi-box-arrow-up"></i> (spodaj na sredini).</li>
+          <li>Podrsaj navzdol in izberi <b>Dodaj na začetni zaslon</b>.</li>
+          <li>Potrdi z <b>Dodaj</b> — ikona Bartog se pojavi na zaslonu telefona.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('pwa-install-btn');
+  if (!btn) return;
+
+  // Če že teče kot nameščena aplikacija → gumba ne kaži
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                     window.navigator.standalone === true;
+  if (isStandalone) { btn.style.display = 'none'; return; }
+
+  var deferredPrompt = null;
+
+  // Android / Chrome / Edge: prestreži sistemski poziv za namestitev
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.style.display = 'inline-flex';
+  });
+
+  // iOS Safari nima samodejnega poziva → pokaži navodila
+  var ua = (window.navigator.userAgent || '').toLowerCase();
+  var isIOS = /iphone|ipad|ipod/.test(ua);
+  if (isIOS) { btn.style.display = 'inline-flex'; }
+
+  btn.addEventListener('click', function () {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function () {
+        deferredPrompt = null; btn.style.display = 'none';
+      });
+    } else if (isIOS) {
+      var m = document.getElementById('iosInstallModal');
+      if (m && window.bootstrap) new bootstrap.Modal(m).show();
+    }
+  });
+
+  window.addEventListener('appinstalled', function () { btn.style.display = 'none'; });
+})();
 </script>
 </body>
 </html>
