@@ -352,6 +352,26 @@
   </div>
 </div>
 
+<!-- Navodila za Android (če ni samodejnega poziva) -->
+<div class="modal fade" id="androidInstallModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:14px">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-android2 me-2"></i>Namesti na telefon</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ol class="mb-0" style="line-height:1.9">
+          <li>Tapni gumb menija <b>⋮</b> (tri pike, zgoraj desno v brskalniku).</li>
+          <li>Izberi <b>Namesti aplikacijo</b> ali <b>Dodaj na začetni zaslon</b>.</li>
+          <li>Potrdi — ikona Bartog se pojavi na zaslonu telefona.</li>
+        </ol>
+        <p class="small text-muted mt-2 mb-0">Če te možnosti ni, uporabi brskalnik Chrome.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var btn = document.getElementById('pwa-install-btn');
@@ -363,18 +383,26 @@
   if (isStandalone) { btn.style.display = 'none'; return; }
 
   var deferredPrompt = null;
+  var ua = (window.navigator.userAgent || '').toLowerCase();
+  var isIOS = /iphone|ipad|ipod/.test(ua) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isMobile = /mobi|android|iphone|ipad|ipod/.test(ua);
 
-  // Android / Chrome / Edge: prestreži sistemski poziv za namestitev
+  function showModal(id) {
+    var m = document.getElementById(id);
+    if (m && window.bootstrap) new bootstrap.Modal(m).show();
+  }
+
+  // Android / Chrome / Edge: prestreži sistemski poziv za namestitev (če je na voljo)
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredPrompt = e;
     btn.style.display = 'inline-flex';
   });
 
-  // iOS Safari nima samodejnega poziva → pokaži navodila
-  var ua = (window.navigator.userAgent || '').toLowerCase();
-  var isIOS = /iphone|ipad|ipod/.test(ua);
-  if (isIOS) { btn.style.display = 'inline-flex'; }
+  // Gumb pokaži na VSEH mobilnih napravah takoj (tudi če poziv še ni na voljo).
+  // Na računalniku se pokaže šele, ko brskalnik ponudi namestitev (beforeinstallprompt).
+  if (isMobile) { btn.style.display = 'inline-flex'; }
 
   btn.addEventListener('click', function () {
     if (deferredPrompt) {
@@ -383,8 +411,9 @@
         deferredPrompt = null; btn.style.display = 'none';
       });
     } else if (isIOS) {
-      var m = document.getElementById('iosInstallModal');
-      if (m && window.bootstrap) new bootstrap.Modal(m).show();
+      showModal('iosInstallModal');
+    } else {
+      showModal('androidInstallModal');
     }
   });
 
