@@ -362,6 +362,7 @@ def _handle_new(kind):
     if request.method == "POST":
         f = request.form
         is_kupec = getattr(current_user, "role", "") == "kupec"
+        is_bartog = is_kupec and getattr(current_user, "username", "") == "bartog"
 
         # ── Telefon obstoječe stranke: shrani TAKOJ (ne glede na uspeh naročila) ──
         try:
@@ -391,10 +392,11 @@ def _handle_new(kind):
                 if not (_c.phone or "").strip():
                     errors.append("Izbrana stranka nima telefona – dopolni jo ali vpiši novo.")
         else:
-            if not f.get("new_customer_name", "").strip():
-                errors.append("Ime in priimek stranke sta obvezna.")
-            if not f.get("new_customer_phone", "").strip():
-                errors.append("Telefon stranke je obvezen.")
+            if is_bartog or not is_kupec:
+                if not f.get("new_customer_name", "").strip():
+                    errors.append("Ime in priimek stranke sta obvezna.")
+                if not f.get("new_customer_phone", "").strip():
+                    errors.append("Telefon stranke je obvezen.")
 
         # Znamka vozila obvezna SAMO pri naročilih
         if kind == "narocilo":
@@ -414,8 +416,8 @@ def _handle_new(kind):
             return _render_new_order_form(kind, form_data=request.form)
 
         # ── Stranka ──────────────────────────────────────────────────────────
-        if is_kupec:
-            # Kupec ne vidi baze strank – vpiše samo ime končne stranke
+        if is_bartog:
+            # Bartog naroča za KONČNE stranke → vpiše jih ročno (kot doslej).
             name = f.get("new_customer_name", "").strip()
             if not name:
                 flash("Vpiši ime stranke.", "danger")
@@ -423,12 +425,29 @@ def _handle_new(kind):
             customer = Customer(
                 name    = name,
                 phone   = f.get("new_customer_phone", "").strip(),
-                email   = "",
+                email   = f.get("new_customer_email", "").strip(),
                 address = "",
             )
             db.session.add(customer)
             db.session.flush()
             customer_id = customer.id
+        elif is_kupec:
+            # Kontaktni podatki so FIKSNI – iz kupčevega računa (povezane stranke).
+            # Kupec jih ne vpisuje in jih ne more spreminjati (uveljavljeno na strežniku).
+            linked = None
+            if getattr(current_user, "linked_customer_id", None):
+                linked = Customer.query.get(current_user.linked_customer_id)
+            if linked:
+                customer_id = linked.id
+            else:
+                # Rezerva (skupni račun brez povezane stranke): po polnem imenu računa
+                name = (current_user.full_name or "").strip() or f"kupec-{current_user.id}"
+                customer = Customer.query.filter_by(name=name).first()
+                if not customer:
+                    customer = Customer(name=name, phone="", email="", address="")
+                    db.session.add(customer)
+                    db.session.flush()
+                customer_id = customer.id
         else:
             customer_id = f.get("customer_id", "").strip()
             if not customer_id or customer_id == "new":
@@ -577,6 +596,10 @@ def _render_new_order_form(kind="narocilo", form_data=None):
     # Pri napaki ohrani predhodno izbrano stranko / vozilo
     presel_cust = fd.get("customer_id") or request.args.get("customer_id")
     presel_veh  = fd.get("existing_vehicle_id") or request.args.get("vehicle_id")
+    # Fiksni kontaktni podatki prijavljenega kupca (iz njegovega računa – povezane stranke)
+    kupec_customer = None
+    if getattr(current_user, "role", "") == "kupec" and getattr(current_user, "linked_customer_id", None):
+        kupec_customer = Customer.query.get(current_user.linked_customer_id)
     return render_template(
         "orders/new.html",
         customers    = Customer.query.order_by(Customer.name).all(),
@@ -598,6 +621,7 @@ def _render_new_order_form(kind="narocilo", form_data=None):
         preselected_vehicle  = presel_veh,
         form_data   = fd,
         kind        = kind,
+        kupec_customer = kupec_customer,
         page_title  = cfg["new_title"],
         form_action = url_for(cfg["new_endpoint"]),
         cancel_url  = url_for(cfg["list_endpoint"]),

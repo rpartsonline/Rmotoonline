@@ -15,44 +15,41 @@
 
 <form method="POST" id="order-form" enctype="multipart/form-data" action="{{ form_action|default(url_for('orders.new_order')) }}">
 
-{% if current_user.role == 'kupec' %}
-<!-- ── 0. KONTAKTNA OSEBA (samo za kupce / bartog QR) ────────────────────── -->
-<div class="form-section" style="border:2px solid #3b82f6; border-radius:10px; padding:16px; margin-bottom:16px; background:#eff6ff;">
-  <div class="form-section-title" style="color:#1d4ed8;">
-    <i class="bi bi-person-badge me-2"></i>Kontaktna oseba <span class="text-danger">*</span>
-  </div>
-  <p class="small text-muted mb-3">Vpiši podatke stranke ki naroča — da vemo kdo je.</p>
-  <div class="row g-3">
-    <div class="col-md-4">
-      <label class="form-label small fw-semibold">Ime in priimek <span class="text-danger">*</span></label>
-      <input type="text" id="kupec_ime" class="form-control" placeholder="npr. Janez Novak"
-             style="border-color:#3b82f6;" autocomplete="name">
-    </div>
-    <div class="col-md-4">
-      <label class="form-label small fw-semibold">Telefon <span class="text-danger">*</span></label>
-      <input type="text" id="kupec_tel" class="form-control" placeholder="npr. 041 123 456"
-             style="border-color:#3b82f6;" autocomplete="tel">
-    </div>
-    <div class="col-md-4">
-      <label class="form-label small fw-semibold">E-pošta <span class="text-muted fw-normal">(neobvezno)</span></label>
-      <input type="email" id="kupec_email" class="form-control" placeholder="npr. ime@email.com"
-             style="border-color:#3b82f6;">
-    </div>
-  </div>
-</div>
-{% endif %}
-
 <!-- ── 1. STRANKA ─────────────────────────────────────────────────────────── -->
 <div class="form-section">
   <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
 
-  {% if current_user.role == 'kupec' %}
+  {% if current_user.role == 'kupec' and current_user.username == 'bartog' %}
+  <!-- Bartog: končne stranke – vpiši ročno -->
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Ime in priimek stranke <span class="text-danger">*</span></label>
+      <input type="text" name="new_customer_name" class="form-control" placeholder="npr. Janez Novak"
+             value="{{ form_data.get('new_customer_name', '') }}" autocomplete="name" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Telefon <span class="text-danger">*</span></label>
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="npr. 041 123 456"
+             value="{{ form_data.get('new_customer_phone', '') }}" autocomplete="tel" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">E-pošta <span class="text-muted fw-normal">(neobvezno)</span></label>
+      <input type="email" name="new_customer_email" class="form-control" placeholder="ime@email.com"
+             value="{{ form_data.get('new_customer_email', '') }}">
+    </div>
+  </div>
+  <input type="hidden" name="customer_id" id="customer-select" value="new">
+  {% elif current_user.role == 'kupec' %}
   <!-- Mehanik: stranka je zaklenjena na njegov račun -->
   <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:#f0f4ff; border:1px solid #c7d7f8;">
     <i class="bi bi-person-fill text-primary fs-4"></i>
     <div>
-      <div class="fw-bold">{{ current_user.full_name }}</div>
-      <div class="small text-muted">Stranka je določena z vašim računom in je ni mogoče spremeniti.</div>
+      <div class="fw-bold">{{ (kupec_customer.name if kupec_customer else current_user.full_name) }}</div>
+      <div class="small text-muted mt-1">
+        {% if kupec_customer and kupec_customer.phone %}<span class="me-3"><i class="bi bi-telephone me-1"></i>{{ kupec_customer.phone }}</span>{% endif %}
+        {% if kupec_customer and kupec_customer.email %}<span><i class="bi bi-envelope me-1"></i>{{ kupec_customer.email }}</span>{% endif %}
+      </div>
+      <div class="small text-muted mt-1">Kontaktni podatki so določeni z vašim računom in jih ni mogoče spremeniti.</div>
     </div>
   </div>
   {% if current_user.linked_customer_id %}
