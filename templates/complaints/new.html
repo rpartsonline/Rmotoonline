@@ -15,7 +15,7 @@
 </div>
 
 <div class="card-plain">
-  <form method="POST">
+  <form method="POST" enctype="multipart/form-data" id="complaint-form">
     <div class="mb-3">
       <label class="form-label fw-semibold">Naslov reklamacije *</label>
       <input type="text" name="title" class="form-control" placeholder="Kratki opis reklamacije" required>
@@ -28,6 +28,32 @@
       <label class="form-label fw-semibold">Opis</label>
       <textarea name="description" class="form-control" rows="4" placeholder="Podrobnosti reklamacije…"></textarea>
     </div>
+
+    <!-- ── Dokumenti (fotografiraj ali naloži) ─────────────────────────────── -->
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Dokumenti</label>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <button type="button" class="btn btn-primary" id="btn-foto-dok">
+          <i class="bi bi-camera-fill me-1"></i>Fotografiraj dokumente
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-dodaj-dok">
+          <i class="bi bi-paperclip me-1"></i>Dodaj dokumente
+        </button>
+      </div>
+      <div class="form-text mb-2">Slikaj s kamero ali naloži slike / PDF. Dodaš lahko več dokumentov.</div>
+
+      <!-- Skriti vnosi: v 'documents' se zbirajo vse datoteke (fotografirane + naložene) -->
+      <input type="file" id="doc-input" name="documents" multiple
+             accept="image/*,application/pdf" style="display:none">
+      <input type="file" id="doc-browse" multiple
+             accept="image/*,application/pdf" style="display:none">
+      <input type="file" id="doc-capture-fallback" accept="image/*" capture="environment"
+             style="display:none">
+
+      <!-- Predogled dodanih dokumentov -->
+      <div id="doc-previews" class="d-flex flex-wrap gap-2"></div>
+    </div>
+
     <div class="d-flex gap-2">
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i>Dodaj reklamacijo
@@ -36,4 +62,138 @@
     </div>
   </form>
 </div>
+
+<!-- ── Majhno okence s kamero za dokumente ──────────────────────────────────── -->
+<div class="modal fade" id="docCamModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+    <div class="modal-content" style="border-radius:14px; border:none; overflow:hidden">
+      <div class="modal-header py-2" style="background:linear-gradient(135deg,#1e293b,#334155)">
+        <h6 class="modal-title text-white fw-bold mb-0"><i class="bi bi-camera me-2"></i>Fotografiraj dokument</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0 text-center bg-black">
+        <video id="dcam-vid" autoplay playsinline muted
+               style="width:100%; max-height:52vh; display:block; object-fit:cover;"></video>
+        <canvas id="dcam-cv" style="display:none"></canvas>
+        <div id="dcam-stat" class="py-2 small text-white-50" style="min-height:30px"></div>
+      </div>
+      <div class="modal-footer justify-content-center border-0 py-2 bg-black">
+        <button type="button" class="btn btn-primary btn-sm px-4" id="dcam-snap" disabled>
+          <i class="bi bi-camera-fill me-2"></i>Zajemi
+        </button>
+        <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Zapri</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  var form      = document.getElementById('complaint-form');
+  var docInput  = document.getElementById('doc-input');       // name="documents" (oddano)
+  var browse    = document.getElementById('doc-browse');      // izbira datotek
+  var fallback  = document.getElementById('doc-capture-fallback'); // rezervna sistemska kamera
+  var previews  = document.getElementById('doc-previews');
+  var dt = new DataTransfer();
+
+  function refresh() {
+    docInput.files = dt.files;
+    render();
+  }
+  function addFiles(list) {
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      if (f && f.size > 0) dt.items.add(f);
+    }
+    refresh();
+  }
+  function removeAt(idx) {
+    var keep = new DataTransfer();
+    for (var i = 0; i < dt.files.length; i++) { if (i !== idx) keep.items.add(dt.files[i]); }
+    dt = keep;
+    refresh();
+  }
+  function render() {
+    previews.innerHTML = '';
+    Array.prototype.forEach.call(dt.files, function (f, idx) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative; width:96px; height:96px; border:1px solid #e5eaf2; ' +
+        'border-radius:10px; overflow:hidden; background:#f8fafc; display:flex; align-items:center; ' +
+        'justify-content:center; text-align:center;';
+      if (f.type && f.type.indexOf('image/') === 0) {
+        var img = document.createElement('img');
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+        img.src = URL.createObjectURL(f);
+        wrap.appendChild(img);
+      } else {
+        wrap.innerHTML = '<div class="small text-muted p-1"><i class="bi bi-file-earmark-pdf fs-3 d-block"></i>' +
+          (f.name.length > 14 ? f.name.slice(0, 12) + '…' : f.name) + '</div>';
+      }
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.innerHTML = '<i class="bi bi-x"></i>';
+      x.title = 'Odstrani';
+      x.style.cssText = 'position:absolute; top:2px; right:2px; width:22px; height:22px; line-height:1; ' +
+        'border:none; border-radius:50%; background:rgba(220,38,38,.92); color:#fff; padding:0; cursor:pointer;';
+      x.addEventListener('click', function () { removeAt(idx); });
+      wrap.appendChild(x);
+      previews.appendChild(wrap);
+    });
+  }
+
+  // "Dodaj dokumente" → izbira datotek
+  document.getElementById('btn-dodaj-dok').addEventListener('click', function () { browse.click(); });
+  browse.addEventListener('change', function () { addFiles(browse.files); browse.value = ''; });
+
+  // Rezervna sistemska kamera (če spletna kamera ni na voljo)
+  fallback.addEventListener('change', function () { addFiles(fallback.files); fallback.value = ''; });
+
+  // "Fotografiraj dokumente" → majhno okence s kamero
+  var camStream = null;
+  document.getElementById('btn-foto-dok').addEventListener('click', function () {
+    var mEl = document.getElementById('docCamModal');
+    var canGUM = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    if (!mEl || !canGUM) { fallback.click(); return; }
+    var wModal = new bootstrap.Modal(mEl);
+    var vid  = document.getElementById('dcam-vid');
+    var snap = document.getElementById('dcam-snap');
+    var stat = document.getElementById('dcam-stat');
+    stat.innerHTML = '<span class="text-warning">Vzpostavljam kamero…</span>';
+    snap.disabled = true;
+    wModal.show();
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    }).then(function (stream) {
+      camStream = stream; vid.srcObject = stream;
+      vid.onloadedmetadata = function () {
+        snap.disabled = false;
+        stat.innerHTML = '<span class="text-success">Poravnaj dokument in pritisni Zajemi. Slikaš lahko več strani.</span>';
+      };
+    }).catch(function (err) {
+      stat.innerHTML = '<span class="text-danger">Kamere ni bilo mogoče odpreti (' +
+        (err.message || err.name || '') + '). Uporabi „Dodaj dokumente".</span>';
+      if (fallback) { wModal.hide(); fallback.click(); }
+    });
+
+    mEl.addEventListener('hidden.bs.modal', function () {
+      if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+      snap.disabled = true; vid.srcObject = null; stat.textContent = '';
+    }, { once: true });
+
+    snap.onclick = function () {
+      var cv = document.getElementById('dcam-cv');
+      cv.width = vid.videoWidth; cv.height = vid.videoHeight;
+      cv.getContext('2d').drawImage(vid, 0, 0);
+      cv.toBlob(function (blob) {
+        var ts = new Date().toISOString().replace(/[:.]/g, '-');
+        addFiles([new File([blob], 'dokument-' + ts + '.jpg', { type: 'image/jpeg' })]);
+        stat.innerHTML = '<span class="text-success">Dodano ✓ Lahko slikaš naslednjo stran ali zapreš okno.</span>';
+      }, 'image/jpeg', 0.92);
+    };
+  });
+})();
+</script>
 {% endblock %}

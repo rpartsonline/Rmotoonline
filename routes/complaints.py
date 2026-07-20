@@ -7,7 +7,7 @@ complaints_bp = Blueprint("complaints", __name__, url_prefix="/reklamacije")
 
 
 def _ensure_complaints_table(db):
-    """Ustvari tabelo reklamacij če ne obstaja."""
+    """Ustvari tabelo reklamacij (in prilog) če ne obstaja."""
     try:
         db.session.execute(text("""
             CREATE TABLE IF NOT EXISTS complaints (
@@ -21,9 +21,55 @@ def _ensure_complaints_table(db):
                 created_by INTEGER
             )
         """))
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS complaint_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                complaint_id INTEGER NOT NULL,
+                filename VARCHAR(300) NOT NULL,
+                orig_name VARCHAR(300),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
         db.session.commit()
     except Exception as e:
         print(f"⚠️  Reklamacije tabela: {e}")
+
+
+# Dovoljene priloge (slike + PDF)
+ALLOWED_DOC_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".pdf"}
+IMAGE_DOC_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+
+def _save_complaint_files(complaint_id, files):
+    """Shrani naložene/fotografirane dokumente k reklamaciji."""
+    import os
+    import uuid
+    from flask import current_app
+    from werkzeug.utils import secure_filename
+
+    folder = current_app.config.get("UPLOAD_FOLDER", "")
+    if not folder:
+        return
+    saved = 0
+    for f in files or []:
+        if not f or not getattr(f, "filename", ""):
+            continue
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in ALLOWED_DOC_EXT:
+            continue
+        fname = secure_filename(f"reklamacija_{complaint_id}_{uuid.uuid4().hex}{ext}")
+        try:
+            f.save(os.path.join(folder, fname))
+            db.session.execute(text(
+                "INSERT INTO complaint_files (complaint_id, filename, orig_name) "
+                "VALUES (:c, :f, :o)"),
+                {"c": complaint_id, "f": fname, "o": (f.filename or "")[:300]})
+            saved += 1
+        except Exception as e:
+            print(f"⚠️  Priloga reklamacije ni shranjena: {e}")
+    if saved:
+        db.session.commit()
+    return saved
 
 
 STATUSES = [
@@ -90,9 +136,53 @@ def new_complaint():
         """), {"title": title, "customer_name": customer_name,
                "description": description, "uid": current_user.id})
         db.session.commit()
+        # ID nove reklamacije + shranjevanje priloženih dokumentov
+        new_id = db.session.execute(text("SELECT last_insert_rowid()")).scalar()
+        try:
+            _save_complaint_files(new_id, request.files.getlist("documents"))
+        except Exception as e:
+            print(f"⚠️  Priloge reklamacije: {e}")
         flash("Reklamacija dodana.", "success")
-        return redirect(url_for("complaints.list_complaints"))
+        return redirect(url_for("complaints.complaint_detail", complaint_id=new_id))
     return render_template("complaints/new.html")
+
+
+@complaints_bp.route("/<int:complaint_id>")
+@login_required
+def complaint_detail(complaint_id):
+    _ensure_complaints_table(db)
+    comp = db.session.execute(
+        text("SELECT * FROM complaints WHERE id=:id"), {"id": complaint_id}).fetchone()
+    if not comp:
+        flash("Reklamacija ne obstaja.", "danger")
+        return redirect(url_for("complaints.list_complaints"))
+    files = db.session.execute(
+        text("SELECT * FROM complaint_files WHERE complaint_id=:id ORDER BY id"),
+        {"id": complaint_id}).fetchall()
+    # Loči slike od ostalih (PDF) za prikaz
+    import os
+    docs = []
+    for fr in files:
+        ext = os.path.splitext(fr.filename)[1].lower()
+        docs.append({"id": fr.id, "filename": fr.filename,
+                     "orig_name": fr.orig_name or fr.filename,
+                     "is_image": ext in IMAGE_DOC_EXT})
+    return render_template("complaints/detail.html",
+                           c=comp, docs=docs,
+                           statuses=STATUSES, STATUS_DICT=STATUS_DICT)
+
+
+@complaints_bp.route("/priloga/<int:file_id>")
+@login_required
+def complaint_file(file_id):
+    from flask import current_app, send_from_directory, abort
+    _ensure_complaints_table(db)
+    row = db.session.execute(
+        text("SELECT filename FROM complaint_files WHERE id=:id"),
+        {"id": file_id}).fetchone()
+    if not row:
+        abort(404)
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], row[0])
 
 
 @complaints_bp.route("/<int:complaint_id>/status", methods=["POST"])
@@ -113,6 +203,20 @@ def update_status(complaint_id):
 @login_required
 def delete_complaint(complaint_id):
     _ensure_complaints_table(db)
+    # Počisti priloge (datoteke na disku + zapise)
+    import os
+    from flask import current_app
+    folder = current_app.config.get("UPLOAD_FOLDER", "")
+    rows = db.session.execute(
+        text("SELECT filename FROM complaint_files WHERE complaint_id=:id"),
+        {"id": complaint_id}).fetchall()
+    for r in rows:
+        try:
+            os.remove(os.path.join(folder, r[0]))
+        except Exception:
+            pass
+    db.session.execute(text("DELETE FROM complaint_files WHERE complaint_id=:id"),
+                       {"id": complaint_id})
     db.session.execute(text("DELETE FROM complaints WHERE id=:id"), {"id": complaint_id})
     db.session.commit()
     flash("Reklamacija izbrisana.", "success")
