@@ -59,7 +59,7 @@
       <a href="{{ url_for('orders.order_detail', order_id=o.id) }}" class="kh-row">
         <span class="kh-num">{{ o.order_number }}</span>
         <span class="kh-cust">{{ o.customer.name }}</span>
-        <span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span>
+        <span class="badge bg-{{ o.status_info.color }}">{% if o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span>
         {% if o.notify_customer and o.status == 'naroceno' %}
         <i class="bi bi-check-circle-fill text-success ms-1"></i>
         {% endif %}

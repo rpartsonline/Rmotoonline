@@ -45,8 +45,8 @@
   <div class="col-4">
     <a href="?status=naroceno" class="text-decoration-none">
       <div class="card border-0 shadow-sm h-100 p-3">
-        <div class="fw-bold fs-2 text-info">{{ ordered_count }}</div>
-        <div class="small text-muted"><i class="bi bi-check-circle me-1"></i>Naročena</div>
+        <div class="fw-bold fs-2 text-success">{{ ordered_count }}</div>
+        <div class="small text-muted"><i class="bi bi-check-circle me-1"></i>Naročena – čakamo dobavo</div>
       </div>
     </a>
   </div>
@@ -168,7 +168,7 @@
           </td>
           <td><span class="chip-source">{{ o.source }}</span></td>
           <td class="small text-muted">{{ o.employee.full_name }}</td>
-          <td><span class="badge bg-{{ o.status_info.color }}">{{ o.status_info.label }}</span></td>
+          <td><span class="badge bg-{{ o.status_info.color }}">{% if is_kupec and o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span></td>
           <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
             <div class="d-flex gap-1 justify-content-end">
