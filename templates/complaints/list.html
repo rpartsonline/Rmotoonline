@@ -3,7 +3,7 @@
 
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0 small">
-  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') if current_user.role != 'kupec' else url_for('main.kupec_home') }}">Pregled</a></li>
   <li class="breadcrumb-item active">Reklamacije</li>
 </ol>
 {% endblock %}
@@ -11,105 +11,89 @@
 {% block content %}
 <div class="page-hdr">
   <h1><i class="bi bi-exclamation-triangle me-2 text-primary"></i>Reklamacije</h1>
-  <a href="{{ url_for('complaints.new_complaint') }}" class="btn btn-primary">
+  <a href="{{ url_for('complaints.new_complaint') }}" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i>Nova reklamacija
   </a>
 </div>
 
-<!-- ── Stanje po statusih ─────────────────────────────────────────────────── -->
-<div class="row g-2 mb-3 justify-content-center">
-  {% for s in status_breakdown %}
-  <div class="col-6 col-md">
-    <a href="{{ url_for('complaints.list_complaints') }}?status={{ s.key }}" class="text-decoration-none">
-      <div class="card-plain d-flex align-items-center justify-content-between py-2 px-3">
-        <span class="badge bg-{{ s.color }}">{{ s.label }}</span>
-        <span class="fw-bold fs-5">{{ s.count }}</span>
+<!-- Števci po statusih -->
+{% if status_breakdown %}
+<div class="row g-3 mb-3">
+  {% for sb in status_breakdown %}
+  <div class="col-6 col-md-3">
+    <a href="?status={{ sb.key }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 p-3">
+        <div class="fw-bold fs-2 text-{{ sb.color }}">{{ sb.count }}</div>
+        <div class="small text-muted">{{ sb.label }}</div>
       </div>
     </a>
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
-<!-- ── Filtri ─────────────────────────────────────────────────────────────── -->
+<!-- Iskanje / filter -->
 <div class="card-plain mb-3">
   <form method="GET" class="row g-2 align-items-end">
-    <div class="col-md-4">
-      <label class="form-label small text-muted mb-1">Išči</label>
-      <input type="text" name="search" class="form-control form-control-sm"
-             placeholder="Naslov ali stranka…" value="{{ search }}">
+    <div class="col-md-6">
+      <label class="form-label small text-muted mb-1">Išči (naslov / stranka)</label>
+      <input type="text" name="search" class="form-control" value="{{ search }}" placeholder="Išči…">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <label class="form-label small text-muted mb-1">Status</label>
-      <select name="status" class="form-select form-select-sm">
+      <select name="status" class="form-select">
         <option value="">Vsi statusi</option>
         {% for key, lbl, col in statuses %}
         <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ lbl }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2 d-flex gap-1">
-      <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
-        <i class="bi bi-search"></i>
-      </button>
-      <a href="{{ url_for('complaints.list_complaints') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-x-lg"></i>
-      </a>
+    <div class="col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-search"></i></button>
+      {% if search or status_filter %}
+      <a href="{{ url_for('complaints.list_complaints') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+      {% endif %}
     </div>
   </form>
 </div>
 
-<!-- ── Seznam ─────────────────────────────────────────────────────────────── -->
+<!-- Seznam -->
 <div class="tbl-card">
   <div class="tbl-header">
-    <h6 class="tbl-header-title">Skupaj: {{ complaints|length }}</h6>
+    <h6 class="tbl-header-title">Skupaj: {{ complaints|length }} reklamacij</h6>
   </div>
   <div class="table-responsive">
-    <table class="table table-sm align-middle">
+    <table class="table table-sm align-middle mb-0">
       <thead>
         <tr>
           <th>Naslov</th>
           <th>Stranka</th>
-          <th>Status</th>
-          <th>Datum</th>
-          <th style="width:120px">Dejanja</th>
+          <th style="width:170px">Status</th>
+          <th style="width:120px">Datum</th>
+          <th style="width:90px" class="text-end">Odpri</th>
         </tr>
       </thead>
       <tbody>
         {% for c in complaints %}
+        {% set si = STATUS_DICT.get(c.status) %}
         <tr>
           <td class="fw-semibold">{{ c.title }}</td>
           <td>{{ c.customer_name or '–' }}</td>
-          <td>
-            {% set lbl, col = STATUS_DICT.get(c.status, ('–', 'secondary')) %}
-            <span class="badge bg-{{ col }}">{{ lbl }}</span>
-          </td>
-          <td class="text-muted small">{{ c.created_at[:10] if c.created_at else '–' }}</td>
-          <td>
-            <div class="d-flex gap-1">
-              <!-- Hitro menjaj status -->
-              <form method="POST" action="{{ url_for('complaints.update_status', complaint_id=c.id) }}" class="d-flex gap-1">
-                <select name="status" class="form-select form-select-sm" style="width:auto; font-size:0.75rem;">
-                  {% for key, lbl2, col2 in statuses %}
-                  <option value="{{ key }}" {% if c.status == key %}selected{% endif %}>{{ lbl2 }}</option>
-                  {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-check-lg"></i>
-                </button>
-              </form>
-              <!-- Briši -->
-              <form method="POST" action="{{ url_for('complaints.delete_complaint', complaint_id=c.id) }}"
-                    onsubmit="return confirm('Izbriši reklamacijo?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
-            </div>
+          <td>{% if si %}<span class="badge bg-{{ si[1] }}">{{ si[0] }}</span>{% else %}{{ c.status }}{% endif %}</td>
+          <td class="text-muted small">{{ (c.created_at|string).split(' ')[0] if c.created_at else '' }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('complaints.complaint_detail', complaint_id=c.id) }}"
+               class="btn btn-sm btn-outline-primary" title="Odpri reklamacijo">
+              <i class="bi bi-eye"></i>
+            </a>
           </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="5" class="text-center text-muted py-4">Ni reklamacij.</td>
+          <td colspan="5" class="text-center text-muted py-4">
+            <i class="bi bi-inbox d-block fs-3 mb-1"></i>
+            {% if is_kupec %}Nimate še oddanih reklamacij.{% else %}Ni reklamacij.{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
