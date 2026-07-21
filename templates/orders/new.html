@@ -290,7 +290,11 @@
   {% else %}
   <div class="form-section-title"><i class="bi bi-list-check"></i> Postavke naročila</div>
   <p class="text-muted small mb-3">
+    {% if current_user.role == 'kupec' %}
+    Pokljukaj, kar potrebuješ. Neoznačeno se v naročilo ne shrani.
+    {% else %}
     Pokljukaj, kar potrebuješ. Pri označeni postavki vpiši <strong>IDENT (Bartog)</strong> in <strong>izvor zaloge</strong> (npr. TQ, 5). Neoznačeno se v naročilo ne shrani.
+    {% endif %}
   </p>
   {% endif %}
 
