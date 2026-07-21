@@ -49,13 +49,22 @@
     @supports (padding: max(0px)) {
       body { padding-bottom: env(safe-area-inset-bottom); }
     }
-    /* Gumb za namestitev aplikacije */
+    /* Gumb za namestitev aplikacije – majhen, zgoraj desno (pod vrstico z orodji) */
     #pwa-install-btn {
-      position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
-      z-index: 1055; display: none; align-items: center; gap: 8px;
-      background: #2563eb; color: #fff; border: none; border-radius: 40px;
-      padding: 11px 18px; font-weight: 700; font-size: .92rem;
-      box-shadow: 0 8px 24px rgba(37,99,235,.35); cursor: pointer;
+      position: fixed; top: 64px; right: 14px;
+      z-index: 1055; display: none; align-items: center; gap: 6px;
+      background: #2563eb; color: #fff; border: none; border-radius: 30px;
+      padding: 6px 12px; font-weight: 600; font-size: .8rem;
+      box-shadow: 0 4px 14px rgba(37,99,235,.28); cursor: pointer; opacity: .9;
+    }
+    #pwa-install-btn:hover { opacity: 1; }
+    /* Računalnik: še manjši in manj moteč */
+    @media (min-width: 769px) {
+      #pwa-install-btn { padding: 5px 11px; font-size: .78rem; opacity: .8; }
+    }
+    /* Telefon: zgoraj v desnem kotu (pod vrstico z orodji, upošteva zarezo) */
+    @media (max-width: 768px) {
+      #pwa-install-btn { top: calc(58px + env(safe-area-inset-top)); right: 10px; }
     }
   </style>
   {% block extra_head %}{% endblock %}
