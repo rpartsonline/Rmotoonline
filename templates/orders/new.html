@@ -578,7 +578,7 @@
       var url = URL.createObjectURL(file);
       img.onload = function() {
         URL.revokeObjectURL(url);
-        var maxDim = 1600;
+        var maxDim = 2000;
         var w = img.width, h = img.height;
         if (w > maxDim || h > maxDim) {
           if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
@@ -604,7 +604,7 @@
           ctx.putImageData(imgData, 0, 0);
         } catch(e) { /* če CORS/security, pusti barvno */ }
 
-        resolve(canvas.toDataURL('image/jpeg', 0.9));
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
       };
       img.onerror = function() {
         URL.revokeObjectURL(url);
@@ -645,7 +645,11 @@
     .then(function(data) {
       if (data.ok && data.vin) {
         if (vinInp) { vinInp.value = data.vin.toUpperCase(); vinInp.dispatchEvent(new Event('input')); }
-        setStatus('<i class="bi bi-check-circle-fill text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — preveri in popravi po potrebi.', '#16a34a');
+        if (data.valid) {
+          setStatus('<i class="bi bi-patch-check-fill text-success me-1"></i>Prebrana in <strong>preverjena</strong> šasijska: <strong>' + data.vin + '</strong> (kontrolna številka se ujema).', '#16a34a');
+        } else {
+          setStatus('<i class="bi bi-check-circle text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — <strong>preveri po potrebi</strong> (kontrolna se ni ujela, kar je pri nekaterih vozilih normalno).', '#b45309');
+        }
       } else if (data.error === 'no_key') {
         setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>OCR ni na voljo (manjka Vision ključ). Vpiši ročno.', '#b45309');
       } else if (data.error === 'daily_limit') {

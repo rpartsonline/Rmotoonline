@@ -228,6 +228,29 @@ from datetime import date
 
 _vision_quota = {"day": None, "count": 0}
 
+# ── Preverjanje kontrolne številke VIN (ISO 3779, 9. znak) ────────────────────
+# Pravi VIN ima kontrolni znak na 9. mestu. Če se ujema, je skoraj gotovo pravi.
+# (Nekateri evropski VIN-i ga ne upoštevajo, zato ga uporabimo le kot močan namig,
+#  ne kot izločitveni pogoj.)
+_VIN_TRANS = {**{str(d): d for d in range(10)},
+              "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8,
+              "J": 1, "K": 2, "L": 3, "M": 4, "N": 5, "P": 7, "R": 9,
+              "S": 2, "T": 3, "U": 4, "V": 5, "W": 6, "X": 7, "Y": 8, "Z": 9}
+_VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2]
+
+
+def _vin_check_valid(vin):
+    if len(vin) != 17:
+        return False
+    total = 0
+    for ch, w in zip(vin, _VIN_WEIGHTS):
+        if ch not in _VIN_TRANS:
+            return False
+        total += _VIN_TRANS[ch] * w
+    r = total % 11
+    check = "X" if r == 10 else str(r)
+    return vin[8] == check
+
 
 def _vin_cleanup(text):
     """Iz besedila Vision izlušči pravi VIN (17 znakov), ne napisa poleg."""
@@ -289,6 +312,9 @@ def _vin_cleanup(text):
         digits = sum(ch.isdigit() for ch in v)
         letters = 17 - digits
         s = 0
+        # Veljavna kontrolna številka (ISO 3779) → skoraj gotovo pravi VIN
+        if _vin_check_valid(v):
+            s += 40
         # Mešanica črk in števk (pravi VIN)
         if 3 <= digits <= 12:
             s += 5
@@ -338,7 +364,7 @@ def api_vin_ocr():
     payload = json.dumps({
         "requests": [{
             "image": {"content": img_b64},
-            "features": [{"type": "TEXT_DETECTION"}],
+            "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
         }]
     }).encode()
 
@@ -354,7 +380,7 @@ def api_vin_ocr():
             or (anno.get("textAnnotations") or [{}])[0].get("description", "")
         vin = _vin_cleanup(text)
         if vin:
-            return jsonify({"ok": True, "vin": vin})
+            return jsonify({"ok": True, "vin": vin, "valid": _vin_check_valid(vin)})
         return jsonify({"ok": False, "error": "no_vin", "raw": text[:200]})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 502
