@@ -78,13 +78,18 @@ def create_customer_account(customer_id):
         flash(f"Račun za to stranko že obstaja: '{existing.username}'", "warning")
         return redirect(url_for("customers.customer_detail", customer_id=customer_id))
 
-    # Ustvari username iz imena stranke
-    base = customer.name.strip()
+    # Ustvari poenostavljeno uporabniško ime: prva beseda imena
+    # (male črke, brez ločil/diakritike), ob podvojitvi -2, -3…
+    import unicodedata, re
+    _prva = (customer.name or "").strip().split()
+    _prva = _prva[0] if _prva else ""
+    _prva = "".join(c for c in unicodedata.normalize("NFKD", _prva) if not unicodedata.combining(c))
+    base = re.sub(r"[^A-Za-z0-9]", "", _prva).lower() or "kupec"
     username = base
     used = set(u.username for u in User.query.all())
     i = 2
     while username in used:
-        username = f"{base}_{i}"
+        username = f"{base}-{i}"
         i += 1
 
     u = User(username=username, full_name=customer.name,
