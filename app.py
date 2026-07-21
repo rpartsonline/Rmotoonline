@@ -97,11 +97,15 @@ def create_app():
             pass
         # Števec novih obvestil za kupca (naročila, ki so prešla na „naročeno")
         kupec_notif = 0
+        kupec_inquiry_notif = 0
         try:
             from flask_login import current_user
             if current_user.is_authenticated and getattr(current_user, "role", "") == "kupec":
                 kupec_notif = Order.query.filter_by(
                     employee_id=current_user.id, notify_customer=True).count()
+                kupec_inquiry_notif = Order.query.filter_by(
+                    employee_id=current_user.id, kind="povprasevanje",
+                    notify_customer=True).count()
         except Exception:
             pass
         note_notif_count = 0
@@ -128,6 +132,7 @@ def create_app():
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
+            "kupec_inquiry_notif_count": kupec_inquiry_notif,
             "note_notif_count": note_notif_count,
             "done_notif_count": done_notif_count,
             "my_notes_done_count": my_notes_done_count,
@@ -255,6 +260,18 @@ def _ensure_schema(db):
             db.session.execute(text("ALTER TABLE orders ADD COLUMN delivery_urgency VARCHAR(20)"))
             db.session.commit()
             print("✅  Dodan stolpec 'delivery_urgency' v tabelo orders.")
+        if "offer_price" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN offer_price VARCHAR(100)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'offer_price' v tabelo orders.")
+        if "offer_delivery" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN offer_delivery VARCHAR(100)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'offer_delivery' v tabelo orders.")
+        if "offer_note" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN offer_note TEXT"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'offer_note' v tabelo orders.")
     except Exception as e:
         print(f"⚠️  Migracija (orders.notify_customer) preskočena: {e}")
 

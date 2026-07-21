@@ -275,6 +275,17 @@
 </a>
 {% endif %}
 
+<!-- Oblaček za mehanika (kupca): nova ponudba na povpraševanju -->
+{% if current_user.role == 'kupec' %}
+<a href="{{ url_for('orders.list_inquiries') }}" id="kupec-offer-badge"
+   class="new-orders-badge" title="Nova ponudba"
+   style="background:#16a34a !important; {% if not kupec_inquiry_notif_count %}display:none;{% endif %}">
+  <i class="bi bi-tag-fill"></i>
+  <span class="nob-text">Nova ponudba</span>
+  <span class="nob-count">{{ kupec_inquiry_notif_count }}</span>
+</a>
+{% endif %}
+
 <script>
   (function () {
     const url = "{{ url_for('main.new_orders_count') }}";

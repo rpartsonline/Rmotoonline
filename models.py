@@ -170,6 +170,10 @@ class Order(db.Model):
     delivery_date = db.Column(db.Date)       # predviden prihod materiala (povpraševanja)
     notify_customer = db.Column(db.Boolean, default=False)  # nova obvestilo za kupca (npr. naročeno)
     delivery_urgency = db.Column(db.String(20))  # kupčeva nujnost: takoj | takoj_pop | jutri
+    # Ponudba za stranko (ob statusu „Ponudba poslana stranki") – vidno mehaniku na portalu
+    offer_price    = db.Column(db.String(100))   # cena (npr. „42,50 €")
+    offer_delivery = db.Column(db.String(100))   # dobavni rok (npr. „2–3 delovni dnevi")
+    offer_note     = db.Column(db.Text)          # opomba dobavitelja/ponudbe
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")

@@ -737,6 +737,14 @@ def update_status(order_id):
             flash(f"SMS NI bil poslan – stranka „{cust_name}“ nima vpisane "
                   "telefonske številke. Dodaj jo na kartici stranke.", "warning")
 
+    # Ko gre na „Ponudba poslana stranki" → shrani ponudbo + obvesti mehanika (oblaček)
+    if new_status == "ponudba":
+        order.offer_price    = request.form.get("offer_price", "").strip()
+        order.offer_delivery = request.form.get("offer_delivery", "").strip()
+        order.offer_note     = request.form.get("offer_note", "").strip()
+        order.notify_customer = True
+        flash("Ponudba shranjena in poslana stranki na portal.", "info")
+
     order.status     = new_status
     order.updated_at = datetime.utcnow()
     db.session.commit()

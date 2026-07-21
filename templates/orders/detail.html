@@ -118,6 +118,35 @@
 </div>
 {%- endif %}
 
+    <!-- Ponudba za stranko (povpraševanja) -->
+    {% if kind == 'povprasevanje' and (order.offer_price or order.offer_delivery or order.offer_note) %}
+    <div class="card border-0 shadow-sm mb-3" style="border-left:4px solid #f59e0b !important; background:#fffbeb;">
+      <div class="p-3">
+        <div class="fw-bold text-warning mb-2"><i class="bi bi-tag-fill me-2"></i>Ponudba{% if current_user.role == 'kupec' %} za vas{% endif %}</div>
+        <div class="row g-3">
+          {% if order.offer_price %}
+          <div class="col-sm-4">
+            <div class="small text-muted">Cena</div>
+            <div class="fs-5 fw-bold text-dark">{{ order.offer_price }}</div>
+          </div>
+          {% endif %}
+          {% if order.offer_delivery %}
+          <div class="col-sm-4">
+            <div class="small text-muted">Dobavni rok</div>
+            <div class="fw-semibold">{{ order.offer_delivery }}</div>
+          </div>
+          {% endif %}
+        </div>
+        {% if order.offer_note %}
+        <div class="mt-2">
+          <div class="small text-muted">Opomba</div>
+          <div style="white-space:pre-wrap">{{ order.offer_note }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Stranka + Vozilo -->
     <div class="row g-3 mb-3">
       <div class="col-md-6">
@@ -473,6 +502,20 @@
           <div class="form-text">Izbrani SMS se pošlje stranki ob potrditvi statusa.</div>
         </div>
 
+        <!-- Ponudba za stranko (samo pri statusu „Ponudba poslana stranki") -->
+        <div class="mb-2" id="offer-field" style="display:none;">
+          <label class="form-label small fw-semibold text-primary mb-1">
+            <i class="bi bi-tag me-1"></i>Ponudba za stranko (vidno mehaniku na portalu)
+          </label>
+          <input type="text" name="offer_price" class="form-control form-control-sm mb-1"
+                 placeholder="Cena (npr. 42,50 €)" value="{{ order.offer_price or '' }}">
+          <input type="text" name="offer_delivery" class="form-control form-control-sm mb-1"
+                 placeholder="Dobavni rok (npr. 2–3 delovni dnevi)" value="{{ order.offer_delivery or '' }}">
+          <textarea name="offer_note" class="form-control form-control-sm" rows="2"
+                    placeholder="Opomba (npr. original / nadomestni del, dobavitelj…)">{{ order.offer_note or '' }}</textarea>
+          <div class="form-text">Stranka to vidi na svojem povpraševanju in dobi obvestilo.</div>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-sm w-100">
           <i class="bi bi-check-lg me-1"></i>Posodobi status
         </button>
@@ -669,6 +712,7 @@ function addItemRow() {
   const daySel = document.getElementById('delivery-select');
   const days = document.getElementById('delivery-days');
   const smsField = document.getElementById('sms-field');
+  const offerField = document.getElementById('offer-field');
   if (!sel) return;
 
   function toggle() {
@@ -680,6 +724,10 @@ function addItemRow() {
     // Izbira SMS besedila samo pri statusu „Naročeno"
     if (smsField) {
       smsField.style.display = (sel.value === 'naroceno') ? '' : 'none';
+    }
+    // Polja ponudbe samo pri statusu „Ponudba poslana stranki"
+    if (offerField) {
+      offerField.style.display = (sel.value === 'ponudba') ? '' : 'none';
     }
   }
   sel.addEventListener('change', toggle);
