@@ -22,10 +22,12 @@
     <a href="{{ url_for('complaints.list_complaints') }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Nazaj
     </a>
+    {% if not is_kupec %}
     <form method="POST" action="{{ url_for('complaints.delete_complaint', complaint_id=c.id) }}"
           onsubmit="return confirm('Res izbrisati reklamacijo?');">
       <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Izbriši</button>
     </form>
+    {% endif %}
   </div>
 </div>
 
@@ -80,6 +82,11 @@
   <div class="col-lg-4">
     <div class="card-plain">
       <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Status</div>
+      {% if is_kupec %}
+      {% set si = STATUS_DICT.get(c.status) %}
+      <span class="badge bg-{{ si[1] if si else 'secondary' }} fs-6">{{ si[0] if si else c.status }}</span>
+      <div class="form-text mt-2">Status ureja osebje Bartog.</div>
+      {% else %}
       <form method="POST" action="{{ url_for('complaints.update_status', complaint_id=c.id) }}">
         <select name="status" class="form-select mb-2">
           {% for key, lbl, col in statuses %}
@@ -90,6 +97,7 @@
           <i class="bi bi-check-lg me-1"></i>Posodobi status
         </button>
       </form>
+      {% endif %}
     </div>
   </div>
 </div>

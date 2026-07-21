@@ -91,6 +91,11 @@ def list_complaints():
 
     query = "SELECT * FROM complaints WHERE 1=1"
     params = {}
+    # Mehanik (kupec) vidi samo svoje reklamacije
+    is_kupec = getattr(current_user, "role", "") == "kupec"
+    if is_kupec:
+        query += " AND created_by = :uid"
+        params["uid"] = current_user.id
     if status_filter:
         query += " AND status = :status"
         params["status"] = status_filter
@@ -101,10 +106,15 @@ def list_complaints():
 
     rows = db.session.execute(text(query), params).fetchall()
 
-    # Števci po statusih
+    # Števci po statusih (za kupca samo njegovi)
     counts = {}
+    own = " AND created_by = :uid" if is_kupec else ""
     for k, _, _ in STATUSES:
-        r = db.session.execute(text("SELECT COUNT(*) FROM complaints WHERE status=:s"), {"s": k}).fetchone()
+        p = {"s": k}
+        if is_kupec:
+            p["uid"] = current_user.id
+        r = db.session.execute(
+            text("SELECT COUNT(*) FROM complaints WHERE status=:s" + own), p).fetchone()
         counts[k] = r[0] if r else 0
 
     status_breakdown = [{"key": k, "label": l, "color": c, "count": counts.get(k, 0)} for k, l, c in STATUSES]
@@ -116,6 +126,7 @@ def list_complaints():
         status_filter=status_filter,
         search=search,
         STATUS_DICT=STATUS_DICT,
+        is_kupec=is_kupec,
     )
 
 
@@ -156,6 +167,11 @@ def complaint_detail(complaint_id):
     if not comp:
         flash("Reklamacija ne obstaja.", "danger")
         return redirect(url_for("complaints.list_complaints"))
+    # Mehanik (kupec) sme videti samo svoje
+    is_kupec = getattr(current_user, "role", "") == "kupec"
+    if is_kupec and comp.created_by != current_user.id:
+        flash("Do te reklamacije nimaš dostopa.", "danger")
+        return redirect(url_for("complaints.list_complaints"))
     files = db.session.execute(
         text("SELECT * FROM complaint_files WHERE complaint_id=:id ORDER BY id"),
         {"id": complaint_id}).fetchall()
@@ -168,7 +184,7 @@ def complaint_detail(complaint_id):
                      "orig_name": fr.orig_name or fr.filename,
                      "is_image": ext in IMAGE_DOC_EXT})
     return render_template("complaints/detail.html",
-                           c=comp, docs=docs,
+                           c=comp, docs=docs, is_kupec=is_kupec,
                            statuses=STATUSES, STATUS_DICT=STATUS_DICT)
 
 
@@ -189,6 +205,9 @@ def complaint_file(file_id):
 @login_required
 def update_status(complaint_id):
     _ensure_complaints_table(db)
+    if getattr(current_user, "role", "") == "kupec":
+        flash("Statusa reklamacije ne moreš spreminjati.", "danger")
+        return redirect(url_for("complaints.list_complaints"))
     new_status = request.form.get("status")
     if new_status in [k for k, _, _ in STATUSES]:
         db.session.execute(text("""
@@ -203,6 +222,9 @@ def update_status(complaint_id):
 @login_required
 def delete_complaint(complaint_id):
     _ensure_complaints_table(db)
+    if getattr(current_user, "role", "") == "kupec":
+        flash("Reklamacije ne moreš brisati.", "danger")
+        return redirect(url_for("complaints.list_complaints"))
     # Počisti priloge (datoteke na disku + zapise)
     import os
     from flask import current_app
