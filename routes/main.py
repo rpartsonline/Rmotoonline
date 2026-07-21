@@ -173,10 +173,14 @@ def kupec_home():
               .order_by(Order.created_at.desc()).limit(5).all())
     open_count = Order.query.filter_by(
         employee_id=current_user.id, kind="narocilo", status="novo").count()
-    notif = Order.query.filter_by(
-        employee_id=current_user.id, notify_customer=True).count()
+    order_notif = Order.query.filter_by(
+        employee_id=current_user.id, kind="narocilo", notify_customer=True).count()
+    offer_notif = Order.query.filter_by(
+        employee_id=current_user.id, kind="povprasevanje", notify_customer=True).count()
     return render_template("kupec_home.html",
-                           recent=recent, open_count=open_count, notif=notif)
+                           recent=recent, open_count=open_count,
+                           notif=order_notif, order_notif=order_notif,
+                           offer_notif=offer_notif)
 
 
 @main_bp.route("/sw.js")

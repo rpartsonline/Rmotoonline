@@ -12,10 +12,16 @@
       Veseli smo vašega obiska. Naročite nadomestne dele ali pošljite povpraševanje –
       poskrbeli bomo, da boste hitro na cesti.
     </p>
-    {% if notif %}
+    {% if offer_notif %}
+    <a href="{{ url_for('orders.list_inquiries') }}" class="kh-flash" style="background:#16a34a;">
+      <i class="bi bi-tag-fill me-2"></i>
+      Imate {{ offer_notif }} {% if offer_notif == 1 %}novo ponudbo{% else %}novih ponudb{% endif %} na vaše povpraševanje – poglejte podrobnosti.
+    </a>
+    {% endif %}
+    {% if order_notif %}
     <a href="{{ url_for('orders.list_orders') }}" class="kh-flash">
       <i class="bi bi-check-circle-fill me-2"></i>
-      Imate {{ notif }} {% if notif == 1 %}naročilo, ki je{% else %}naročila, ki so{% endif %} pravkar šlo v dobavo – poglejte podrobnosti.
+      Imate {{ order_notif }} {% if order_notif == 1 %}naročilo, ki je{% else %}naročila, ki so{% endif %} pravkar šlo v dobavo – poglejte podrobnosti.
     </a>
     {% endif %}
   </div>

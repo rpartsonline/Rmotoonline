@@ -368,7 +368,7 @@
               <th>Artikel / Delo</th>
               <th style="width:130px">IDENT</th>
               <th style="width:150px">Kol.</th>
-              <th style="width:110px">Izvor</th>
+              {% if current_user.role != 'kupec' %}<th style="width:110px">Izvor</th>{% endif %}
               <th style="width:130px">Status</th>
               <th>Opomba</th>
               <th style="width:46px" class="text-center">Briši</th>
@@ -394,10 +394,12 @@
                   </select>
                 </div>
               </td>
+              {% if current_user.role != 'kupec' %}
               <td>
                 <input type="text" name="supplier[]" class="form-control form-control-sm"
                        value="{{ item.supplier or '' }}" placeholder="Izvor">
               </td>
+              {% endif %}
               <td>
                 <select name="status[]" class="form-select form-select-sm">
                   {% for key, lbl, col in item_statuses %}
@@ -697,7 +699,7 @@ function addItemRow() {
     '<td><input type="text" name="new_description[]" class="form-control form-control-sm" placeholder="Naziv artikla / dela"></td>' +
     '<td><input type="text" name="new_bartog[]" class="form-control form-control-sm" placeholder="IDENT"></td>' +
     '<td><div class="d-flex gap-1"><input type="text" name="new_quantity[]" value="1" class="form-control form-control-sm" style="width:56px"><select name="new_unit[]" class="form-select form-select-sm" style="width:auto">' + UNIT_OPTIONS + '</select></div></td>' +
-    '<td><input type="text" name="new_supplier[]" class="form-control form-control-sm" placeholder="Izvor"></td>' +
+    {% if current_user.role != 'kupec' %}'<td><input type="text" name="new_supplier[]" class="form-control form-control-sm" placeholder="Izvor"></td>' +{% endif %}
     '<td><span class="badge bg-light text-dark border">novo</span></td>' +
     '<td><input type="text" name="new_notes[]" class="form-control form-control-sm" placeholder="Opomba"></td>' +
     '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" title="Odstrani" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x-lg"></i></button></td>';

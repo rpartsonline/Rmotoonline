@@ -98,6 +98,7 @@ def create_app():
         # Števec novih obvestil za kupca (naročila, ki so prešla na „naročeno")
         kupec_notif = 0
         kupec_inquiry_notif = 0
+        kupec_order_notif = 0
         try:
             from flask_login import current_user
             if current_user.is_authenticated and getattr(current_user, "role", "") == "kupec":
@@ -105,6 +106,9 @@ def create_app():
                     employee_id=current_user.id, notify_customer=True).count()
                 kupec_inquiry_notif = Order.query.filter_by(
                     employee_id=current_user.id, kind="povprasevanje",
+                    notify_customer=True).count()
+                kupec_order_notif = Order.query.filter_by(
+                    employee_id=current_user.id, kind="narocilo",
                     notify_customer=True).count()
         except Exception:
             pass
@@ -133,6 +137,7 @@ def create_app():
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
             "kupec_inquiry_notif_count": kupec_inquiry_notif,
+            "kupec_order_notif_count": kupec_order_notif,
             "note_notif_count": note_notif_count,
             "done_notif_count": done_notif_count,
             "my_notes_done_count": my_notes_done_count,

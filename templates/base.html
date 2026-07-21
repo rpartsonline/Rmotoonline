@@ -93,8 +93,8 @@
       <a href="{{ url_for('orders.list_orders') }}"
          class="sb-link {% if request.endpoint in ['orders.list_orders', 'orders.new_order'] %}active{% endif %}">
         <i class="bi bi-clipboard-check"></i><span>Naročila</span>
-        {% if current_user.role == 'kupec' and kupec_notif_count %}
-        <span class="badge bg-success rounded-pill ms-auto">{{ kupec_notif_count }}</span>
+        {% if current_user.role == 'kupec' and kupec_order_notif_count %}
+        <span class="badge bg-success rounded-pill ms-auto">{{ kupec_order_notif_count }}</span>
         {% endif %}
       </a>
     </li>
@@ -102,6 +102,9 @@
       <a href="{{ url_for('orders.list_inquiries') }}"
          class="sb-link {% if request.endpoint in ['orders.list_inquiries', 'orders.new_inquiry'] %}active{% endif %}">
         <i class="bi bi-chat-left-text"></i><span>Povpraševanja</span>
+        {% if current_user.role == 'kupec' and kupec_inquiry_notif_count %}
+        <span class="badge bg-success rounded-pill ms-auto">{{ kupec_inquiry_notif_count }}</span>
+        {% endif %}
       </a>
     </li>
     {% if current_user.role != 'kupec' %}
