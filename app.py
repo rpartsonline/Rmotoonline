@@ -180,7 +180,7 @@ def create_app():
         ep = request.endpoint or ""
         # dovoljeni deli + VIN branje/razčlemba (vehicles API) za izpolnjevanje naročila
         allowed_vehicle_eps = {"vehicles.api_vin_ocr", "vehicles.api_decode_vin", "vehicles.api_models"}
-        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "static")) or ep in allowed_vehicle_eps:
+        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "complaints.", "static")) or ep in allowed_vehicle_eps:
             return
         flash("Do te strani nimaš dostopa.", "danger")
         return redirect(url_for("orders.list_orders"))
