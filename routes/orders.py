@@ -299,7 +299,17 @@ def _render_list(kind):
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_count = Order.query.filter_by(kind=kind).filter(Order.created_at >= today_start).count()
+    today_q = Order.query.filter_by(kind=kind).filter(Order.created_at >= today_start)
+    if is_kupec:
+        today_q = today_q.filter_by(employee_id=current_user.id)
+    today_count = today_q.count()
+
+    # Za mehanika (kupca) na seznamu naročil: število njegovih „naročenih" naročil
+    ordered_count = 0
+    if is_kupec and kind == "narocilo":
+        ordered_count = Order.query.filter_by(
+            kind="narocilo", status="naroceno",
+            employee_id=current_user.id).count()
 
     # Kupec si je ogledal seznam → obvestila „naročeno" označimo kot prebrana
     if is_kupec:
@@ -340,6 +350,8 @@ def _render_list(kind):
         list_url=url_for(cfg["list_endpoint"]),
         status_breakdown=breakdown,
         today_count=today_count,
+        is_kupec=is_kupec,
+        ordered_count=ordered_count,
     )
 
 

@@ -41,12 +41,23 @@
     </a>
   </div>
   {% endif %}{% endfor %}
+  {% if is_kupec and kind == 'narocilo' %}
+  <div class="col-4">
+    <a href="?status=naroceno" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100 p-3">
+        <div class="fw-bold fs-2 text-info">{{ ordered_count }}</div>
+        <div class="small text-muted"><i class="bi bi-check-circle me-1"></i>Naročena</div>
+      </div>
+    </a>
+  </div>
+  {% elif not is_kupec %}
   <div class="col-4">
     <div class="card border-0 shadow-sm h-100 p-3">
       <div class="fw-bold fs-2 text-primary">{{ today_count }}</div>
       <div class="small text-muted"><i class="bi bi-calendar3 me-1"></i>Naročil danes</div>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endif %}
 
