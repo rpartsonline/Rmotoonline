@@ -168,7 +168,23 @@
           </td>
           <td><span class="chip-source">{{ o.source }}</span></td>
           <td class="small text-muted">{{ o.employee.full_name }}</td>
-          <td><span class="badge bg-{{ o.status_info.color }}">{% if is_kupec and o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span></td>
+          <td>
+            <span class="badge bg-{{ o.status_info.color }}">{% if is_kupec and o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span>
+            {% if o.status == 'narocena_caka' and o.delivery_date %}
+              {% set dleft = (o.delivery_date - today).days %}
+              <div class="mt-1">
+                {% if dleft < 0 %}
+                <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Zamuja {{ -dleft }} {{ 'dan' if -dleft == 1 else 'dni' }}</span>
+                {% elif dleft == 0 %}
+                <span class="badge bg-danger"><i class="bi bi-truck me-1"></i>Dobava danes</span>
+                {% elif dleft == 1 %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-truck me-1"></i>Dobava jutri</span>
+                {% else %}
+                <span class="badge bg-info text-dark"><i class="bi bi-truck me-1"></i>Še {{ dleft }} dni</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
           <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
             <div class="d-flex gap-1 justify-content-end">

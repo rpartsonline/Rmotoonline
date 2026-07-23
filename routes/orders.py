@@ -264,6 +264,7 @@ def list_inquiries():
 
 
 def _render_list(kind):
+    from models import today_local
     cfg = _kind_cfg(kind)
     status_filter   = request.args.get("status", "")
     customer_filter = request.args.get("customer_id", "")
@@ -352,6 +353,7 @@ def _render_list(kind):
         today_count=today_count,
         is_kupec=is_kupec,
         ordered_count=ordered_count,
+        today=today_local(),
     )
 
 
