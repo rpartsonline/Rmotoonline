@@ -280,7 +280,7 @@
 {% endif %}
 
 <!-- Oblaček: dostava dela (vsi; za kupca samo njegova) – oranžna dan prej, rdeča na dan dobave -->
-<a href="{{ url_for('orders.list_inquiries', status='narocena_caka') }}" id="delivery-badge"
+<a href="{{ url_for('orders.list_inquiries', status='narocena_caka', due=1) }}" id="delivery-badge"
    class="delivery-badge {% if delivery_alert_red %}is-red{% endif %}" title="Dostava dela"
    style="{% if not delivery_alert_count %}display:none;{% endif %}">
   <i class="bi bi-truck"></i>

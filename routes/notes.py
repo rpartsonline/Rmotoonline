@@ -75,6 +75,10 @@ def toggle_note(note_id):
     note = Note.query.get_or_404(note_id)
     note.done = not note.done
     note.done_at = datetime.utcnow() if note.done else None
+    if note.done:
+        # Če beležko obdela nekdo drug → avtor dobi obvestilo (zeleni oblaček).
+        # Če jo obdela avtor sam → brez obvestila.
+        note.creator_seen_done = (note.created_by_id == current_user.id)
     db.session.commit()
     return redirect(request.referrer or url_for("notes.list_notes"))
 

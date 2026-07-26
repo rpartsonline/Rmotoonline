@@ -296,6 +296,11 @@ def _render_list(kind):
             pass
     if search:
         q = q.filter(Order.order_number.ilike(f"%{search}%"))
+    # Samo dostave „v prihodu" (dan prej, tisti dan in zamude) – klik na oblaček Dostava dela
+    if request.args.get("due"):
+        tomorrow = today_local() + timedelta(days=1)
+        q = (q.filter(Order.delivery_date.isnot(None))
+              .filter(Order.delivery_date <= tomorrow))
 
     orders    = q.order_by(Order.created_at.desc()).all()
     customers = Customer.query.order_by(Customer.name).all()
