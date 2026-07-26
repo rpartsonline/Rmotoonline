@@ -18,10 +18,16 @@ def admin_required(f):
 
 
 @admin_bp.route("/users")
-@admin_required
+@login_required
 def users():
+    # Kupce (mehanike) na to stran ne spustimo (globalno varovalo), zaposleni
+    # smejo LE pregledovati; upravljanje (dodajanje, gesla, QR) je samo za admina.
+    if getattr(current_user, "role", "") == "kupec":
+        flash("Dostop zavrnjen.", "danger")
+        return redirect(url_for("main.dashboard"))
     all_users = User.query.order_by(User.full_name).all()
-    return render_template("admin/users.html", users=all_users)
+    return render_template("admin/users.html", users=all_users,
+                           can_manage=current_user.is_admin)
 
 
 @admin_bp.route("/users/new", methods=["GET", "POST"])

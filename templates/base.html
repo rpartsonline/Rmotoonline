@@ -152,16 +152,16 @@
         <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
       </a>
     </li>
-    {% endif %}
-
-    {% if current_user.is_admin %}
-    <li class="sb-section">Admin</li>
     <li>
       <a href="{{ url_for('admin.users') }}"
          class="sb-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
         <i class="bi bi-person-gear"></i><span>Uporabniki</span>
       </a>
     </li>
+    {% endif %}
+
+    {% if current_user.is_admin %}
+    <li class="sb-section">Admin</li>
     <li>
       <a href="{{ url_for('main.iskalnik_dobaviteljev') }}"
          class="sb-link {% if request.endpoint == 'main.iskalnik_dobaviteljev' %}active{% endif %}">
