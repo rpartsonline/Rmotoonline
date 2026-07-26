@@ -227,7 +227,7 @@ def ustvari_racunovodjo():
                 f'(vloga: {obstaja.role}). Geslo lahko ponastaviš v Uporabniki.</p>'
                 '<a href="/admin/users">Na Uporabnike</a></div>')
     u = User(username='marjana', full_name='Marjana Računovodja',
-             is_admin=False, role='racunovodja')
+             is_admin=False, role='racunovodja', is_active_user=True)
     u.set_password('bartog111')
     db.session.add(u)
     db.session.commit()

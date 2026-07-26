@@ -245,7 +245,7 @@ class OrderStatusLog(db.Model):
 
 # ── Beležka (skupna tabla obvestil med zaposlenimi) ───────────────────────────
 NOTE_PEOPLE = ["Alan Daksobler", "Sašo Juretič", "Vid Kenda", "Rok Jerkič",
-               "Nejc Tominec", "Borut Čermelj"]
+               "Nejc Tominec", "Borut Čermelj", "Marjana Računovodja"]
 
 
 class Note(db.Model):
