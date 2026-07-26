@@ -45,6 +45,15 @@
       </div>
       <i class="bi bi-arrow-right kh-card-go"></i>
     </a>
+
+    <a href="{{ url_for('complaints.list_complaints') }}" class="kh-card kh-card-rekl">
+      <div class="kh-card-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="kh-card-body">
+        <h2>Reklamacije</h2>
+        <p>Oddajte reklamacijo in spremljajte njeno obravnavo.</p>
+      </div>
+      <i class="bi bi-arrow-right kh-card-go"></i>
+    </a>
   </div>
 
   <!-- Zadnja naročila -->
@@ -117,6 +126,8 @@
   .kh-card-order .kh-card-icon { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
   .kh-card-inq:hover { border-color: #0891b2; }
   .kh-card-inq .kh-card-icon { background: linear-gradient(135deg,#06b6d4,#0891b2); }
+  .kh-card-rekl:hover { border-color: #f59e0b; }
+  .kh-card-rekl .kh-card-icon { background: linear-gradient(135deg,#f59e0b,#d97706); }
   .kh-card-body h2 { font-size: 1.2rem; font-weight: 800; margin: 0 0 3px; }
   .kh-card-body p { font-size: .9rem; color: #64748b; margin: 0; line-height: 1.4; }
   .kh-card-go { margin-left: auto; font-size: 1.3rem; color: #cbd5e1; transition: transform .15s, color .15s; }
