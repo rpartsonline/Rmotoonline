@@ -259,10 +259,11 @@
   <div class="form-section-title"><i class="bi bi-info-circle"></i> Podrobnosti naročila</div>
   <div class="row g-2">
     <div class="col-md-3">
-      <label class="form-label small fw-semibold">Vir naročila</label>
-      <select name="source" class="form-select">
+      <label class="form-label small fw-semibold">Vir naročila <span class="text-danger">*</span></label>
+      <select name="source" class="form-select" required>
+        <option value="" disabled {% if not form_data.get('source') %}selected{% endif %}>— izberi vir —</option>
         {% for s in sources %}
-        <option value="{{ s }}">{{ s|capitalize }}</option>
+        <option value="{{ s }}" {% if form_data.get('source') == s %}selected{% endif %}>{{ s|capitalize }}</option>
         {% endfor %}
       </select>
     </div>

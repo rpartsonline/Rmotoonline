@@ -429,6 +429,10 @@ def _handle_new(kind):
             if f.get("delivery_urgency", "") not in DELIVERY_URGENCY_DICT:
                 errors.append("Izberi, kdaj potrebuješ nadomestne dele.")
 
+        # Zaposleni mora izbrati vir naročila (kupec ima samodejno „bartog")
+        if not is_kupec and not f.get("source", "").strip():
+            errors.append("Izberi vir naročila.")
+
         if errors:
             for e in errors:
                 flash(e, "danger")
