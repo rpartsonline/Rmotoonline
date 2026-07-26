@@ -190,6 +190,24 @@ def create_app():
         flash("Do te strani nimaš dostopa.", "danger")
         return redirect(url_for("orders.list_orders"))
 
+    @app.before_request
+    def _restrict_racunovodja():
+        from flask import request, redirect, url_for, flash
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return
+        if getattr(current_user, "role", "") != "racunovodja":
+            return
+        ep = request.endpoint or ""
+        # Računovodja: samo Ure, Dopusti, Beležka (+ prijava/statika)
+        if ep == "static" or ep.startswith(("staff.", "notes.", "auth.", "static")):
+            return
+        # Osnovne main. strani dovolimo (npr. odjava, sw.js), a preusmerimo na Ure
+        if ep in ("main.sw", "main.zamenjaj_platformo"):
+            return
+        flash("Do te strani nimaš dostopa.", "danger")
+        return redirect(url_for("staff.hours"))
+
     # ── Init DB & default admin ──────────────────────────────────────────────
     with app.app_context():
         db.create_all()

@@ -7,6 +7,12 @@ from models import db, User, LeaveEntry, WorkHours, MonthLock, leave_color_for
 
 staff_bp = Blueprint("staff", __name__, url_prefix="/osebje")
 
+
+def _hours_mgr():
+    """Kdo sme urejati ure vseh delavcev: admin ali računovodja."""
+    return current_user.is_admin or getattr(current_user, "role", "") == "racunovodja"
+
+
 SL_MONTHS = ["", "Januar", "Februar", "Marec", "April", "Maj", "Junij",
              "Julij", "Avgust", "September", "Oktober", "November", "December"]
 SL_DOW = ["Pon", "Tor", "Sre", "Čet", "Pet", "Sob", "Ned"]
@@ -134,7 +140,7 @@ def hours():
     y, m = _ym()
 
     # admin lahko izbere delavca; delavec vidi samo sebe
-    if current_user.is_admin and request.args.get("user_id", type=int):
+    if _hours_mgr() and request.args.get("user_id", type=int):
         target = User.query.get_or_404(request.args.get("user_id", type=int))
     else:
         target = current_user
@@ -187,13 +193,13 @@ def hours():
     (py, pm), (ny, nm) = _prev_next(y, m)
 
     locked = MonthLock.query.filter_by(user_id=target.id, year=y, month=m).first() is not None
-    can_edit = (not locked) or current_user.is_admin
+    can_edit = (not locked) or _hours_mgr()
 
     return render_template("staff/hours.html",
                            year=y, month=m, month_name=SL_MONTHS[m],
                            rows=rows, target=target,
                            sum_h=sum_h, sum_o=sum_o, sum_total=sum_h + sum_o,
-                           is_admin=current_user.is_admin, users=users,
+                           is_admin=_hours_mgr(), users=users,
                            time_options=time_options, hour_options=hour_options,
                            locked=locked, can_edit=can_edit,
                            prev_y=py, prev_m=pm, next_y=ny, next_m=nm)
@@ -207,12 +213,12 @@ def save_hours():
 
     # admin lahko shrani za izbranega; sicer zase
     target_id = request.form.get("user_id", type=int)
-    if not current_user.is_admin or not target_id:
+    if not _hours_mgr() or not target_id:
         target_id = current_user.id
 
     # zaklenjen mesec lahko spreminja samo admin
     locked = MonthLock.query.filter_by(user_id=target_id, year=y, month=m).first() is not None
-    if locked and not current_user.is_admin:
+    if locked and not _hours_mgr():
         flash("Ta mesec je zaključen in ga ne moreš več urejati. Obrni se na admina.", "danger")
         return redirect(url_for("staff.hours", year=y, month=m))
 
@@ -247,7 +253,7 @@ def save_hours():
     db.session.commit()
     flash("Ure shranjene.", "success")
     return redirect(url_for("staff.hours", year=y, month=m,
-                            user_id=target_id if current_user.is_admin else None))
+                            user_id=target_id if _hours_mgr() else None))
 
 
 # ── Zaključi / odkleni mesec (samo admin lahko odklene) ──────────────────────
@@ -257,13 +263,13 @@ def lock_month():
     y = request.form.get("year", type=int)
     m = request.form.get("month", type=int)
     target_id = request.form.get("user_id", type=int)
-    if not current_user.is_admin or not target_id:
+    if not _hours_mgr() or not target_id:
         target_id = current_user.id
 
     existing = MonthLock.query.filter_by(user_id=target_id, year=y, month=m).first()
     if existing:
         # odkleniti sme samo admin
-        if not current_user.is_admin:
+        if not _hours_mgr():
             flash("Zaključen mesec lahko odklene samo admin.", "danger")
             return redirect(url_for("staff.hours", year=y, month=m))
         db.session.delete(existing)
@@ -274,7 +280,7 @@ def lock_month():
         db.session.commit()
         flash("Mesec zaključen in shranjen v arhiv.", "success")
     return redirect(url_for("staff.hours", year=y, month=m,
-                            user_id=target_id if current_user.is_admin else None))
+                            user_id=target_id if _hours_mgr() else None))
 
 
 # ── Tisk ur (trenutni mesec) ─────────────────────────────────────────────────
@@ -282,7 +288,7 @@ def lock_month():
 @login_required
 def print_hours():
     y, m = _ym()
-    if current_user.is_admin and request.args.get("user_id", type=int):
+    if _hours_mgr() and request.args.get("user_id", type=int):
         target = User.query.get_or_404(request.args.get("user_id", type=int))
     else:
         target = current_user
@@ -330,7 +336,7 @@ def print_hours():
 @login_required
 def archive():
     q = MonthLock.query
-    if not current_user.is_admin:
+    if not _hours_mgr():
         q = q.filter_by(user_id=current_user.id)
     locks = q.order_by(MonthLock.year.desc(), MonthLock.month.desc()).all()
 
@@ -348,4 +354,4 @@ def archive():
                       "month_name": SL_MONTHS[lk.month], "year": lk.year, "month": lk.month,
                       "user_id": lk.user_id, "sum_h": th, "sum_o": to, "sum_total": th + to})
 
-    return render_template("staff/archive.html", items=items, is_admin=current_user.is_admin)
+    return render_template("staff/archive.html", items=items, is_admin=_hours_mgr())

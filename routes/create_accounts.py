@@ -212,3 +212,28 @@ def popravi_vloge():
         'Zdaj vidijo samo svoja naročila, povpraševanja in reklamacije.</p>'
         '<a href="/admin/users">Na Uporabnike</a></div>'
     )
+
+
+# ── Enkratno orodje: ustvari računovodkinjo Marjano ───────────────────────────
+@create_acc_bp.route('/ustvari-racunovodjo')
+@login_required
+def ustvari_racunovodjo():
+    if not current_user.is_admin:
+        return 'Samo admin.', 403
+    obstaja = User.query.filter_by(username='marjana').first()
+    if obstaja:
+        return ('<div style="font-family:sans-serif;max-width:600px;margin:40px auto">'
+                f'<h2>Račun že obstaja</h2><p>Uporabnik <code>marjana</code> že obstaja '
+                f'(vloga: {obstaja.role}). Geslo lahko ponastaviš v Uporabniki.</p>'
+                '<a href="/admin/users">Na Uporabnike</a></div>')
+    u = User(username='marjana', full_name='Marjana Računovodja',
+             is_admin=False, role='racunovodja')
+    u.set_password('bartog111')
+    db.session.add(u)
+    db.session.commit()
+    return ('<div style="font-family:sans-serif;max-width:600px;margin:40px auto;line-height:1.6">'
+            '<h2>✅ Račun ustvarjen</h2>'
+            '<p>Uporabniško ime: <code>marjana</code><br>Geslo: <code>bartog111</code><br>'
+            'Vloga: <b>Računovodja</b> (vidi le Ure, Dopuste in Beležko; ure lahko ureja vsem).</p>'
+            '<p style="color:#b45309"><b>Priporočilo:</b> geslo takoj zamenjaj v '
+            '<a href="/admin/users">Uporabniki → Ponastavi geslo</a>.</p></div>')
