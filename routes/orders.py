@@ -559,32 +559,59 @@ def _handle_new(kind):
                 category, label = ITEM_CATALOG_MAP[key]
                 add_item(f"{category} – {label}", key)
 
-        # Pnevmatike – osebne
+        # Pnevmatike – osebne (več vrstic)
         if "PNEVMATIKE" in selected:
-            w = f.get("tire_width", "").strip()
-            a = f.get("tire_aspect", "").strip()
-            d = f.get("tire_diameter", "").strip()
-            dim = f"{w}/{a} R{d}" if (w and a and d) else ""
-            meta = " · ".join(x for x in [f.get("tire_season", "").strip(),
-                                          f.get("tire_brand", "").strip()] if x)
-            desc = "Pnevmatike"
-            if dim:  desc += f" {dim}"
-            if meta: desc += f" · {meta}"
-            add_item(desc, "PNEVMATIKE")
-
-        # Pnevmatike – moto / agro / tovorne
-        for key, label in [("MOTO", "Moto pnevmatike"),
-                           ("AGRO", "Agro pnevmatike"),
-                           ("TOVORNE", "Tovorne pnevmatike")]:
-            if key in selected:
-                pref = key.lower()
-                dim  = f.get(f"{pref}_dim", "").strip()
-                meta = " · ".join(x for x in [f.get(f"{pref}_season", "").strip(),
-                                              f.get(f"{pref}_brand", "").strip()] if x)
-                desc = label
+            widths    = f.getlist("tire_width[]")
+            aspects   = f.getlist("tire_aspect[]")
+            diameters = f.getlist("tire_diameter[]")
+            seasons   = f.getlist("tire_season[]")
+            brands    = f.getlist("tire_brand[]")
+            idents    = f.getlist("ident_PNEVMATIKE[]")
+            izvori    = f.getlist("izvor_PNEVMATIKE[]")
+            n = max(len(widths), len(brands), len(idents), len(diameters))
+            def _g(lst, i): return lst[i].strip() if i < len(lst) else ""
+            for i in range(n):
+                w, a, d = _g(widths, i), _g(aspects, i), _g(diameters, i)
+                se, br  = _g(seasons, i), _g(brands, i)
+                idv, izv = _g(idents, i), _g(izvori, i)
+                if not (w or a or d or br or idv):
+                    continue
+                dim = f"{w}/{a} R{d}" if (w and a and d) else ""
+                meta = " · ".join(x for x in [se, br] if x)
+                desc = "Pnevmatike"
                 if dim:  desc += f" {dim}"
                 if meta: desc += f" · {meta}"
-                add_item(desc, key)
+                db.session.add(OrderItem(
+                    order_id=order.id, description=desc, bartog_id=idv,
+                    supplier=izv, quantity=1, unit="kos", status="caka"))
+
+        # Pnevmatike – moto / agro / tovorne (več vrstic)
+        for key, label, pref in [("MOTO", "Moto pnevmatike", "moto"),
+                                 ("AGRO", "Agro pnevmatike", "agro"),
+                                 ("TOVORNE", "Tovorne pnevmatike", "tovorne")]:
+            if key in selected:
+                dims    = f.getlist(f"{pref}_dim[]")
+                seasons = f.getlist(f"{pref}_season[]")
+                brands  = f.getlist(f"{pref}_brand[]")
+                idents  = f.getlist(f"ident_{key}[]")
+                izvori  = f.getlist(f"izvor_{key}[]")
+                n = max(len(dims), len(brands), len(idents))
+                def _g2(lst, i): return lst[i].strip() if i < len(lst) else ""
+                for i in range(n):
+                    dm  = _g2(dims, i)
+                    se  = _g2(seasons, i)
+                    br  = _g2(brands, i)
+                    idv = _g2(idents, i)
+                    izv = _g2(izvori, i)
+                    if not (dm or br or idv):
+                        continue
+                    meta = " · ".join(x for x in [se, br] if x)
+                    desc = label
+                    if dm:   desc += f" {dm}"
+                    if meta: desc += f" · {meta}"
+                    db.session.add(OrderItem(
+                        order_id=order.id, description=desc, bartog_id=idv,
+                        supplier=izv, quantity=1, unit="kos", status="caka"))
 
         # Ostali material – več vrstic
         om_opisi  = f.getlist("ostali_opis[]")

@@ -360,32 +360,36 @@
           <span class="ci-label">OSEBNE PNEVMATIKE</span>
         </label>
         <div class="ci-inputs ci-inputs-wrap">
-          <div class="tire-dims">
-            <select name="tire_width" class="form-select form-select-sm">
-              <option value="">Š</option>
-              {% for w in tire_widths %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
-            </select>
-            <span class="tire-sep">/</span>
-            <select name="tire_aspect" class="form-select form-select-sm">
-              <option value="">V</option>
-              {% for a in tire_aspects %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
-            </select>
-            <span class="tire-sep">R</span>
-            <select name="tire_diameter" class="form-select form-select-sm">
-              <option value="">P</option>
-              {% for d in tire_diameters %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
-            </select>
+          <div class="tire-repeat" data-type="osebne" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <div class="tire-dims">
+                <select name="tire_width[]" class="form-select form-select-sm">
+                  <option value="">Š</option>
+                  {% for w in tire_widths %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+                </select>
+                <span class="tire-sep">/</span>
+                <select name="tire_aspect[]" class="form-select form-select-sm">
+                  <option value="">V</option>
+                  {% for a in tire_aspects %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+                </select>
+                <span class="tire-sep">R</span>
+                <select name="tire_diameter[]" class="form-select form-select-sm">
+                  <option value="">P</option>
+                  {% for d in tire_diameters %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                </select>
+              </div>
+              <select name="tire_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="tire_brand[]" class="form-control form-control-sm" list="tb-car"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_PNEVMATIKE[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_PNEVMATIKE[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
           </div>
-          <select name="tire_season" class="form-select form-select-sm" style="max-width:130px">
-            <option value="">Sezona</option>
-            {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          </select>
-          <input type="text" name="tire_brand" class="form-control form-control-sm" list="tb-car"
-                 placeholder="Znamka" autocomplete="off" style="max-width:150px">
-          <input type="text" name="ident_PNEVMATIKE" class="form-control form-control-sm"
-                 placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
-          {% if current_user.role != 'kupec' %}<input type="text" name="izvor_PNEVMATIKE" class="form-control form-control-sm"
-                 placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
         </div>
       </div>
 
@@ -396,18 +400,22 @@
           <span class="ci-label">MOTO PNEVMATIKE</span>
         </label>
         <div class="ci-inputs ci-inputs-wrap">
-          <input type="text" name="moto_dim" class="form-control form-control-sm"
-                 placeholder="Dimenzija (npr. 120/70 ZR17)" autocomplete="off" style="max-width:200px">
-          <select name="moto_season" class="form-select form-select-sm" style="max-width:130px">
-            <option value="">Sezona</option>
-            {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          </select>
-          <input type="text" name="moto_brand" class="form-control form-control-sm" list="tb-moto"
-                 placeholder="Znamka" autocomplete="off" style="max-width:150px">
-          <input type="text" name="ident_MOTO" class="form-control form-control-sm"
-                 placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
-          {% if current_user.role != 'kupec' %}<input type="text" name="izvor_MOTO" class="form-control form-control-sm"
-                 placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+          <div class="tire-repeat" data-type="moto" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="moto_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 120/70 ZR17)" autocomplete="off" style="max-width:200px">
+              <select name="moto_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="moto_brand[]" class="form-control form-control-sm" list="tb-moto"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_MOTO[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_MOTO[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -418,18 +426,22 @@
           <span class="ci-label">AGRO PNEVMATIKE</span>
         </label>
         <div class="ci-inputs ci-inputs-wrap">
-          <input type="text" name="agro_dim" class="form-control form-control-sm"
-                 placeholder="Dimenzija (npr. 520/70 R38)" autocomplete="off" style="max-width:200px">
-          <select name="agro_season" class="form-select form-select-sm" style="max-width:130px">
-            <option value="">Sezona</option>
-            {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          </select>
-          <input type="text" name="agro_brand" class="form-control form-control-sm" list="tb-agro"
-                 placeholder="Znamka" autocomplete="off" style="max-width:150px">
-          <input type="text" name="ident_AGRO" class="form-control form-control-sm"
-                 placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
-          {% if current_user.role != 'kupec' %}<input type="text" name="izvor_AGRO" class="form-control form-control-sm"
-                 placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+          <div class="tire-repeat" data-type="agro" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="agro_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 520/70 R38)" autocomplete="off" style="max-width:200px">
+              <select name="agro_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="agro_brand[]" class="form-control form-control-sm" list="tb-agro"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_AGRO[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_AGRO[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -440,18 +452,22 @@
           <span class="ci-label">TOVORNE PNEVMATIKE</span>
         </label>
         <div class="ci-inputs ci-inputs-wrap">
-          <input type="text" name="tovorne_dim" class="form-control form-control-sm"
-                 placeholder="Dimenzija (npr. 315/80 R22.5)" autocomplete="off" style="max-width:200px">
-          <select name="tovorne_season" class="form-select form-select-sm" style="max-width:130px">
-            <option value="">Sezona</option>
-            {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          </select>
-          <input type="text" name="tovorne_brand" class="form-control form-control-sm" list="tb-truck"
-                 placeholder="Znamka" autocomplete="off" style="max-width:150px">
-          <input type="text" name="ident_TOVORNE" class="form-control form-control-sm"
-                 placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
-          {% if current_user.role != 'kupec' %}<input type="text" name="izvor_TOVORNE" class="form-control form-control-sm"
-                 placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+          <div class="tire-repeat" data-type="tovorne" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="tovorne_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 315/80 R22.5)" autocomplete="off" style="max-width:200px">
+              <select name="tovorne_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="tovorne_brand[]" class="form-control form-control-sm" list="tb-truck"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_TOVORNE[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_TOVORNE[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1326,6 +1342,41 @@ document.addEventListener('DOMContentLoaded', function() {
   // Obnovi ob nalaganju (malce zakasni, da se najprej inicializira ostali JS)
   document.addEventListener("DOMContentLoaded", function () {
     setTimeout(restoreForm, 200);
+  });
+})();
+</script>
+
+<script>
+// ── Pnevmatike: samodejno dodaj novo prazno vrstico iste vrste ─────────────────
+(function () {
+  var form = document.getElementById('order-form');
+  if (!form) return;
+
+  function lineHasValue(line) {
+    return Array.prototype.some.call(
+      line.querySelectorAll('input, select'),
+      function (el) { return el.value && String(el.value).trim() !== ''; });
+  }
+  function lastLine(rep) {
+    var ls = rep.querySelectorAll('.tire-line');
+    return ls[ls.length - 1];
+  }
+  function maybeAdd(rep, line) {
+    if (!line || line !== lastLine(rep)) return;
+    if (!lineHasValue(line)) return;
+    var clone = line.cloneNode(true);
+    clone.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    clone.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+    rep.appendChild(clone);
+  }
+
+  form.querySelectorAll('.tire-repeat').forEach(function (rep) {
+    function handler(e) {
+      var line = e.target.closest ? e.target.closest('.tire-line') : null;
+      maybeAdd(rep, line);
+    }
+    rep.addEventListener('input', handler);
+    rep.addEventListener('change', handler);
   });
 })();
 </script>
