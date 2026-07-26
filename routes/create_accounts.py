@@ -153,3 +153,62 @@ def poenostavi_imena():
         f'<a href="/admin/poenostavi-imena?go=1&offset={next_offset}">Klikni, če ne nadaljuje</a>'
         '</div>'
     )
+
+
+# ── Enkratno orodje: popravi vloge mehanikov na 'kupec' ───────────────────────
+# Vsak uporabnik, povezan s stranko (linked_customer_id) in ni admin, je mehanik
+# in mora imeti vlogo 'kupec' (sicer vidi tuja naročila/reklamacije).
+@create_acc_bp.route('/popravi-vloge')
+@login_required
+def popravi_vloge():
+    if not current_user.is_admin:
+        return 'Samo admin.', 403
+
+    # Diagnostika: koliko računov po vlogah
+    vse = User.query.all()
+    po_vlogi = {}
+    for u in vse:
+        po_vlogi[u.role or '(prazno)'] = po_vlogi.get(u.role or '(prazno)', 0) + 1
+
+    go = request.args.get('go')
+
+    # Kandidati: povezani s stranko, niso admin, vloga ni 'kupec'
+    kandidati = (User.query
+                 .filter(User.linked_customer_id.isnot(None),
+                         User.is_admin == False,
+                         (User.role != 'kupec') | (User.role.is_(None)))
+                 .all())
+
+    if not go:
+        vrstice = ''.join(f'<tr><td>{k}</td><td style="text-align:right">{v}</td></tr>'
+                          for k, v in sorted(po_vlogi.items()))
+        return (
+            '<div style="font-family:sans-serif;max-width:640px;margin:40px auto;line-height:1.5">'
+            '<h2>Popravek vlog mehanikov</h2>'
+            '<p>Trenutno stanje računov po vlogah:</p>'
+            f'<table style="border-collapse:collapse"><tr><th style="text-align:left">Vloga</th>'
+            f'<th>Št.</th></tr>{vrstice}</table>'
+            f'<p style="margin-top:16px"><b>{len(kandidati)}</b> računov, povezanih s stranko, '
+            'nima vloge <code>kupec</code> — ti trenutno vidijo tuja naročila. '
+            'Popravek jim nastavi vlogo <code>kupec</code>.</p>'
+            '<p><a href="/admin/popravi-vloge?go=1" '
+            'style="display:inline-block;background:#2563eb;color:#fff;padding:10px 18px;'
+            'border-radius:8px;text-decoration:none;font-weight:700">Popravi vloge</a> &nbsp; '
+            '<a href="/admin/users">Prekliči</a></p>'
+            '</div>'
+        )
+
+    spremenjenih = 0
+    for u in kandidati:
+        u.role = 'kupec'
+        spremenjenih += 1
+        print(f"[VLOGA] {u.username} -> kupec (stranka #{u.linked_customer_id})")
+    db.session.commit()
+
+    return (
+        '<div style="font-family:sans-serif;max-width:640px;margin:40px auto">'
+        f'<h2>✅ Popravljeno!</h2>'
+        f'<p>Vlogo <code>kupec</code> je dobilo <b>{spremenjenih}</b> računov mehanikov. '
+        'Zdaj vidijo samo svoja naročila, povpraševanja in reklamacije.</p>'
+        '<a href="/admin/users">Na Uporabnike</a></div>'
+    )

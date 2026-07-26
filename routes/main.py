@@ -211,8 +211,10 @@ def delivery_alert():
         .filter_by(kind="povprasevanje", status="narocena_caka")
         .filter(Order.delivery_date.isnot(None))
         .filter(Order.delivery_date <= tomorrow)
-        .all()
     )
+    if getattr(current_user, "role", "") == "kupec":
+        due = due.filter_by(employee_id=current_user.id)
+    due = due.all()
     return jsonify({
         "count": len(due),
         "red": any(o.delivery_date <= today for o in due),

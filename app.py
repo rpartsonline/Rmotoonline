@@ -81,16 +81,21 @@ def create_app():
         deliv_count = 0
         deliv_red = False
         try:
+            from flask_login import current_user as _cu
+            is_kupec_ctx = _cu.is_authenticated and getattr(_cu, "role", "") == "kupec"
             new_count = Order.query.filter_by(kind="narocilo", status="novo").count()
             today = today_local()
             tomorrow = today + timedelta(days=1)
-            due = (
+            dq = (
                 Order.query
                 .filter_by(kind="povprasevanje", status="narocena_caka")
                 .filter(Order.delivery_date.isnot(None))
                 .filter(Order.delivery_date <= tomorrow)
-                .all()
             )
+            # Kupec (mehanik) vidi „Dostava dela" samo za svoje
+            if is_kupec_ctx:
+                dq = dq.filter_by(employee_id=_cu.id)
+            due = dq.all()
             deliv_count = len(due)
             deliv_red = any(o.delivery_date <= today for o in due)
         except Exception:
