@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Statistika zaposlenih{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Statistika zaposlenih</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-person-badge me-2 text-primary"></i>Statistika zaposlenih</h1>
+</div>
+
+<!-- Pomikanje po mesecih -->
+<div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded"
+     style="background:#fff; border:1px solid #e5eaf2;">
+  <a href="{{ url_for('main.staff_stats', year=prev_y, month=prev_m) }}"
+     class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-chevron-left"></i><span class="d-none d-sm-inline ms-1">Prejšnji</span>
+  </a>
+
+  <div class="text-center">
+    <div class="fw-bold" style="font-size:1.05rem;">{{ month_name }} {{ year }}</div>
+    {% if je_tekoci %}
+    <div class="small text-muted">Tekoči mesec – števec teče</div>
+    {% else %}
+    <div class="small text-muted">Zaključen mesec – arhiv</div>
+    {% endif %}
+  </div>
+
+  <a href="{{ url_for('main.staff_stats', year=next_y, month=next_m) }}"
+     class="btn btn-sm btn-outline-secondary">
+    <span class="d-none d-sm-inline me-1">Naslednji</span><i class="bi bi-chevron-right"></i>
+  </a>
+</div>
+
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-bar-chart me-2"></i>{{ month_name }} {{ year }}</h6>
+    {% if not je_tekoci %}
+    <a href="{{ url_for('main.staff_stats') }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-calendar-check me-1"></i>Na tekoči mesec
+    </a>
+    {% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Zaposleni</th>
+          <th class="text-center">Naročila</th>
+          <th class="text-center">Povpraševanja</th>
+          <th class="text-center">Skupaj</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="fw-semibold">{{ r.ime }}</td>
+          <td class="text-center"><span class="badge bg-primary" style="font-size:.95rem;">{{ r.narocila }}</span></td>
+          <td class="text-center"><span class="badge bg-info text-dark" style="font-size:.95rem;">{{ r.povprasevanja }}</span></td>
+          <td class="text-center fw-bold">{{ r.skupaj }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">
+            Ni zaposlenih za prikaz. Preveri imena v <code>routes/main.py</code>
+            (<code>STATS_STAFF_FIRST_NAMES</code>).
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot>
+        <tr style="background:#f8fafc;">
+          <td class="fw-bold">Skupaj</td>
+          <td class="text-center fw-bold">{{ skupaj_nar }}</td>
+          <td class="text-center fw-bold">{{ skupaj_pov }}</td>
+          <td class="text-center fw-bold">{{ skupaj_nar + skupaj_pov }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="alert alert-info small mt-3">
+  <i class="bi bi-info-circle me-1"></i>
+  Števci se za vsak mesec štejejo posebej – z novim mesecem se začnejo pri 0,
+  stari meseci pa ostanejo dostopni s puščicama zgoraj.
+</div>
+{% endblock %}

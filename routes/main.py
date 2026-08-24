@@ -35,6 +35,70 @@ def _today_utc_range():
         return start, start + timedelta(days=1)
 
 
+# ── Mesečni števec naročil / povpraševanj po zaposlenih ──────────────────────
+# Zaposleni, ki se štejejo. Iščemo po PRVEM imenu (brez šumnikov, male črke),
+# tako da priimek ni pomemben. Za dodajanje osebe dopiši ime v ta seznam.
+STATS_STAFF_FIRST_NAMES = ["alan", "saso", "rok"]
+
+SL_MONTHS = ["", "Januar", "Februar", "Marec", "April", "Maj", "Junij",
+             "Julij", "Avgust", "September", "Oktober", "November", "December"]
+
+
+def _brez_sumnikov(text):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", text or "")
+                   if not unicodedata.combining(c)).lower()
+
+
+def _stats_staff_users():
+    """Uporabniki, ki se štejejo v mesečni statistiki (Alan, Sašo, Rok)."""
+    from models import User
+    izbrani = []
+    for u in User.query.order_by(User.full_name).all():
+        prva = _brez_sumnikov((u.full_name or "").strip().split()[0]
+                              if (u.full_name or "").strip() else "")
+        if prva in STATS_STAFF_FIRST_NAMES:
+            izbrani.append(u)
+    return izbrani
+
+
+def _month_utc_range(year, month):
+    """Začetek in konec meseca (slovenski čas) v naivnem UTC."""
+    from datetime import date
+    try:
+        from zoneinfo import ZoneInfo
+        lj = ZoneInfo("Europe/Ljubljana")
+        utc = ZoneInfo("UTC")
+        start_lj = datetime(year, month, 1, tzinfo=lj)
+        if month == 12:
+            end_lj = datetime(year + 1, 1, 1, tzinfo=lj)
+        else:
+            end_lj = datetime(year, month + 1, 1, tzinfo=lj)
+        return (start_lj.astimezone(utc).replace(tzinfo=None),
+                end_lj.astimezone(utc).replace(tzinfo=None))
+    except Exception:
+        start = datetime(year, month, 1)
+        end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+        return start, end
+
+
+def _staff_month_counts(year, month):
+    """Za vsakega zaposlenega prešteje naročila in povpraševanja v danem mesecu.
+    Števec se z novim mesecem sam začne pri 0; stari meseci ostanejo dostopni,
+    ker se štejejo neposredno iz datumov zapisov."""
+    start, end = _month_utc_range(year, month)
+    vrstice = []
+    for u in _stats_staff_users():
+        nar = Order.query.filter_by(kind="narocilo", employee_id=u.id).filter(
+            Order.created_at >= start, Order.created_at < end).count()
+        pov = Order.query.filter_by(kind="povprasevanje", employee_id=u.id).filter(
+            Order.created_at >= start, Order.created_at < end).count()
+        vrstice.append({"ime": u.full_name, "user_id": u.id,
+                        "narocila": nar, "povprasevanja": pov,
+                        "skupaj": nar + pov})
+    return vrstice
+
+
 @main_bp.route("/")
 @main_bp.route("/dashboard")
 @login_required
@@ -107,8 +171,15 @@ def dashboard():
         count = Order.query.filter_by(kind="povprasevanje", status=key).count()
         inquiry_status_counts[key] = {"label": label, "color": color, "count": count}
 
+    # Mesečni števec po zaposlenih (tekoči mesec)
+    _now = _ljubljana_now()
+    staff_rows = _staff_month_counts(_now.year, _now.month)
+
     return render_template(
         "dashboard.html",
+        staff_rows=staff_rows,
+        stats_month_name=SL_MONTHS[_now.month],
+        stats_year=_now.year,
         today_orders=today_orders,
         new_orders=new_orders,
         ordered_orders=ordered_orders,
@@ -125,6 +196,41 @@ def dashboard():
         recent_orders=recent_orders,
         pending_orders=pending_orders,
         inquiry_status_counts=inquiry_status_counts,
+    )
+
+
+@main_bp.route("/statistika-zaposlenih")
+@login_required
+def staff_stats():
+    """Pregled naročil in povpraševanj po zaposlenih za posamezen mesec.
+    Pomikanje po mesecih s puščicama naprej/nazaj."""
+    if getattr(current_user, "role", "") == "kupec":
+        return redirect(url_for("main.kupec_home"))
+
+    now = _ljubljana_now()
+    try:
+        year = int(request.args.get("year", now.year))
+        month = int(request.args.get("month", now.month))
+        if not (1 <= month <= 12):
+            raise ValueError
+    except (TypeError, ValueError):
+        year, month = now.year, now.month
+
+    rows = _staff_month_counts(year, month)
+
+    prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
+    next_y, next_m = (year + 1, 1) if month == 12 else (year, month + 1)
+    je_tekoci = (year == now.year and month == now.month)
+
+    return render_template(
+        "staff_stats.html",
+        rows=rows,
+        year=year, month=month, month_name=SL_MONTHS[month],
+        prev_y=prev_y, prev_m=prev_m,
+        next_y=next_y, next_m=next_m,
+        je_tekoci=je_tekoci,
+        skupaj_nar=sum(r["narocila"] for r in rows),
+        skupaj_pov=sum(r["povprasevanja"] for r in rows),
     )
 
 

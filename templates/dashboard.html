@@ -41,6 +41,42 @@
   </div>
 </div>
 
+<!-- ── Mesečni števec po zaposlenih ───────────────────────────────────────── -->
+<div class="tbl-card mb-4">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title">
+      <i class="bi bi-person-badge me-2"></i>Zaposleni – {{ stats_month_name }} {{ stats_year }}
+    </h6>
+    <a href="{{ url_for('main.staff_stats') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-clock-history me-1"></i>Prejšnji meseci
+    </a>
+  </div>
+  <div class="p-3">
+    <div class="row g-3">
+      {% for r in staff_rows %}
+      <div class="col-12 col-md-4">
+        <div class="p-3 rounded h-100" style="background:#f8fafc; border:1px solid #e5eaf2;">
+          <div class="fw-bold mb-2">{{ r.ime }}</div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-muted"><i class="bi bi-bag me-1"></i>Naročila</span>
+            <span class="fw-bold text-primary" style="font-size:1.25rem;">{{ r.narocila }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="small text-muted"><i class="bi bi-chat-left-text me-1"></i>Povpraševanja</span>
+            <span class="fw-bold text-info" style="font-size:1.25rem;">{{ r.povprasevanja }}</span>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-12 text-muted small">
+        Ni zaposlenih za prikaz. Imena se nastavijo v <code>routes/main.py</code>
+        (<code>STATS_STAFF_FIRST_NAMES</code>).
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
 <!-- ── Status breakdown ──────────────────────────────────────────────────── -->
 <div class="tbl-card mb-4">
   <div class="tbl-header">
