@@ -127,6 +127,7 @@ def create_app():
             pass
         # Moje beležke, ki jih je sodelavec potrdil kot urejene in jih še nisem videl
         my_notes_done_count = 0
+        my_notes_incoming_count = 0
         try:
             from flask_login import current_user
             from models import Note
@@ -134,6 +135,10 @@ def create_app():
                 my_notes_done_count = Note.query.filter_by(
                     created_by_id=current_user.id, done=True,
                     creator_seen_done=False).count()
+                # Beležke, namenjene meni (po imenu) in še neobdelane
+                if getattr(current_user, "full_name", None):
+                    my_notes_incoming_count = Note.query.filter_by(
+                        person=current_user.full_name, done=False).count()
         except Exception:
             pass
         return {
@@ -146,6 +151,7 @@ def create_app():
             "note_notif_count": note_notif_count,
             "done_notif_count": done_notif_count,
             "my_notes_done_count": my_notes_done_count,
+            "my_notes_incoming_count": my_notes_incoming_count,
         }
 
     # ── Blueprints ──────────────────────────────────────────────────────────

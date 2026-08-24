@@ -37,12 +37,13 @@
       img, video, canvas { max-width: 100%; height: auto; }
       .container-fluid { overflow-x: hidden; }
       /* Manjši plavajoči oblački, da ne prekrivajo vsebine */
-      .new-orders-badge, .delivery-badge, .notes-badge {
+      .new-orders-badge, .delivery-badge, .notes-badge, .notes-incoming-badge {
         right: 12px !important; padding: 9px 13px !important; font-size: .85rem !important;
       }
       .new-orders-badge { bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
       .delivery-badge   { bottom: calc(66px + env(safe-area-inset-bottom)) !important; }
       .notes-badge      { bottom: calc(120px + env(safe-area-inset-bottom)) !important; }
+      .notes-incoming-badge { bottom: calc(174px + env(safe-area-inset-bottom)) !important; }
       .nob-text { display: none; }   /* na telefonu pokaži samo ikono + število */
     }
     /* Varno območje ob zarezi (iPhone) */
@@ -269,7 +270,7 @@
 <!-- Plavajoči oblački (samo zaposleni/admin) -->
 <style>
   /* Plavajoči oblački – samostojno pozicioniranje (zloženi desno spodaj) */
-  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge {
+  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge, .notes-incoming-badge {
     position: fixed !important; right: 22px !important; z-index: 1050;
     display: inline-flex; align-items: center; gap: 10px;
     padding: 11px 18px; border-radius: 40px; color: #fff !important;
@@ -277,7 +278,7 @@
     box-shadow: 0 8px 24px rgba(0,0,0,.28);
   }
   .new-orders-badge .nob-count, .delivery-badge .nob-count,
-  .notes-badge .nob-count, .kupec-offer-badge .nob-count {
+  .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count {
     background: rgba(255,255,255,.28); border-radius: 999px;
     min-width: 24px; height: 24px; padding: 0 7px;
     display: inline-flex; align-items: center; justify-content: center; font-size: .85rem;
@@ -285,7 +286,8 @@
   .new-orders-badge { bottom: 22px !important;  background: #ef4444 !important; }  /* rdeča */
   .delivery-badge   { bottom: 82px !important;  background: #f59e0b !important; }  /* privzeto oranžna (dan prej) */
   .delivery-badge.is-red { background: #ef4444 !important; }                      /* rdeča (na dan dobave) */
-  .notes-badge      { bottom: 142px !important; background: #16a34a !important; } /* zelena */
+  .notes-badge      { bottom: 142px !important; background: #16a34a !important; } /* zelena – obdelana */
+  .notes-incoming-badge { bottom: 202px !important; background: #6366f1 !important; } /* modra – nova zame */
   .kupec-offer-badge { bottom: 22px !important; background: #16a34a !important; } /* kupec: ponudba */
 </style>
 
@@ -299,7 +301,16 @@
   <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
 </a>
 
-<!-- Oblaček: obdelana beležka (samo osebje) -->
+<!-- Oblaček: NOVA beležka zame (nekdo mi je namenil beležko) -->
+<a href="{{ url_for('notes.list_notes', person=current_user.full_name) }}" id="notes-incoming-badge"
+   class="notes-incoming-badge" title="Nova beležka"
+   style="{% if not my_notes_incoming_count %}display:none;{% endif %}">
+  <i class="bi bi-journal-text"></i>
+  <span class="nob-text">Nova beležka</span>
+  <span class="nob-count" id="notes-incoming-count">{{ my_notes_incoming_count }}</span>
+</a>
+
+<!-- Oblaček: obdelana beležka (avtor dobi potrditev) -->
 <a href="{{ url_for('notes.list_notes') }}" id="notes-badge"
    class="notes-badge" title="Beležka obdelana"
    style="{% if not my_notes_done_count %}display:none;{% endif %}">
