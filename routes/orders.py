@@ -207,9 +207,8 @@ def _kind_cfg(kind):
         return {
             "kind": "povprasevanje",
             "prefix": "POV",
-            "initial_status": "oddano",
-            # Ko povpraševanje odda mehanik (kupec) → gre v „Novo povpraševanje"
-            "initial_status_kupec": "novo_povprasevanje",
+            # Vsako novo povpraševanje (mehanik ali zaposleni) → „Novo povpraševanje"
+            "initial_status": "novo_povprasevanje",
             "statuses": INQUIRY_STATUSES,
             "status_dict": INQUIRY_STATUS_DICT,
             "page_title": "Povpraševanja",
@@ -541,7 +540,7 @@ def _handle_new(kind):
             customer_id  = customer_id,
             vehicle_id   = vehicle_id,
             employee_id  = current_user.id,
-            status       = (cfg.get("initial_status_kupec") or cfg["initial_status"]) if is_kupec else cfg["initial_status"],
+            status       = cfg["initial_status"],
             source       = f.get("source", "klic"),
             notes        = f.get("notes", "").strip(),
             delivery_urgency = (f.get("delivery_urgency") if f.get("delivery_urgency") in DELIVERY_URGENCY_DICT else None),
