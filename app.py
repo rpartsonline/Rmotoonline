@@ -215,6 +215,7 @@ def create_app():
         _seed_admin(db, User)
         _seed_staff(db, User)
         _seed_kupec(db, User)
+        _seed_racunovodja(db, User)
 
     return app
 
@@ -327,6 +328,17 @@ def _seed_admin(db, User):
         print("✅  Admin uporabnik ustvarjen (geslo v ADMIN_PASSWORD env var).")
 
 
+def _seed_racunovodja(db, User):
+    """Ustvari računovodkinjo Marjano, če še ne obstaja. Začetno geslo: bartog111."""
+    if not User.query.filter_by(username="marjana").first():
+        u = User(username="marjana", full_name="Marjana Računovodja",
+                 is_admin=False, role="racunovodja", is_active_user=True)
+        u.set_password("bartog111")
+        db.session.add(u)
+        db.session.commit()
+        print("✅  Računovodja 'marjana' ustvarjena (geslo: bartog111 – zamenjaj!).")
+
+
 def _seed_staff(db, User):
     """Ustvari prijave za sodelavce, če še ne obstajajo. Začetno geslo: Bartog123!"""
     staff = [
@@ -357,6 +369,17 @@ def _seed_kupec(db, User):
         db.session.add(u)
         db.session.commit()
         print("✅  Ustvarjen kupec 'bartog' (Bartog Ajdovščina, geslo Bartog123!).")
+
+
+def _seed_racunovodja(db, User):
+    """Ustvari računovodkinjo Marjano, če še ne obstaja. Začetno geslo: bartog111."""
+    if not User.query.filter_by(username="marjana").first():
+        u = User(username="marjana", full_name="Marjana Računovodja",
+                 is_admin=False, role="racunovodja", is_active_user=True)
+        u.set_password(os.environ.get("RACUNOVODJA_DEFAULT_PASSWORD", "bartog111"))
+        db.session.add(u)
+        db.session.commit()
+        print("✅  Ustvarjena računovodkinja 'marjana' (Marjana Računovodja, geslo bartog111).")
 
 
 
