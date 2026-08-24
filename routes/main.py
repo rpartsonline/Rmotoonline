@@ -199,6 +199,14 @@ def new_orders_count():
     return jsonify({"count": Order.query.filter_by(kind="narocilo", status="novo").count()})
 
 
+@main_bp.route("/api/new-inquiries-count")
+@login_required
+def new_inquiries_count():
+    """Št. povpraševanj, ki jih je oddal mehanik in jih je treba obdelati."""
+    return jsonify({"count": Order.query.filter_by(
+        kind="povprasevanje", status="novo_povprasevanje").count()})
+
+
 @main_bp.route("/api/delivery-alert")
 @login_required
 def delivery_alert():

@@ -208,6 +208,8 @@ def _kind_cfg(kind):
             "kind": "povprasevanje",
             "prefix": "POV",
             "initial_status": "oddano",
+            # Ko povpraševanje odda mehanik (kupec) → gre v „Novo povpraševanje"
+            "initial_status_kupec": "novo_povprasevanje",
             "statuses": INQUIRY_STATUSES,
             "status_dict": INQUIRY_STATUS_DICT,
             "page_title": "Povpraševanja",
@@ -272,7 +274,21 @@ def _render_list(kind):
     date_to_str     = request.args.get("date_to", "")
     search          = request.args.get("search", "").strip()
 
-    q = Order.query.filter_by(kind=kind)
+    if kind == "narocilo":
+        # Povpraševanja s statusom „Naročena – čakamo dobavo" se prikažejo
+        # med naročili (ostane vse isto, le premakne se v naročilo).
+        q = Order.query.filter(db.or_(
+            Order.kind == "narocilo",
+            db.and_(Order.kind == "povprasevanje",
+                    Order.status == "narocena_caka"),
+        ))
+    else:
+        q = Order.query.filter_by(kind=kind)
+        # Ko je povpraševanje naročeno, se preseli med naročila – iz privzetega
+        # seznama povpraševanj ga skrijemo. Ob kliku na kartico statusa
+        # „Naročena – čakamo dobavo" je še vedno viden.
+        if status_filter != "narocena_caka":
+            q = q.filter(Order.status != "narocena_caka")
 
     # Kupec vidi samo svoja naročila/povpraševanja
     is_kupec = getattr(current_user, "role", "") == "kupec"
@@ -525,7 +541,7 @@ def _handle_new(kind):
             customer_id  = customer_id,
             vehicle_id   = vehicle_id,
             employee_id  = current_user.id,
-            status       = cfg["initial_status"],
+            status       = (cfg.get("initial_status_kupec") or cfg["initial_status"]) if is_kupec else cfg["initial_status"],
             source       = f.get("source", "klic"),
             notes        = f.get("notes", "").strip(),
             delivery_urgency = (f.get("delivery_urgency") if f.get("delivery_urgency") in DELIVERY_URGENCY_DICT else None),

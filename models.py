@@ -36,6 +36,7 @@ LEGACY_STATUS_DICT = {
 
 # Statusi povpraševanj (ločen nabor)
 INQUIRY_STATUSES = [
+    ("novo_povprasevanje", "Novo povpraševanje",   "danger"),
     ("oddano",        "Poslano povpraševanje",     "danger"),
     ("ponudba",       "Ponudba poslana stranki",   "warning"),
     ("narocena_caka", "Naročena – čakamo dobavo",  "success"),

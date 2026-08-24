@@ -41,9 +41,10 @@
         right: 12px !important; padding: 9px 13px !important; font-size: .85rem !important;
       }
       .new-orders-badge { bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
-      .delivery-badge   { bottom: calc(66px + env(safe-area-inset-bottom)) !important; }
-      .notes-badge      { bottom: calc(120px + env(safe-area-inset-bottom)) !important; }
-      .notes-incoming-badge { bottom: calc(174px + env(safe-area-inset-bottom)) !important; }
+      .new-inq-badge    { bottom: calc(66px + env(safe-area-inset-bottom)) !important; }
+      .delivery-badge   { bottom: calc(120px + env(safe-area-inset-bottom)) !important; }
+      .notes-badge      { bottom: calc(174px + env(safe-area-inset-bottom)) !important; }
+      .notes-incoming-badge { bottom: calc(228px + env(safe-area-inset-bottom)) !important; }
       .nob-text { display: none; }   /* na telefonu pokaži samo ikono + število */
     }
     /* Varno območje ob zarezi (iPhone) */
@@ -270,7 +271,7 @@
 <!-- Plavajoči oblački (samo zaposleni/admin) -->
 <style>
   /* Plavajoči oblački – samostojno pozicioniranje (zloženi desno spodaj) */
-  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge, .notes-incoming-badge {
+  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge, .notes-incoming-badge, .new-inq-badge {
     position: fixed !important; right: 22px !important; z-index: 1050;
     display: inline-flex; align-items: center; gap: 10px;
     padding: 11px 18px; border-radius: 40px; color: #fff !important;
@@ -278,16 +279,18 @@
     box-shadow: 0 8px 24px rgba(0,0,0,.28);
   }
   .new-orders-badge .nob-count, .delivery-badge .nob-count,
-  .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count {
+  .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count,
+  .new-inq-badge .nob-count {
     background: rgba(255,255,255,.28); border-radius: 999px;
     min-width: 24px; height: 24px; padding: 0 7px;
     display: inline-flex; align-items: center; justify-content: center; font-size: .85rem;
   }
   .new-orders-badge { bottom: 22px !important;  background: #ef4444 !important; }  /* rdeča */
-  .delivery-badge   { bottom: 82px !important;  background: #f59e0b !important; }  /* privzeto oranžna (dan prej) */
+  .new-inq-badge    { bottom: 82px !important;  background: #dc2626 !important; }  /* rdeča – novo povpraševanje */
+  .delivery-badge   { bottom: 142px !important; background: #f59e0b !important; }  /* privzeto oranžna (dan prej) */
   .delivery-badge.is-red { background: #ef4444 !important; }                      /* rdeča (na dan dobave) */
-  .notes-badge      { bottom: 142px !important; background: #16a34a !important; } /* zelena – obdelana */
-  .notes-incoming-badge { bottom: 202px !important; background: #6366f1 !important; } /* modra – nova zame */
+  .notes-badge      { bottom: 202px !important; background: #16a34a !important; } /* zelena – obdelana */
+  .notes-incoming-badge { bottom: 262px !important; background: #6366f1 !important; } /* modra – nova zame */
   .kupec-offer-badge { bottom: 22px !important; background: #16a34a !important; } /* kupec: ponudba */
 </style>
 
@@ -299,6 +302,15 @@
   <i class="bi bi-bell-fill"></i>
   <span class="nob-text">Novo naročilo</span>
   <span class="nob-count" id="new-orders-count">{{ new_orders_count }}</span>
+</a>
+
+<!-- Oblacek: novo povprasevanje, ki ga je oddal mehanik (samo osebje) -->
+<a href="{{ url_for('orders.list_inquiries', status='novo_povprasevanje') }}" id="new-inq-badge"
+   class="new-inq-badge" title="Novo povpraševanje"
+   style="{% if not new_inquiries_count %}display:none;{% endif %}">
+  <i class="bi bi-chat-left-text-fill"></i>
+  <span class="nob-text">Novo povpraševanje</span>
+  <span class="nob-count" id="new-inq-count">{{ new_inquiries_count }}</span>
 </a>
 
 <!-- Oblaček: NOVA beležka zame (nekdo mi je namenil beležko) -->
@@ -345,6 +357,22 @@
     const url = "{{ url_for('main.new_orders_count') }}";
     const badge = document.getElementById('new-orders-badge');
     const cnt = document.getElementById('new-orders-count');
+    if (!badge || !cnt) return;
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 30000);
+  })();
+
+  (function () {
+    const url = "{{ url_for('main.new_inquiries_count') }}";
+    const badge = document.getElementById('new-inq-badge');
+    const cnt = document.getElementById('new-inq-count');
     if (!badge || !cnt) return;
     async function poll() {
       try {

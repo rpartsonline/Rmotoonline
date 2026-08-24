@@ -141,8 +141,18 @@ def create_app():
                         person=current_user.full_name, done=False).count()
         except Exception:
             pass
+        # Nova povprasevanja mehanikov (za oblacek) – samo za osebje
+        new_inq_count = 0
+        try:
+            from flask_login import current_user as _cu2
+            if _cu2.is_authenticated and getattr(_cu2, "role", "") != "kupec":
+                new_inq_count = Order.query.filter_by(
+                    kind="povprasevanje", status="novo_povprasevanje").count()
+        except Exception:
+            pass
         return {
             "new_orders_count": new_count,
+            "new_inquiries_count": new_inq_count,
             "delivery_alert_count": deliv_count,
             "delivery_alert_red": deliv_red,
             "kupec_notif_count": kupec_notif,
