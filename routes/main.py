@@ -36,28 +36,24 @@ def _today_utc_range():
 
 
 # ── Mesečni števec naročil / povpraševanj po zaposlenih ──────────────────────
-# Zaposleni, ki se štejejo. Iščemo po PRVEM imenu (brez šumnikov, male črke),
-# tako da priimek ni pomemben. Za dodajanje osebe dopiši ime v ta seznam.
-STATS_STAFF_FIRST_NAMES = ["alan", "saso", "rok"]
+# Točna polna imena zaposlenih, ki se štejejo. Poleg njih se vedno šteje
+# tudi vsak admin (npr. Rok). Kupci (mehaniki) se NIKOLI ne štejejo,
+# tudi če se po naključju enako pišejo.
+STATS_STAFF_NAMES = ["Alan Daksobler", "Sašo Juretič"]
 
 SL_MONTHS = ["", "Januar", "Februar", "Marec", "April", "Maj", "Junij",
              "Julij", "Avgust", "September", "Oktober", "November", "December"]
 
 
-def _brez_sumnikov(text):
-    import unicodedata
-    return "".join(c for c in unicodedata.normalize("NFKD", text or "")
-                   if not unicodedata.combining(c)).lower()
-
-
 def _stats_staff_users():
-    """Uporabniki, ki se štejejo v mesečni statistiki (Alan, Sašo, Rok)."""
+    """Uporabniki v mesečni statistiki: navedeni zaposleni + vsi admini.
+    Kupci (mehaniki) so izključeni."""
     from models import User
     izbrani = []
     for u in User.query.order_by(User.full_name).all():
-        prva = _brez_sumnikov((u.full_name or "").strip().split()[0]
-                              if (u.full_name or "").strip() else "")
-        if prva in STATS_STAFF_FIRST_NAMES:
+        if getattr(u, "role", "") == "kupec":
+            continue
+        if u.is_admin or (u.full_name or "").strip() in STATS_STAFF_NAMES:
             izbrani.append(u)
     return izbrani
 
