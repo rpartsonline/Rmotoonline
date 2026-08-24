@@ -216,6 +216,7 @@ def create_app():
         _seed_staff(db, User)
         _seed_kupec(db, User)
         _seed_racunovodja(db, User)
+        _seed_roster_updates(db, User)
 
     return app
 
@@ -380,6 +381,33 @@ def _seed_racunovodja(db, User):
         db.session.add(u)
         db.session.commit()
         print("✅  Ustvarjena računovodkinja 'marjana' (Marjana Računovodja, geslo bartog111).")
+
+
+def _seed_roster_updates(db, User):
+    """Posodobi ekipo: odstrani (deaktivira) odhajajoče, doda nove zaposlene."""
+    changed = False
+
+    # Odstrani (deaktivira) – ne izbrišemo, da ostane zgodovina (ure, dopusti)
+    for full_name in ["Ervin Nemec", "Mojca Čermelj", "Nejc Tominec"]:
+        u = User.query.filter_by(full_name=full_name).first()
+        if u and u.is_active_user:
+            u.is_active_user = False
+            changed = True
+            print(f"➖  Deaktiviran zaposleni: {full_name}")
+
+    # Dodaj nove zaposlene (če še ne obstajajo)
+    for username, full_name in [("nina", "Nina Hrobat"),
+                                ("robert", "Robert Bratož")]:
+        if not User.query.filter_by(username=username).first():
+            u = User(username=username, full_name=full_name,
+                     is_admin=False, is_active_user=True)
+            u.set_password(os.environ.get("STAFF_DEFAULT_PASSWORD", "Bartog123!"))
+            db.session.add(u)
+            changed = True
+            print(f"➕  Dodan zaposleni: {full_name} ({username})")
+
+    if changed:
+        db.session.commit()
 
 
 
