@@ -277,6 +277,24 @@
     padding: 11px 18px; border-radius: 40px; color: #fff !important;
     text-decoration: none; font-weight: 700; font-size: .95rem;
     box-shadow: 0 8px 24px rgba(0,0,0,.28);
+    /* Vlečenje: brskalnik naj ne poskuša vleči povezave in ne označuje besedila */
+    -webkit-user-drag: none; user-drag: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+    cursor: grab;
+  }
+  .nob-dragging {
+    cursor: grabbing !important;
+    opacity: .85;
+    transition: none !important;
+    box-shadow: 0 14px 34px rgba(0,0,0,.38) !important;
+  }
+  .new-orders-badge i, .delivery-badge i, .notes-badge i,
+  .kupec-offer-badge i, .notes-incoming-badge i, .new-inq-badge i,
+  .new-orders-badge span, .delivery-badge span, .notes-badge span,
+  .kupec-offer-badge span, .notes-incoming-badge span, .new-inq-badge span {
+    pointer-events: none;   /* poteg se vedno prime oblačka, ne besedila v njem */
   }
   .new-orders-badge .nob-count, .delivery-badge .nob-count,
   .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count,
@@ -424,23 +442,28 @@
 <!-- ── Premikanje oblačkov (povleci in spusti) ──────────────────────────── -->
 <script>
 (function () {
-  // Vsak zaposleni si lahko oblaček povleče, kamor mu ustreza.
+  // Vsak oblaček lahko primeš in ga odložiš kamor koli na zaslonu.
   // Položaj se shrani v brskalnik in ostane tudi po osvežitvi strani.
+  // Kratek klik še vedno odpre povezavo; za vlečenje ga malo potegni.
   var IDS = ['new-orders-badge', 'new-inq-badge', 'delivery-badge',
              'notes-badge', 'notes-incoming-badge', 'kupec-offer-badge'];
-  var KLJUC = 'oblacki_pozicije_v1';
+  var KLJUC = 'oblacki_pozicije_v2';
+  var PRAG = 6;   // koliko pikslov premika šteje kot vlečenje (in ne klik)
 
   function shranjeno() {
     try { return JSON.parse(localStorage.getItem(KLJUC)) || {}; }
     catch (e) { return {}; }
   }
-  function shrani(poz) {
+  function shrani() {
     try { localStorage.setItem(KLJUC, JSON.stringify(poz)); } catch (e) {}
   }
 
-  // Drži oblaček znotraj okna, tudi če se okno pomanjša
-  function omeji(el, levo, zgoraj) {
+  // Položaj hranimo v odstotkih, da oblaček ostane na istem mestu
+  // tudi na drugem zaslonu ali ob spremembi velikosti okna.
+  function vPiksle(el, p) {
     var w = el.offsetWidth || 60, h = el.offsetHeight || 60;
+    var levo   = (p.x / 100) * window.innerWidth;
+    var zgoraj = (p.y / 100) * window.innerHeight;
     return {
       levo:   Math.max(4, Math.min(levo,   window.innerWidth  - w - 4)),
       zgoraj: Math.max(4, Math.min(zgoraj, window.innerHeight - h - 4))
@@ -448,11 +471,20 @@
   }
 
   function postavi(el, levo, zgoraj) {
-    var t = omeji(el, levo, zgoraj);
-    el.style.setProperty('left',   t.levo + 'px',   'important');
-    el.style.setProperty('top',    t.zgoraj + 'px', 'important');
-    el.style.setProperty('right',  'auto',          'important');
-    el.style.setProperty('bottom', 'auto',          'important');
+    var w = el.offsetWidth || 60, h = el.offsetHeight || 60;
+    levo   = Math.max(4, Math.min(levo,   window.innerWidth  - w - 4));
+    zgoraj = Math.max(4, Math.min(zgoraj, window.innerHeight - h - 4));
+    el.style.setProperty('left',   levo + 'px',   'important');
+    el.style.setProperty('top',    zgoraj + 'px', 'important');
+    el.style.setProperty('right',  'auto',        'important');
+    el.style.setProperty('bottom', 'auto',        'important');
+    return { levo: levo, zgoraj: zgoraj };
+  }
+
+  function obnovi(el, id) {
+    if (!poz[id]) return;
+    var t = vPiksle(el, poz[id]);
+    postavi(el, t.levo, t.zgoraj);
   }
 
   var poz = shranjeno();
@@ -461,72 +493,95 @@
     var el = document.getElementById(id);
     if (!el) return;
 
-    // Obnovi shranjeni položaj
-    if (poz[id]) postavi(el, poz[id].levo, poz[id].zgoraj);
+    // Brskalniku povemo, naj povezave ne vleče po svoje (sicer se oblaček
+    // sploh ne premakne, prikaže se le siva sled povezave).
+    el.setAttribute('draggable', 'false');
+    el.addEventListener('dragstart', function (e) { e.preventDefault(); });
 
-    el.style.touchAction = 'none';   // da vlečenje na telefonu ne premika strani
-    el.style.cursor = 'grab';
+    obnovi(el, id);
 
-    var vlecem = false, premaknjen = false, dx = 0, dy = 0;
+    var vlecem = false, premaknjen = false;
+    var dx = 0, dy = 0, zacX = 0, zacY = 0, pid = null;
 
     function start(e) {
-      var t = e.touches ? e.touches[0] : e;
+      // samo levi gumb miške
+      if (e.button !== undefined && e.button !== 0) return;
       var r = el.getBoundingClientRect();
-      dx = t.clientX - r.left;
-      dy = t.clientY - r.top;
+      dx = e.clientX - r.left;
+      dy = e.clientY - r.top;
+      zacX = e.clientX;
+      zacY = e.clientY;
       vlecem = true;
       premaknjen = false;
-      el.style.cursor = 'grabbing';
-      el.style.opacity = '0.85';
+      pid = e.pointerId;
+      try { el.setPointerCapture(pid); } catch (err) {}
+      e.preventDefault();
     }
 
     function premik(e) {
       if (!vlecem) return;
-      var t = e.touches ? e.touches[0] : e;
-      // Šele po nekaj pikslih štejemo kot vlečenje (da klik še vedno deluje)
       if (!premaknjen) {
+        if (Math.abs(e.clientX - zacX) < PRAG && Math.abs(e.clientY - zacY) < PRAG) return;
         premaknjen = true;
-        el.style.transition = 'none';
+        el.classList.add('nob-dragging');
       }
-      postavi(el, t.clientX - dx, t.clientY - dy);
-      if (e.cancelable) e.preventDefault();
+      postavi(el, e.clientX - dx, e.clientY - dy);
+      e.preventDefault();
     }
 
     function konec() {
       if (!vlecem) return;
       vlecem = false;
-      el.style.cursor = 'grab';
-      el.style.opacity = '';
-      el.style.transition = '';
+      try { el.releasePointerCapture(pid); } catch (err) {}
+      el.classList.remove('nob-dragging');
       if (premaknjen) {
         var r = el.getBoundingClientRect();
-        poz[id] = { levo: r.left, zgoraj: r.top };
-        shrani(poz);
+        poz[id] = {
+          x: (r.left / window.innerWidth)  * 100,
+          y: (r.top  / window.innerHeight) * 100
+        };
+        shrani();
       }
     }
 
-    // Če je bil oblaček povlečen, ne sprozi povezave
+    // Če je bil oblaček povlečen, ne odpri povezave
     el.addEventListener('click', function (e) {
-      if (premaknjen) { e.preventDefault(); premaknjen = false; }
+      if (premaknjen) { e.preventDefault(); e.stopPropagation(); premaknjen = false; }
     });
 
-    el.addEventListener('mousedown', start);
-    el.addEventListener('touchstart', start, { passive: true });
-    document.addEventListener('mousemove', premik);
-    document.addEventListener('touchmove', premik, { passive: false });
-    document.addEventListener('mouseup', konec);
-    document.addEventListener('touchend', konec);
+    if (window.PointerEvent) {
+      el.addEventListener('pointerdown', start);
+      el.addEventListener('pointermove', premik);
+      el.addEventListener('pointerup', konec);
+      el.addEventListener('pointercancel', konec);
+    } else {
+      // Rezerva za starejše brskalnike
+      var pretvori = function (fn) {
+        return function (ev) {
+          var t = ev.touches ? ev.touches[0] : ev;
+          if (!t) return fn(ev);
+          fn({ clientX: t.clientX, clientY: t.clientY, button: 0,
+               preventDefault: function () { if (ev.cancelable) ev.preventDefault(); } });
+        };
+      };
+      el.addEventListener('mousedown', pretvori(start));
+      document.addEventListener('mousemove', pretvori(premik));
+      document.addEventListener('mouseup', konec);
+      el.addEventListener('touchstart', pretvori(start), { passive: false });
+      document.addEventListener('touchmove', pretvori(premik), { passive: false });
+      document.addEventListener('touchend', konec);
+    }
   });
 
-  // Ob spremembi velikosti okna povleci oblacke nazaj v vidno polje
+  // Ob spremembi velikosti okna (ali obratu telefona) ohrani relativno mesto
   window.addEventListener('resize', function () {
     IDS.forEach(function (id) {
       var el = document.getElementById(id);
-      if (el && poz[id]) postavi(el, poz[id].levo, poz[id].zgoraj);
+      if (el) obnovi(el, id);
     });
   });
 
-  // Dvoklik na oblaček = vrni vse na privzeta mesta
+  // Dvoklik na oblaček = vrni vse oblačke na privzeta mesta
   document.addEventListener('dblclick', function (e) {
     var el = e.target.closest && e.target.closest(
       '#new-orders-badge, #new-inq-badge, #delivery-badge, #notes-badge, #notes-incoming-badge, #kupec-offer-badge');
