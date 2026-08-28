@@ -121,6 +121,7 @@
           <th>Stranka</th>
           <th>Vozilo</th>
           <th>Postavk</th>
+          <th>Dobava</th>
           <th>Vir</th>
           <th>Zaposlen</th>
           <th>Status</th>
@@ -135,7 +136,7 @@
         {% if cur_date != ns.last_date %}
         {% set ns.last_date = cur_date %}
         <tr style="background:#eef2ff; border-top: 2px solid #c7d2fe;">
-          <td colspan="9" class="py-2 px-3">
+          <td colspan="10" class="py-2 px-3">
             <i class="bi bi-calendar3 me-2 text-primary"></i>
             <span class="fw-bold text-primary">{{ cur_date }}</span>
           </td>
@@ -166,24 +167,25 @@
           <td class="text-center">
             <span class="badge bg-light text-dark border">{{ o.items|length }}</span>
           </td>
+          <td class="small">
+            {% set dob = o.dobava_info %}
+            {% if dob %}
+              <span class="badge bg-{{ dob.color }}{% if dob.color in ['warning','info','light'] %} text-dark{% endif %}">
+                <i class="bi bi-truck me-1"></i>{{ dob.label }}
+              </span>
+              {% if o.delivery_date %}
+              <div class="text-muted mt-1" style="font-size:.78rem;">{{ o.delivery_date|sl_date }}</div>
+              {% elif o.sms_variant_label %}
+              <div class="text-muted mt-1" style="font-size:.78rem;">{{ o.sms_variant_label }}</div>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">–</span>
+            {% endif %}
+          </td>
           <td><span class="chip-source">{{ o.source }}</span></td>
           <td class="small text-muted">{{ o.employee.full_name }}</td>
           <td>
             <span class="badge bg-{{ o.status_info.color }}">{% if is_kupec and o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span>
-            {% if o.status == 'narocena_caka' and o.delivery_date %}
-              {% set dleft = (o.delivery_date - today).days %}
-              <div class="mt-1">
-                {% if dleft < 0 %}
-                <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Zamuja {{ -dleft }} {{ 'dan' if -dleft == 1 else 'dni' }}</span>
-                {% elif dleft == 0 %}
-                <span class="badge bg-danger"><i class="bi bi-truck me-1"></i>Dobava danes</span>
-                {% elif dleft == 1 %}
-                <span class="badge bg-warning text-dark"><i class="bi bi-truck me-1"></i>Dobava jutri</span>
-                {% else %}
-                <span class="badge bg-info text-dark"><i class="bi bi-truck me-1"></i>Še {{ dleft }} dni</span>
-                {% endif %}
-              </div>
-            {% endif %}
           </td>
           <td class="small text-muted">{{ o.created_at|sl_date }}</td>
           <td>
@@ -206,7 +208,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="9" class="text-center text-muted py-5">
+          <td colspan="10" class="text-center text-muted py-5">
             <i class="bi bi-inbox fs-2 d-block mb-2"></i>
             Ni naročil z izbranimi filtri.
           </td>
