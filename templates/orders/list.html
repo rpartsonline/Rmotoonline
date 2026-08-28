@@ -187,7 +187,12 @@
           <td>
             <span class="badge bg-{{ o.status_info.color }}">{% if is_kupec and o.status == 'ponudba' %}Ponudba{% else %}{{ o.status_info.label }}{% endif %}</span>
           </td>
-          <td class="small text-muted">{{ o.created_at|sl_date }}</td>
+          <td class="small text-muted">
+            {{ o.created_at|sl_date }}
+            <div class="mt-1" style="font-size:.78rem;">
+              <i class="bi bi-clock me-1"></i>{{ o.created_at|sl_time }}
+            </div>
+          </td>
           <td>
             <div class="d-flex gap-1 justify-content-end">
               <a href="{{ url_for('orders.order_detail', order_id=o.id) }}"
