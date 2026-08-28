@@ -191,6 +191,9 @@ class Order(db.Model):
     offer_note     = db.Column(db.Text)          # opomba dobavitelja/ponudbe
     # Izbrano SMS besedilo ob statusu „Naročeno" (1 / 2 / 3) – ostane vidno pri naročilu
     sms_variant    = db.Column(db.String(5))
+    # VIN / šasijska številka, zapisana neposredno pri naročilu.
+    # Ostane trajno shranjena tudi če se vozilo kasneje spremeni ali izbriše.
+    vin            = db.Column(db.String(32))
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")
@@ -239,6 +242,19 @@ class Order(db.Model):
     def sms_variant_label(self):
         """Besedilo SMS-a, ki je bilo izbrano ob statusu „Naročeno"."""
         return SMS_VARIANT_LABELS.get(str(self.sms_variant or ""))
+
+    @property
+    def vin_display(self):
+        """VIN za prikaz pri naročilu.
+
+        Najprej pogleda VIN, zapisan pri samem naročilu (trajen zapis), sicer
+        pade nazaj na VIN vozila. Tako je poskenirana številka vedno vidna.
+        """
+        if self.vin:
+            return self.vin
+        if self.vehicle and self.vehicle.vin:
+            return self.vehicle.vin
+        return None
 
     def __repr__(self):
         return f"<Order {self.order_number}>"

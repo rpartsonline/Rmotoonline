@@ -195,50 +195,142 @@
       <div class="col-md-6">
         <div class="card-plain h-100">
           <div class="form-section-title"><i class="bi bi-car-front"></i> Vozilo</div>
-          {% if order.vehicle %}
           {% set v = order.vehicle %}
-          <div class="info-grid">
-            <div class="info-row">
-              <label>Vozilo</label>
-              <span class="fw-semibold">{{ v.brand }} {{ v.model }}</span>
+
+          <!-- ── Prikaz podatkov ──────────────────────────────────────────── -->
+          <div id="veh-view">
+            <div class="info-grid">
+              <div class="info-row">
+                <label>Vozilo</label>
+                <span class="fw-semibold">
+                  {% if v %}{{ v.brand }} {{ v.model }}{% else %}–{% endif %}
+                </span>
+              </div>
+              <div class="info-row">
+                <label>Letnik</label>
+                <span>{{ (v.year if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Registrska</label>
+                <span>{{ (v.registration if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Tip motorja</label>
+                <span>{{ (v.engine_type if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Prostornina</label>
+                <span>{{ (v.engine_displacement + ' l') if (v and v.engine_displacement) else '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Moč</label>
+                <span>{{ (v.engine_power_kw + ' kW') if (v and v.engine_power_kw) else '–' }}</span>
+              </div>
+              <div class="info-row" style="grid-column:1/-1">
+                <label>VIN / šasijska št.</label>
+                <span style="font-family:monospace; word-break:break-all; font-weight:600;">
+                  {{ order.vin_display or '–' }}
+                </span>
+              </div>
             </div>
-            <div class="info-row">
-              <label>Letnik</label>
-              <span>{{ v.year or '–' }}</span>
-            </div>
-            <div class="info-row">
-            </div>
-            <div class="info-row">
-              <label>Tip motorja</label>
-              <span>{{ v.engine_type or '–' }}</span>
-            </div>
-            <div class="info-row">
-              <label>Prostornina</label>
-              <span>{{ (v.engine_displacement + ' l') if v.engine_displacement else '–' }}</span>
-            </div>
-            <div class="info-row">
-              <label>Moč</label>
-              <span>{{ (v.engine_power_kw + ' kW') if v.engine_power_kw else '–' }}</span>
-            </div>
-            {% if v.vin %}
-            <div class="info-row" style="grid-column:1/-1">
-              <label>VIN</label>
-              <span style="font-family:monospace">{{ v.vin }}</span>
-            </div>
+          </div>
+
+          {% if current_user.role != 'kupec' or order.employee_id == current_user.id %}
+          <div class="mt-2 no-print" id="veh-view-btns">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="vehEdit(true)">
+              <i class="bi bi-pencil me-1"></i>{% if v %}Uredi vozilo{% else %}Dodaj vozilo{% endif %}
+            </button>
+            {% if v %}
+            <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
+               class="btn btn-sm btn-link text-muted">Kartica vozila</a>
             {% endif %}
           </div>
-          <div class="mt-2">
-            <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
-               class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-pencil me-1"></i>Uredi vozilo
-            </a>
-          </div>
-          {% else %}
-          <p class="text-muted small">Ni vozila.</p>
-          <a href="{{ url_for('vehicles.new_vehicle', customer_id=order.customer_id) }}"
-             class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-plus me-1"></i>Dodaj vozilo
-          </a>
+
+          <!-- ── Urejanje (vedno na voljo, tudi po oddaji naročila) ───────── -->
+          <form id="veh-edit" method="POST" style="display:none;"
+                action="{{ url_for('orders.save_order_vehicle', order_id=order.id) }}">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">Znamka</label>
+                <input type="text" name="brand" class="form-control form-control-sm"
+                       list="veh-makes" value="{{ (v.brand if v else '') }}">
+                <datalist id="veh-makes">
+                  {% for m in car_makes %}<option value="{{ m }}">{% endfor %}
+                </datalist>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Model</label>
+                <input type="text" name="model" class="form-control form-control-sm"
+                       value="{{ (v.model if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Letnik</label>
+                <input type="number" name="year" class="form-control form-control-sm"
+                       min="1950" max="2100" value="{{ (v.year if (v and v.year) else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Registrska</label>
+                <input type="text" name="registration" class="form-control form-control-sm"
+                       value="{{ (v.registration if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Tip motorja</label>
+                <select name="engine_type" class="form-select form-select-sm">
+                  <option value="">–</option>
+                  {% for t in engine_types %}
+                  <option value="{{ t }}" {% if v and v.engine_type == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Menjalnik</label>
+                <select name="transmission" class="form-select form-select-sm">
+                  <option value="">–</option>
+                  {% for t in transmissions %}
+                  <option value="{{ t }}" {% if v and v.transmission == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Prostornina (l)</label>
+                <input type="text" name="engine_displacement" class="form-control form-control-sm"
+                       value="{{ (v.engine_displacement if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Moč (kW)</label>
+                <input type="text" name="engine_power_kw" class="form-control form-control-sm"
+                       value="{{ (v.engine_power_kw if v else '') }}">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small mb-1">VIN / šasijska številka</label>
+                <div class="input-group input-group-sm">
+                  <input type="text" name="vin" id="veh-vin" class="form-control"
+                         maxlength="17" style="font-family:monospace; text-transform:uppercase;"
+                         value="{{ order.vin_display or '' }}">
+                  <button type="button" class="btn btn-outline-primary" onclick="vinPick()">
+                    <i class="bi bi-camera"></i>
+                  </button>
+                </div>
+                <input type="file" id="veh-vin-file" accept="image/*" capture="environment"
+                       style="display:none" onchange="vinScan(this)">
+                <div id="veh-vin-msg" class="small mt-1"></div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small mb-1">Opomba o vozilu</label>
+                <textarea name="notes" rows="2" class="form-control form-control-sm">{{ (v.notes if v else '') }}</textarea>
+              </div>
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Shrani v naročilo
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="vehEdit(false)">
+                Prekliči
+              </button>
+            </div>
+          </form>
           {% endif %}
         </div>
       </div>
@@ -610,6 +702,70 @@
 try { sessionStorage.removeItem("rmoto_new_order_draft"); } catch (e) {}
 </script>
 
+<script>
+// ── Urejanje vozila na naročilu ───────────────────────────────────────────────
+function vehEdit(on) {
+  var view = document.getElementById('veh-view');
+  var btns = document.getElementById('veh-view-btns');
+  var form = document.getElementById('veh-edit');
+  if (!form) return;
+  form.style.display = on ? '' : 'none';
+  if (view) view.style.display = on ? 'none' : '';
+  if (btns) btns.style.display = on ? 'none' : '';
+}
+
+function vinPick() {
+  var f = document.getElementById('veh-vin-file');
+  if (f) f.click();
+}
+
+function vinScan(input) {
+  var file = input.files && input.files[0];
+  var msg = document.getElementById('veh-vin-msg');
+  if (!file) return;
+  msg.className = 'small mt-1 text-muted';
+  msg.textContent = 'Berem VIN s slike…';
+
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    fetch('{{ url_for("vehicles.api_vin_ocr") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: e.target.result })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok && d.vin) {
+        document.getElementById('veh-vin').value = d.vin;
+        msg.className = 'small mt-1 text-success';
+        msg.innerHTML = '<i class="bi bi-check-circle me-1"></i>Prebrano: <strong>' + d.vin +
+          '</strong>' + (d.valid ? ' (kontrolna številka se ujema)' : ' – preveri, kontrolna številka se ne ujema') +
+          '. Ne pozabi klikniti <strong>Shrani v naročilo</strong>.';
+      } else {
+        msg.className = 'small mt-1 text-danger';
+        msg.textContent = 'VIN-a ni bilo mogoče prebrati. Poskusi znova ali vpiši ročno.';
+      }
+    })
+    .catch(function () {
+      msg.className = 'small mt-1 text-danger';
+      msg.textContent = 'Napaka pri branju slike. Vpiši VIN ročno.';
+    });
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Če je obrazec vrnil napako, ostane vozilo odprto za popravek
+document.addEventListener('DOMContentLoaded', function () {
+  var vin = document.getElementById('veh-vin');
+  if (vin) {
+    vin.addEventListener('input', function () {
+      this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+  }
+});
+</script>
+
 {% if kind == 'povprasevanje' and current_user.role != 'kupec' %}
 <script>
 // ── Pošlji povpraševanje po e-pošti (odpre e-poštni program) ──────────────────
@@ -625,7 +781,7 @@ window.INQUIRY_MAIL = {
     prostornina: {{ (order.vehicle.engine_displacement if order.vehicle else '') | tojson }},
     moc:         {{ (order.vehicle.engine_power_kw if order.vehicle else '') | tojson }},
     menjalnik:   {{ (order.vehicle.transmission if order.vehicle else '') | tojson }},
-    vin:         {{ (order.vehicle.vin if (order.vehicle and order.vehicle.vin) else '') | tojson }}
+    vin:         {{ (order.vin_display or '') | tojson }}
   },
   postavke: [
     {% for item in order.items %}

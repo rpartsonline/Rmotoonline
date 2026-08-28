@@ -322,6 +322,22 @@ def _ensure_schema(db):
             db.session.execute(text("ALTER TABLE orders ADD COLUMN sms_variant VARCHAR(5)"))
             db.session.commit()
             print("✅  Dodan stolpec 'sms_variant' v tabelo orders.")
+        if "vin" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN vin VARCHAR(32)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'vin' v tabelo orders.")
+            # Enkratni prenos: obstoječim naročilom prepiši VIN iz vozila,
+            # da stare številke ostanejo vidne tudi pri naročilu.
+            try:
+                db.session.execute(text(
+                    "UPDATE orders SET vin = ("
+                    "  SELECT v.vin FROM vehicles v WHERE v.id = orders.vehicle_id"
+                    ") WHERE vin IS NULL AND vehicle_id IS NOT NULL"
+                ))
+                db.session.commit()
+                print("✅  VIN prepisan iz vozil v obstoječa naročila.")
+            except Exception as e2:
+                print(f"⚠️  Prenos VIN v naročila preskočen: {e2}")
     except Exception as e:
         print(f"⚠️  Migracija (orders.notify_customer) preskočena: {e}")
 

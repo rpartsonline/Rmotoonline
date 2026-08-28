@@ -506,9 +506,13 @@ def _handle_new(kind):
                 customer_id = int(customer_id)
 
         # ── Vozilo ───────────────────────────────────────────────────────────
+        order_vin = None   # VIN, ki se trajno zapiše k naročilu
         existing_id = f.get("existing_vehicle_id", "").strip()
         if existing_id.isdigit():
             vehicle_id = int(existing_id)
+            _v = db.session.get(Vehicle, vehicle_id)
+            if _v and _v.vin:
+                order_vin = _v.vin
         else:
             brand = f.get("new_vehicle_brand", "").strip()
             model = f.get("new_vehicle_model", "").strip()
@@ -530,8 +534,11 @@ def _handle_new(kind):
                 db.session.add(vehicle)
                 db.session.flush()
                 vehicle_id = vehicle.id
+                order_vin = vehicle.vin
             else:
                 vehicle_id = None
+                # VIN je lahko vpisan tudi brez znamke/modela – vseeno ga obdržimo
+                order_vin = f.get("new_vehicle_vin", "").strip() or None
 
         # ── Naročilo / povpraševanje ─────────────────────────────────────────
         order = Order(
@@ -543,6 +550,7 @@ def _handle_new(kind):
             status       = cfg["initial_status"],
             source       = f.get("source", "klic"),
             notes        = f.get("notes", "").strip(),
+            vin          = order_vin,
             delivery_urgency = (f.get("delivery_urgency") if f.get("delivery_urgency") in DELIVERY_URGENCY_DICT else None),
         )
         db.session.add(order)
@@ -722,7 +730,75 @@ def order_detail(order_id):
         kind         = cfg["kind"],
         page_title   = cfg["page_title"],
         list_url     = url_for(cfg["list_endpoint"]),
+        engine_types = ENGINE_TYPES,
+        transmissions= TRANSMISSIONS,
+        car_makes    = CAR_MAKES,
     )
+
+
+# ── Urejanje vozila neposredno iz naročila ────────────────────────────────────
+
+@orders_bp.route("/<int:order_id>/vehicle/save", methods=["POST"])
+@login_required
+def save_order_vehicle(order_id):
+    """Shrani podatke o vozilu iz obrazca na podrobnostih naročila.
+
+    Deluje v vsakem statusu naročila (tudi po oddaji). Če naročilo še nima
+    vozila, se novo vozilo ustvari in pripne na naročilo. VIN se vedno zapiše
+    tudi k samemu naročilu, da ostane trajno viden.
+    """
+    order = Order.query.get_or_404(order_id)
+
+    # Kupec sme urejati samo svoja naročila
+    if getattr(current_user, "role", "") == "kupec" and order.employee_id != current_user.id:
+        flash("Do tega naročila nimaš dostopa.", "danger")
+        return redirect(url_for("orders.list_orders"))
+
+    f = request.form
+    brand = f.get("brand", "").strip()
+    model = f.get("model", "").strip()
+    vin   = f.get("vin", "").strip().upper() or None
+    year_raw = f.get("year", "").strip()
+
+    vehicle = order.vehicle
+    if vehicle is None:
+        # Novo vozilo lahko ustvarimo samo, če imamo vsaj znamko in model
+        if not brand or not model:
+            if vin:
+                # Vsaj VIN obdržimo pri naročilu
+                order.vin = vin
+                db.session.commit()
+                flash("VIN shranjen pri naročilu. Za vozilo vpiši še znamko in model.", "warning")
+            else:
+                flash("Za novo vozilo vpiši vsaj znamko in model.", "danger")
+            return redirect(url_for("orders.order_detail", order_id=order.id))
+        vehicle = Vehicle(customer_id=order.customer_id, brand=brand, model=model)
+        db.session.add(vehicle)
+        db.session.flush()
+        order.vehicle_id = vehicle.id
+    else:
+        if brand:
+            vehicle.brand = brand
+        if model:
+            vehicle.model = model
+
+    vehicle.vin                 = vin
+    vehicle.year                = int(year_raw) if year_raw.isdigit() else None
+    vehicle.engine_type         = f.get("engine_type",         "").strip()
+    vehicle.engine_displacement = f.get("engine_displacement", "").strip()
+    vehicle.engine_power_kw     = f.get("engine_power_kw",     "").strip()
+    vehicle.transmission        = f.get("transmission",        "").strip()
+    vehicle.registration        = f.get("registration",        "").strip()
+    vehicle.notes               = f.get("notes",               "").strip()
+
+    # VIN se vedno zapiše tudi k naročilu (trajen zapis)
+    if vin:
+        order.vin = vin
+    order.updated_at = datetime.utcnow()
+
+    db.session.commit()
+    flash("Podatki o vozilu so shranjeni pri naročilu.", "success")
+    return redirect(url_for("orders.order_detail", order_id=order.id))
 
 
 # ── Update order status ───────────────────────────────────────────────────────
