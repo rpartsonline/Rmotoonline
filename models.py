@@ -61,6 +61,19 @@ ITEM_STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ITEM_STATUSES}
 
 ORDER_SOURCES = ["klic", "whatsapp", "email", "osebno", "drugo"]
 
+# ── Izbrano SMS besedilo ob statusu „Naročeno" ───────────────────────────────
+# Kratka oznaka, ki ostane vidna pri naročilu, in podatek za stolpec „Dobava".
+SMS_VARIANT_LABELS = {
+    "1": "Deli na zalogi",
+    "2": "Danes po 13.00",
+    "3": "Naslednji delovni dan",
+}
+
+SMS_DOBAVA_INFO = {
+    "1": {"label": "Na zalogi",            "color": "success",   "days": 0},
+    "2": {"label": "Danes po 13.00",       "color": "warning",   "days": 0},
+    "3": {"label": "Naslednji delovni dan","color": "info",      "days": 1},
+}
 # Nujnost dostave (izbere končni kupec – Bartog)
 DELIVERY_URGENCY = [
     ("takoj",     "Nadomestne dele potrebujem takoj"),
@@ -175,6 +188,8 @@ class Order(db.Model):
     offer_price    = db.Column(db.String(100))   # cena (npr. „42,50 €")
     offer_delivery = db.Column(db.String(100))   # dobavni rok (npr. „2–3 delovni dnevi")
     offer_note     = db.Column(db.Text)          # opomba dobavitelja/ponudbe
+    # Izbrano SMS besedilo ob statusu „Naročeno" (1 / 2 / 3) – ostane vidno pri naročilu
+    sms_variant    = db.Column(db.String(5))
 
     items       = db.relationship("OrderItem",      backref="order", lazy=True, cascade="all, delete-orphan")
     status_logs = db.relationship("OrderStatusLog", backref="order", lazy=True, cascade="all, delete-orphan")
@@ -188,6 +203,41 @@ class Order(db.Model):
         if not self.delivery_date:
             return None
         return (self.delivery_date - today_local()).days
+
+    @property
+    def dobava_info(self):
+        """Kdaj pride material – za stolpec „Dobava".
+        Vrne dict {label, color, days} ali None, če dobava (še) ni znana.
+
+        Vir podatka:
+          • povpraševanja „Naročena – čakamo dobavo" → delivery_date (odštevanje dni)
+          • naročila s statusom „Naročeno" → izbrano SMS besedilo (na zalogi /
+            danes po 13.00 / naslednji delovni dan)
+        """
+        # 1) Konkreten datum dobave (povpraševanja)
+        if self.delivery_date:
+            d = self.delivery_days_left
+            if d is None:
+                pass
+            elif d < 0:
+                return {"label": f"Zamuja {abs(d)} dni", "color": "danger", "days": d}
+            elif d == 0:
+                return {"label": "Pride danes", "color": "danger", "days": 0}
+            elif d == 1:
+                return {"label": "Pride jutri", "color": "warning", "days": 1}
+            else:
+                return {"label": f"Čez {d} dni", "color": "info", "days": d}
+
+        # 2) Naročila – iz izbranega SMS besedila ob statusu „Naročeno"
+        if self.status == "naroceno":
+            return SMS_DOBAVA_INFO.get(str(self.sms_variant or ""),
+                                       {"label": "Naročeno", "color": "secondary", "days": None})
+        return None
+
+    @property
+    def sms_variant_label(self):
+        """Besedilo SMS-a, ki je bilo izbrano ob statusu „Naročeno"."""
+        return SMS_VARIANT_LABELS.get(str(self.sms_variant or ""))
 
     def __repr__(self):
         return f"<Order {self.order_number}>"

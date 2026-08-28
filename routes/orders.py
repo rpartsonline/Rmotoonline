@@ -775,12 +775,13 @@ def update_status(order_id):
     # Ko gre na „Naročeno" → obvesti kupca + SMS
     if new_status == "naroceno":
         order.notify_customer = True
+        # Shrani izbrano besedilo, da ostane vidno pri naročilu
+        order.sms_variant = request.form.get("sms_variant", "1")
         telefon = order.customer.phone if order.customer else None
         cust_name = order.customer.name if order.customer else "?"
         print(f"[NAROCENO] {order.order_number} | stranka='{cust_name}' | telefon='{telefon}'")
         if telefon:
-            sms_text = build_naroceno_sms(order.order_number,
-                                          request.form.get("sms_variant", "1"))
+            sms_text = build_naroceno_sms(order.order_number, order.sms_variant)
             ok, detail = send_sms(telefon, sms_text)
             if ok:
                 flash(f"SMS obvestilo poslano stranki ({detail}).", "success")

@@ -420,6 +420,122 @@
     setInterval(poll, 60000);
   })();
 </script>
+
+<!-- ── Premikanje oblačkov (povleci in spusti) ──────────────────────────── -->
+<script>
+(function () {
+  // Vsak zaposleni si lahko oblaček povleče, kamor mu ustreza.
+  // Položaj se shrani v brskalnik in ostane tudi po osvežitvi strani.
+  var IDS = ['new-orders-badge', 'new-inq-badge', 'delivery-badge',
+             'notes-badge', 'notes-incoming-badge', 'kupec-offer-badge'];
+  var KLJUC = 'oblacki_pozicije_v1';
+
+  function shranjeno() {
+    try { return JSON.parse(localStorage.getItem(KLJUC)) || {}; }
+    catch (e) { return {}; }
+  }
+  function shrani(poz) {
+    try { localStorage.setItem(KLJUC, JSON.stringify(poz)); } catch (e) {}
+  }
+
+  // Drži oblaček znotraj okna, tudi če se okno pomanjša
+  function omeji(el, levo, zgoraj) {
+    var w = el.offsetWidth || 60, h = el.offsetHeight || 60;
+    return {
+      levo:   Math.max(4, Math.min(levo,   window.innerWidth  - w - 4)),
+      zgoraj: Math.max(4, Math.min(zgoraj, window.innerHeight - h - 4))
+    };
+  }
+
+  function postavi(el, levo, zgoraj) {
+    var t = omeji(el, levo, zgoraj);
+    el.style.setProperty('left',   t.levo + 'px',   'important');
+    el.style.setProperty('top',    t.zgoraj + 'px', 'important');
+    el.style.setProperty('right',  'auto',          'important');
+    el.style.setProperty('bottom', 'auto',          'important');
+  }
+
+  var poz = shranjeno();
+
+  IDS.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+
+    // Obnovi shranjeni položaj
+    if (poz[id]) postavi(el, poz[id].levo, poz[id].zgoraj);
+
+    el.style.touchAction = 'none';   // da vlečenje na telefonu ne premika strani
+    el.style.cursor = 'grab';
+
+    var vlecem = false, premaknjen = false, dx = 0, dy = 0;
+
+    function start(e) {
+      var t = e.touches ? e.touches[0] : e;
+      var r = el.getBoundingClientRect();
+      dx = t.clientX - r.left;
+      dy = t.clientY - r.top;
+      vlecem = true;
+      premaknjen = false;
+      el.style.cursor = 'grabbing';
+      el.style.opacity = '0.85';
+    }
+
+    function premik(e) {
+      if (!vlecem) return;
+      var t = e.touches ? e.touches[0] : e;
+      // Šele po nekaj pikslih štejemo kot vlečenje (da klik še vedno deluje)
+      if (!premaknjen) {
+        premaknjen = true;
+        el.style.transition = 'none';
+      }
+      postavi(el, t.clientX - dx, t.clientY - dy);
+      if (e.cancelable) e.preventDefault();
+    }
+
+    function konec() {
+      if (!vlecem) return;
+      vlecem = false;
+      el.style.cursor = 'grab';
+      el.style.opacity = '';
+      el.style.transition = '';
+      if (premaknjen) {
+        var r = el.getBoundingClientRect();
+        poz[id] = { levo: r.left, zgoraj: r.top };
+        shrani(poz);
+      }
+    }
+
+    // Če je bil oblaček povlečen, ne sprozi povezave
+    el.addEventListener('click', function (e) {
+      if (premaknjen) { e.preventDefault(); premaknjen = false; }
+    });
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, { passive: true });
+    document.addEventListener('mousemove', premik);
+    document.addEventListener('touchmove', premik, { passive: false });
+    document.addEventListener('mouseup', konec);
+    document.addEventListener('touchend', konec);
+  });
+
+  // Ob spremembi velikosti okna povleci oblacke nazaj v vidno polje
+  window.addEventListener('resize', function () {
+    IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && poz[id]) postavi(el, poz[id].levo, poz[id].zgoraj);
+    });
+  });
+
+  // Dvoklik na oblaček = vrni vse na privzeta mesta
+  document.addEventListener('dblclick', function (e) {
+    var el = e.target.closest && e.target.closest(
+      '#new-orders-badge, #new-inq-badge, #delivery-badge, #notes-badge, #notes-incoming-badge, #kupec-offer-badge');
+    if (!el) return;
+    try { localStorage.removeItem(KLJUC); } catch (err) {}
+    location.reload();
+  });
+})();
+</script>
 {% block extra_scripts %}{% endblock %}
 <script>
   // Registracija service workerja (potreben za namestitev ikone)

@@ -318,6 +318,10 @@ def _ensure_schema(db):
             db.session.execute(text("ALTER TABLE orders ADD COLUMN offer_note TEXT"))
             db.session.commit()
             print("✅  Dodan stolpec 'offer_note' v tabelo orders.")
+        if "sms_variant" not in ocols:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN sms_variant VARCHAR(5)"))
+            db.session.commit()
+            print("✅  Dodan stolpec 'sms_variant' v tabelo orders.")
     except Exception as e:
         print(f"⚠️  Migracija (orders.notify_customer) preskočena: {e}")
 
