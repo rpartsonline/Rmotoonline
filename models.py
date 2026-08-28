@@ -21,6 +21,7 @@ ORDER_STATUSES = [
     ("novo",                  "Novo naročilo",         "danger"),
     ("poslano_povprasevanje", "Naročilo v obdelavi",   "warning"),
     ("naroceno",              "Naročeno",              "success"),
+    ("dobavljeno",            "Dobavljeno",            "secondary"),
 ]
 
 STATUS_DICT = {s[0]: {"label": s[1], "color": s[2]} for s in ORDER_STATUSES}
