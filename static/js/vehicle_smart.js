@@ -633,6 +633,42 @@
   }
 
   // Glavni zajem – sproži se z gumbom „Zajemi VIN".
+  /* Celoten postopek branja iz žive slike. Uporabljata ga tako vgrajeno okno
+     skenerja kot obrazec za novo naročilo, da je stroj povsod isti. */
+  async function runCapture(video, onStatus) {
+    const say = (m, k) => { if (onStatus) onStatus(m, k || "primary"); };
+
+    say('<i class="bi bi-camera"></i> Zajemam … držite mirno');
+    const frames = await grabBurst(video, 7, 90);
+    if (!frames.length) return { result: null, frames: [] };
+
+    // 1) Črtna koda v katerikoli sličici – najbolj točno, kar obstaja
+    for (const f of frames) {
+      const vin = await detectBarcode(f.canvas);
+      if (vin) {
+        return { result: { vin, source: "koda", valid: vinChecksumValid(vin) }, frames };
+      }
+    }
+
+    frames.sort((a, b) => b.score - a.score);
+
+    // 2) Google Vision na najostrejših sličicah
+    say('<i class="bi bi-arrow-repeat"></i> Berem VIN …');
+    const wide = captureFrame(video, true);
+    const res = await readViaVision(frames, wide, say);
+    if (res && res.vin) return { result: res, frames };
+
+    // 3) Rezerva: Tesseract v brskalniku
+    say(res && res.unavailable && res.why === "daily_limit"
+      ? "Dnevna meja branja je dosežena – berem lokalno …"
+      : '<i class="bi bi-arrow-repeat"></i> Poskušam še lokalno branje …', "warning");
+    const t = await readViaTesseract(frames);
+    if (t) {
+      return { result: { vin: t, source: "lokalno", valid: vinChecksumValid(t) }, frames };
+    }
+    return { result: null, frames, unavailable: res && res.unavailable, why: res && res.why };
+  }
+
   async function captureOCR() {
     const v = el("scan-video");
     if (!v || !v.videoWidth || VS._busy) return;
@@ -641,35 +677,8 @@
     if (btn) btn.disabled = true;
 
     try {
-      setMsg('<i class="bi bi-camera"></i> Zajemam … držite mirno', "primary");
-      const frames = await grabBurst(v, 7, 90);
-      if (!frames.length) { setMsg("Zajem ni uspel. Poskusi znova.", "danger"); return; }
-
-      // 1) Črtna koda v katerikoli sličici – najbolj točno, kar obstaja
-      for (const f of frames) {
-        const vin = await detectBarcode(f.canvas);
-        if (vin) { foundVin(vin, { source: "koda", valid: vinChecksumValid(vin) }); return; }
-      }
-
-      frames.sort((a, b) => b.score - a.score);
-
-      // 2) Google Vision na najostrejših sličicah
-      setMsg('<i class="bi bi-arrow-repeat"></i> Berem VIN …', "primary");
-      const wide = captureFrame(v, true);
-      const res = await readViaVision(frames, wide, (m) => setMsg(m, "primary"));
-      if (res && res.vin) { foundVin(res.vin, res); return; }
-
-      // 3) Rezerva: Tesseract v brskalniku
-      if (res && res.unavailable) {
-        setMsg(res.why === "daily_limit"
-          ? "Dnevna meja branja je dosežena – berem lokalno …"
-          : '<i class="bi bi-arrow-repeat"></i> Berem lokalno …', "warning");
-      } else {
-        setMsg('<i class="bi bi-arrow-repeat"></i> Poskušam še lokalno branje …', "warning");
-      }
-      const t = await readViaTesseract(frames);
-      if (t) { foundVin(t, { source: "lokalno", valid: vinChecksumValid(t) }); return; }
-
+      const { result } = await runCapture(v, setMsg);
+      if (result) { foundVin(result.vin, result); return; }
       setMsg("VIN ni prepoznan. Pojdi bližje (naj okvir zapolni številka), "
            + "prižgi <b>svetilko</b> in poskusi pod rahlim kotom, da ni odseva.", "danger");
     } finally {
@@ -677,6 +686,53 @@
       if (btn) btn.disabled = false;
     }
   }
+
+  /* Zvezno iskanje črtne kode na tujem video elementu. Vrne funkcijo za ustavitev.
+     Namenjeno stranem, ki imajo svoje okno s kamero. */
+  VS.startBarcodeWatch = function (video, onFound) {
+    let stopped = false, timer = null;
+    const tick = async () => {
+      if (stopped) return;
+      if (!VS._busy && video && video.videoWidth) {
+        try {
+          const f = cropFrame(video, true);
+          if (f) {
+            const vin = await detectBarcode(f.canvas);
+            if (vin) {
+              stopped = true;
+              onFound({ vin, source: "koda", valid: vinChecksumValid(vin) });
+              return;
+            }
+          }
+        } catch (e) {}
+      }
+      if (!stopped) timer = setTimeout(tick, 300);
+    };
+    tick();
+    return function () { stopped = true; if (timer) clearTimeout(timer); };
+  };
+
+  /* Javni vmesnik za druge strani (npr. obrazec novega naročila), ki imajo
+     svoje okno s kamero, a naj berejo z istim strojem.
+     Vrne { result, blob } – blob je čista barvna slika kadra za shranjevanje. */
+  VS.readVideoBurst = async function (video, onStatus) {
+    if (!video || !video.videoWidth || VS._busy) return { result: null, blob: null };
+    VS._busy = true;
+    try {
+      // Čist barvni posnetek kadra – shrani se k naročilu
+      let blob = null;
+      try {
+        const c = document.createElement("canvas");
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext("2d").drawImage(video, 0, 0);
+        blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.95));
+      } catch (e) {}
+      const { result } = await runCapture(video, onStatus);
+      return { result, blob };
+    } finally {
+      VS._busy = false;
+    }
+  };
 
   function foundVin(vin, info) {
     const cfg = VS._cfg;
@@ -727,17 +783,37 @@
     if (v) { v.srcObject = null; v.onclick = null; }
   }
 
-  // ── Branje VIN iz naložene fotografije ────────────────────────────────────
+  // ── Branje VIN iz naložene fotografije / printscreena ─────────────────────
 
-  async function readVinFromPhoto(file, cfg, status, decode) {
-    status('<i class="bi bi-arrow-repeat"></i> Berem fotografijo …', "primary");
+  // Blago glajenje – odstrani raster, ki nastane pri fotografiranju zaslona
+  // (moiré), ne da bi zabrisalo robove črk.
+  function denoise(g, w, h) {
+    const I = integral(g, w, h);
+    const out = new Uint8ClampedArray(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        out[p] = 0.45 * g[p] + 0.55 * boxMean(I, w, h, x, y, 1);
+      }
+    }
+    return out;
+  }
+
+  /* Prebere VIN iz datoteke (fotografija, printscreen, prilepljena slika).
+     Vrne objekt rezultata ali null. onStatus(html, vrsta) sproti obvešča.
+     To je javni vmesnik – uporabljajo ga tudi druge strani. */
+  VS.readImageFile = async function (file, onStatus) {
+    const say = (m, k) => { if (onStatus) onStatus(m, k || "primary"); };
+    say('<i class="bi bi-arrow-repeat"></i> Berem sliko …');
 
     let bmp;
     try { bmp = await createImageBitmap(file); }
-    catch (e) { status("Slike ni bilo mogoče odpreti. Poskusi znova.", "danger"); return; }
+    catch (e) { return null; }
 
-    const maxW = 2400;
-    const sc = Math.min(1, maxW / bmp.width);
+    // Daljšo stranico omejimo na 3200 px – dovolj, da VIN vrstica obdrži
+    // podrobnosti tudi na posnetku celotnega prometnega dovoljenja.
+    const maxSide = 3200;
+    const sc = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
     const w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc);
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
@@ -745,39 +821,45 @@
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(bmp, 0, 0, w, h);
 
-    // Črtna koda na fotografiji – če je, je rezultat točen
+    // 1) Črtna koda na sliki – če je, je rezultat točen
     try {
       const vin = await detectBarcode(c);
-      if (vin) { setVinResult(vin, cfg, status, { source: "koda" }); if (decode) decode(vin); return; }
+      if (vin) return { vin, source: "koda", valid: vinChecksumValid(vin) };
     } catch (e) {}
+
+    const rawJpeg = c.toDataURL("image/jpeg", 0.92);
 
     const gray = toGray(ctx, w, h);
     const radius = Math.max(12, Math.round(Math.min(w, h) / 8));
-    let g = flattenIllumination(gray, w, h, radius);
+    let g = denoise(gray, w, h);
+    g = flattenIllumination(g, w, h, radius);
     g = stretchContrast(g);
     g = sharpen(g, w, h, 0.5);
 
     const frame = { canvas: c, ctx, w, h, gray, prepared: g, score: 1, jpeg: null };
 
-    // Pošljemo dve različici: surovo in poravnano – Vision o njiju glasuje
-    const rawJpeg = c.toDataURL("image/jpeg", 0.92);
+    // 2) Vision na obeh različicah – surovi in obdelani; o njiju glasuje
     putGray(ctx, g, w, h);
     const flatJpeg = c.toDataURL("image/jpeg", 0.92);
 
     const j = await visionRead([flatJpeg, rawJpeg], null, "document");
-    if (j.ok && j.vin) {
-      setVinResult(j.vin, cfg, status, j);
-      if (decode) decode(j.vin);
-      return;
-    }
-    if (j.error === "daily_limit") {
-      status("Dnevna meja branja je dosežena – berem lokalno …", "warning");
-    }
+    if (j.ok && j.vin) return j;
 
+    // 3) Rezerva: Tesseract v brskalniku
+    say(j.error === "daily_limit"
+      ? "Dnevna meja branja je dosežena – berem lokalno …"
+      : '<i class="bi bi-arrow-repeat"></i> Poskušam še lokalno branje …', "warning");
     const t = await readViaTesseract([frame]);
-    if (t) {
-      setVinResult(t, cfg, status, { source: "lokalno", valid: vinChecksumValid(t) });
-      if (decode) decode(t);
+    if (t) return { vin: t, source: "lokalno", valid: vinChecksumValid(t) };
+
+    return null;
+  };
+
+  async function readVinFromPhoto(file, cfg, status, decode) {
+    const res = await VS.readImageFile(file, status);
+    if (res && res.vin) {
+      setVinResult(res.vin, cfg, status, res);
+      if (decode) decode(res.vin);
       return;
     }
     status("VIN ni prepoznan. Fotografiraj bližje in brez odseva (rahel kot, več svetlobe).", "danger");
@@ -889,9 +971,11 @@
     document.querySelectorAll('[data-vs="scan-ocr"]').forEach((b) =>
       b.addEventListener("click", () => openScanner("ocr")));
 
-    // Fotografiraj VIN iz datoteke (telefonska kamera) + potrditev
+    // Fotografiraj VIN iz datoteke (telefonska kamera) + potrditev.
+    // Strani, ki sliko obdelajo same (npr. obrazec novega naročila), dodajo
+    // polju data-vs-skip – sicer bi se slika brala dvakrat.
     const photoInput = cfg.vin ? document.getElementById("nv_vin_photo") : null;
-    if (photoInput) {
+    if (photoInput && !photoInput.hasAttribute("data-vs-skip")) {
       photoInput.addEventListener("change", function (e) {
         const file = e.target.files && e.target.files[0];
         if (file) readVinFromPhoto(file, cfg, status, decode);

@@ -150,7 +150,7 @@
       <button type="button" class="btn btn-outline-secondary btn-sm" id="nv_vin_up_btn">
         <i class="bi bi-upload me-1"></i>Naloži sliko / printscreen
       </button>
-      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" data-vs-skip style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
       <input type="file" id="nv_vin_photo_desk" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
       <input type="file" id="nv_vin_upload" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
       <button type="button" class="btn btn-outline-info btn-sm" id="nv_vin_paste_btn">
@@ -535,11 +535,16 @@
         <div style="position:relative; width:100%;">
           <video id="wcam-vid" autoplay playsinline muted
                  style="width:100%; max-height:42vh; display:block; object-fit:cover;"></video>
-          <!-- Vodilo za poravnavo VIN (ozek vodoraven okvir) -->
-          <div style="position:absolute; top:50%; left:6%; right:6%; height:26%;
+          <!-- Vodilo za poravnavo VIN (široko – natančno poravnavanje ni potrebno) -->
+          <div style="position:absolute; top:50%; left:3%; right:3%; height:34%;
                       transform:translateY(-50%); border:2px solid rgba(59,130,246,.95);
-                      border-radius:6px; box-shadow:0 0 0 9999px rgba(0,0,0,.35);
+                      border-radius:6px; box-shadow:0 0 0 9999px rgba(0,0,0,.32);
                       pointer-events:none;"></div>
+          <!-- Svetilka (če jo naprava podpira) -->
+          <button type="button" id="wcam-torch" class="btn btn-sm scan-torch-btn"
+                  style="display:none" title="Svetilka">
+            <i class="bi bi-lightning-charge-fill"></i>
+          </button>
         </div>
         <canvas id="wcam-cv" style="display:none"></canvas>
         <div id="wcam-stat" class="py-2 small text-white-50" style="min-height:30px"></div>
@@ -579,137 +584,117 @@
 </script>
 
 <script>
-/* ── VIN iz slike: KAMERA / prilepi (Ctrl+V) / naloži ─────────────────── */
+/* ── VIN iz slike: KAMERA / prilepi (Ctrl+V) / naloži ───────────────────
+   Branje teče skozi VehicleSmart (static/js/vehicle_smart.js), da je stroj
+   povsod isti: črtna koda → odstranjevanje odsevov → Google Vision z
+   glasovanjem po več posnetkih → Tesseract kot rezerva. */
 (function() {
-  var VIN_OCR_URL = "{{ url_for('vehicles.api_vin_ocr') }}";
   var statusEl   = document.getElementById('nv_status');
   var vinInp     = document.getElementById('nv_vin');
   var preview    = document.getElementById('nv_paste_preview');
   var previewImg = document.getElementById('nv_paste_img');
   var previewName= document.getElementById('nv_paste_name');
 
+  var KIND = { primary:'#2563eb', success:'#16a34a', warning:'#b45309',
+               danger:'#dc2626', muted:'#64748b' };
+
   function setStatus(msg, color) {
     if (statusEl) { statusEl.innerHTML = msg; statusEl.style.color = color || '#666'; }
   }
+  // Vmesnik med stroječimi sporočili skenerja in barvami na tej strani
+  function engineStatus(msg, kind) { setStatus(msg, KIND[kind] || KIND.primary); }
 
-  // Optimizacija slike: zmanjšaj na max 1600px + povečaj kontrast → boljši OCR
-  function optimizeImage(file) {
-    return new Promise(function(resolve) {
-      var img = new Image();
-      var url = URL.createObjectURL(file);
-      img.onload = function() {
-        URL.revokeObjectURL(url);
-        var maxDim = 2000;
-        var w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-          else       { w = Math.round(w * maxDim / h); h = maxDim; }
-        }
-        var canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-
-        // Povečaj kontrast in pretvori v sivinsko (boljši OCR za VIN)
-        try {
-          var imgData = ctx.getImageData(0, 0, w, h);
-          var d = imgData.data;
-          var contrast = 1.35; // faktor kontrasta
-          var intercept = 128 * (1 - contrast);
-          for (var i = 0; i < d.length; i += 4) {
-            var gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-            var val = gray * contrast + intercept;
-            val = val < 0 ? 0 : (val > 255 ? 255 : val);
-            d[i] = d[i+1] = d[i+2] = val;
-          }
-          ctx.putImageData(imgData, 0, 0);
-        } catch(e) { /* če CORS/security, pusti barvno */ }
-
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
-      };
-      img.onerror = function() {
-        URL.revokeObjectURL(url);
-        // fallback: pošlji original
-        var reader = new FileReader();
-        reader.onload = function(ev) { resolve(ev.target.result); };
-        reader.readAsDataURL(file);
-      };
-      img.src = url;
-    });
-  }
-
-  function sendImageForOCR(file) {
+  // Slika se shrani k naročilu in pokaže v predogledu
+  function keepImage(file) {
     if (!file) return;
-    setStatus('<i class="bi bi-arrow-repeat"></i> Obdelujem sliko in berem šasijsko…', '#2563eb');
     if (preview && previewImg) {
       previewImg.src = URL.createObjectURL(file);
       preview.style.display = '';
       if (previewName) previewName.textContent = file.name || 'slika';
     }
-    // Shrani sliko VIN, da se odda in shrani k naročilu (zadnja slika velja)
-    var vinStore = document.getElementById('vin_photo_store');
-    if (vinStore) {
+    var store = document.getElementById('vin_photo_store');
+    if (store) {
       try {
-        var vdt = new DataTransfer();
-        vdt.items.add(file);
-        vinStore.files = vdt.files;
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        store.files = dt.files;
       } catch (e) {}
     }
-    optimizeImage(file).then(function(dataUrl) {
-      return fetch(VIN_OCR_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl })
-      });
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.ok && data.vin) {
-        if (vinInp) { vinInp.value = data.vin.toUpperCase(); vinInp.dispatchEvent(new Event('input')); }
-        if (data.valid) {
-          setStatus('<i class="bi bi-patch-check-fill text-success me-1"></i>Prebrana in <strong>preverjena</strong> šasijska: <strong>' + data.vin + '</strong> (kontrolna številka se ujema).', '#16a34a');
-        } else {
-          setStatus('<i class="bi bi-check-circle text-success me-1"></i>Prebrana šasijska: <strong>' + data.vin + '</strong> — <strong>preveri po potrebi</strong> (kontrolna se ni ujela, kar je pri nekaterih vozilih normalno).', '#b45309');
-        }
-      } else if (data.error === 'no_key') {
-        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>OCR ni na voljo (manjka Vision ključ). Vpiši ročno.', '#b45309');
-      } else if (data.error === 'daily_limit') {
-        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Dnevna omejitev skeniranj dosežena. Vpiši ročno.', '#b45309');
-      } else {
-        setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. Poskusi z bližjo, ostrejšo sliko (samo VIN vrstica).' + (data.raw ? ' <span class="text-muted">(prebrano: ' + data.raw.slice(0,40) + '…)</span>' : ''), '#b45309');
-      }
-    })
-    .catch(function() { setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', '#dc2626'); });
+  }
+
+  function showResult(res) {
+    if (!res || !res.vin) return false;
+    if (vinInp) {
+      vinInp.value = res.vin.toUpperCase();
+      vinInp.dispatchEvent(new Event('input'));
+    }
+    var v = '<strong>' + res.vin + '</strong>';
+    if (res.source === 'koda') {
+      setStatus('<i class="bi bi-upc-scan text-success me-1"></i>Šasijska prebrana s <strong>črtne kode</strong>: '
+                + v + ' — točno.', KIND.success);
+    } else if (res.corrected) {
+      setStatus('<i class="bi bi-exclamation-triangle me-1"></i>Šasijska prebrana in popravljena po kontrolni '
+                + 'številki: ' + res.corrected + ' → ' + v + '. <strong>Preveri znake.</strong>', KIND.warning);
+    } else if (res.valid) {
+      setStatus('<i class="bi bi-patch-check-fill text-success me-1"></i>Prebrana in <strong>preverjena</strong> '
+                + 'šasijska: ' + v + ' (kontrolna številka se ujema).', KIND.success);
+    } else if (res.votes && res.votes > 1) {
+      setStatus('<i class="bi bi-check-circle text-success me-1"></i>Prebrana šasijska: ' + v
+                + ' — enako prebrano na ' + res.votes + ' posnetkih.', KIND.success);
+    } else {
+      setStatus('<i class="bi bi-check-circle me-1"></i>Prebrana šasijska: ' + v
+                + ' — <strong>preveri po potrebi</strong> (kontrolna se ni ujela, '
+                + 'kar je pri evropskih vozilih normalno).', KIND.warning);
+    }
+    return true;
+  }
+
+  function failMsg() {
+    setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. '
+      + 'Najbolje deluje <strong>printscreen</strong> (Ctrl+V) ali fotografija <strong>samega dokumenta</strong> – '
+      + 'fotografiranje telefonskega zaslona je skoraj vedno preslabo. Lahko vpišeš tudi ročno.', KIND.warning);
+  }
+
+  function readFile(file) {
+    if (!file) return;
+    keepImage(file);
+    if (!window.VehicleSmart || !VehicleSmart.readImageFile) {
+      setStatus('Branje ni na voljo. Vpiši šasijsko ročno.', KIND.danger);
+      return;
+    }
+    VehicleSmart.readImageFile(file, engineStatus).then(function(res) {
+      if (!showResult(res)) failMsg();
+    }).catch(function() {
+      setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', KIND.danger);
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    // Detekcija naprave
     var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    // File inputi
     var photoMob  = document.getElementById('nv_vin_photo');       // z capture (mobitel)
     var photoDesk = document.getElementById('nv_vin_photo_desk');  // brez capture (računalnik)
     var up        = document.getElementById('nv_vin_upload');
 
-    if (photoMob)  photoMob.addEventListener('change',  function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
-    if (photoDesk) photoDesk.addEventListener('change', function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
-    if (up)        up.addEventListener('change',        function() { if (this.files[0]) sendImageForOCR(this.files[0]); });
+    if (photoMob)  photoMob.addEventListener('change',  function() { if (this.files[0]) readFile(this.files[0]); });
+    if (photoDesk) photoDesk.addEventListener('change', function() { if (this.files[0]) readFile(this.files[0]); });
+    if (up)        up.addEventListener('change',        function() { if (this.files[0]) readFile(this.files[0]); });
 
     // IZBRIŠI sliko VIN (če je slaba) → počisti shranjeno sliko in predogled
     var photoDel = document.getElementById('nv_photo_del');
     if (photoDel) {
       photoDel.addEventListener('click', function() {
-        var vinStore = document.getElementById('vin_photo_store');
-        if (vinStore) { try { vinStore.files = new DataTransfer().files; } catch (e) {} }
+        var store = document.getElementById('vin_photo_store');
+        if (store) { try { store.files = new DataTransfer().files; } catch (e) {} }
         if (preview) preview.style.display = 'none';
         if (previewImg) previewImg.src = '';
-        setStatus('<i class="bi bi-info-circle me-1"></i>Slika odstranjena. Lahko ponovno slikaš ali naložiš.', '#64748b');
+        setStatus('<i class="bi bi-info-circle me-1"></i>Slika odstranjena. Lahko ponovno slikaš ali naložiš.', KIND.muted);
       });
     }
 
     // FOTOGRAFIRAJ gumb
     var camBtn = document.getElementById('nv_vin_cam_btn');
-    var wcStream = null;
+    var wcStream = null, wcTrack = null, wcTorch = false, stopWatch = null;
     if (camBtn) {
       camBtn.addEventListener('click', function() {
         var mEl = document.getElementById('vinWebcamModal');
@@ -721,40 +706,100 @@
           return;
         }
         var wModal = new bootstrap.Modal(mEl);
-        var vid    = document.getElementById('wcam-vid');
-        var snap   = document.getElementById('wcam-snap');
-        var wstat  = document.getElementById('wcam-stat');
-        wstat.innerHTML = '<span class="text-warning">Vzpostavljam kamero…</span>';
+        var vid      = document.getElementById('wcam-vid');
+        var snap     = document.getElementById('wcam-snap');
+        var wstat    = document.getElementById('wcam-stat');
+        var torchBtn = document.getElementById('wcam-torch');
+
+        function wsay(html, cls) {
+          wstat.innerHTML = '<span class="text-' + (cls || 'white-50') + '">' + html + '</span>';
+        }
+
+        wsay('Vzpostavljam kamero…', 'warning');
         snap.disabled = true;
+        if (torchBtn) torchBtn.style.display = 'none';
         wModal.show();
-        // Zadnja (okoljska) kamera na mobitelu; okence ostane majhno, v strani
+
         navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width:{ideal:1920}, height:{ideal:1080} }
+          video: {
+            facingMode: { ideal: 'environment' },
+            width:  { ideal: 2560 },
+            height: { ideal: 1440 },
+            advanced: [{ focusMode: 'continuous' }]
+          }
         })
-          .then(function(stream) {
-            wcStream = stream; vid.srcObject = stream;
-            vid.onloadedmetadata = function() {
-              snap.disabled = false;
-              wstat.innerHTML = '<span class="text-success">Poravnaj VIN v okvir in pritisni Zajemi</span>';
+        .then(function(stream) {
+          wcStream = stream;
+          vid.srcObject = stream;
+          wcTrack = stream.getVideoTracks()[0] || null;
+          wcTorch = false;
+
+          // Svetilka, če jo naprava podpira
+          var caps = null;
+          try { caps = (wcTrack && wcTrack.getCapabilities) ? wcTrack.getCapabilities() : null; } catch (e) {}
+          if (torchBtn) {
+            torchBtn.style.display = (caps && 'torch' in caps) ? '' : 'none';
+            torchBtn.classList.remove('active');
+            torchBtn.onclick = function() {
+              wcTorch = !wcTorch;
+              try { wcTrack.applyConstraints({ advanced: [{ torch: wcTorch }] }); } catch (e) {}
+              torchBtn.classList.toggle('active', wcTorch);
             };
-          })
-          .catch(function(err) {
-            wstat.innerHTML = '<span class="text-danger">Kamere ni bilo mogoče odpreti (' + (err.message || err.name || '') + '). Dovoli kamero ali uporabi <b>Naloži sliko</b>.</span>';
-            // Na mobitelu ponudi sistemsko kamero kot rezervo
-            if (isMobile && photoMob) { wModal.hide(); photoMob.click(); }
-          });
+          }
+
+          vid.onloadedmetadata = function() {
+            snap.disabled = false;
+            wsay('Poravnaj VIN v okvir in pritisni <b>Zajemi</b>. Črtno kodo preberem sam.', 'success');
+            // Črtna koda se išče ves čas v ozadju – če je na tablici, je rezultat točen
+            if (window.VehicleSmart && VehicleSmart.startBarcodeWatch) {
+              stopWatch = VehicleSmart.startBarcodeWatch(vid, function(res) {
+                wModal.hide();
+                showResult(res);
+              });
+            }
+          };
+        })
+        .catch(function(err) {
+          wsay('Kamere ni bilo mogoče odpreti (' + (err.message || err.name || '')
+               + '). Dovoli kamero ali uporabi <b>Naloži sliko</b>.', 'danger');
+          if (isMobile && photoMob) { wModal.hide(); photoMob.click(); }
+        });
+
         mEl.addEventListener('hidden.bs.modal', function() {
-          if (wcStream) { wcStream.getTracks().forEach(function(t){t.stop();}); wcStream=null; }
-          snap.disabled=true; vid.srcObject=null; wstat.textContent='';
-        }, {once:true});
+          if (stopWatch) { stopWatch(); stopWatch = null; }
+          if (wcTorch && wcTrack) {
+            try { wcTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
+            wcTorch = false;
+          }
+          if (wcStream) { wcStream.getTracks().forEach(function(t) { t.stop(); }); wcStream = null; }
+          wcTrack = null;
+          snap.disabled = true;
+          vid.srcObject = null;
+          wstat.textContent = '';
+        }, { once: true });
+
         snap.onclick = function() {
-          var cv = document.getElementById('wcam-cv');
-          cv.width=vid.videoWidth; cv.height=vid.videoHeight;
-          cv.getContext('2d').drawImage(vid,0,0);
-          cv.toBlob(function(blob){
-            var f=new File([blob],'vin-cam.jpg',{type:'image/jpeg'});
-            wModal.hide(); sendImageForOCR(f);
-          },'image/jpeg',0.95);
+          if (!window.VehicleSmart || !VehicleSmart.readVideoBurst) return;
+          snap.disabled = true;
+          VehicleSmart.readVideoBurst(vid, function(m, k) {
+            wsay(m, k === 'danger' ? 'danger' : (k === 'warning' ? 'warning' : 'light'));
+          }).then(function(out) {
+            snap.disabled = false;
+            if (out.blob) {
+              keepImage(new File([out.blob], 'vin-cam.jpg', { type: 'image/jpeg' }));
+            }
+            if (out.result && out.result.vin) {
+              wModal.hide();
+              showResult(out.result);
+            } else {
+              // Okno pustimo odprto, da lahko takoj poskusi znova
+              wsay('Nisem prepoznal. Pojdi <b>bližje</b>, prižgi <b>svetilko</b> ali '
+                   + 'nagni kamero, da ni odseva – nato znova Zajemi.', 'warning');
+            }
+          }).catch(function() {
+            snap.disabled = false;
+            wsay('Napaka pri branju. Poskusi znova.', 'danger');
+          });
         };
       });
     }
@@ -765,11 +810,11 @@
       upBtn.addEventListener('click', function() { up.click(); });
     }
 
-    // Paste gumb
+    // Prilepi gumb
     var pb = document.getElementById('nv_vin_paste_btn');
     if (pb) {
       pb.addEventListener('click', function() {
-        setStatus('<i class="bi bi-clipboard me-1"></i>Pritisni <b>Ctrl+V</b> za prilepi sliko…', '#2563eb');
+        setStatus('<i class="bi bi-clipboard me-1"></i>Pritisni <b>Ctrl+V</b> za prilepi sliko…', KIND.primary);
       });
     }
 
@@ -783,7 +828,7 @@
       for (var i = 0; i < items.length; i++) {
         if (items[i].type && items[i].type.indexOf('image') === 0) {
           e.preventDefault();
-          sendImageForOCR(items[i].getAsFile());
+          readFile(items[i].getAsFile());
           if (vinInp) vinInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
           break;
         }
