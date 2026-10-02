@@ -298,13 +298,16 @@
 
   // ── Zajem sličice iz žive slike ───────────────────────────────────────────
 
-  const GUIDE_W = 0.88, GUIDE_H = 0.22;   // enako kot modri okvir v oknu
-  const MAX_OUT_W = 2400;
+  // Okvir je namerno širok – VIN ni treba natančno poravnati. Odvečno
+  // besedilo okoli njega izločimo pri izboru kandidatov, ne pri zajemu.
+  const GUIDE_W = 0.94, GUIDE_H = 0.34;   // enako kot modri okvir v oknu
+  const MAX_OUT_W = 3000;
 
-  function cropFrame(video) {
+  // full = true → zajame celoten kader (če je VIN zgrešil okvir)
+  function cropFrame(video, full) {
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!vw) return null;
-    const sw = vw * GUIDE_W, sh = vh * GUIDE_H;
+    const sw = vw * (full ? 1 : GUIDE_W), sh = vh * (full ? 1 : GUIDE_H);
     const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
     const scale = Math.min(2.5, MAX_OUT_W / sw);
     const w = Math.round(sw * scale), h = Math.round(sh * scale);
@@ -319,8 +322,8 @@
   /* Med zajemom serije delamo samo poceni stvari (izrez, sivine, ocena ostrine),
      da sličice res sledijo druga drugi. Drago obdelavo opravimo šele na tistih
      nekaj sličicah, ki jih zares pošljemo v branje. */
-  function captureFrame(video) {
-    const f = cropFrame(video);
+  function captureFrame(video, full) {
+    const f = cropFrame(video, full);
     if (!f) return null;
     const { canvas, ctx, w, h } = f;
     const gray = toGray(ctx, w, h);
@@ -449,7 +452,7 @@
      zanesljiv (ujema se kontrolna številka ali poznamo predpono proizvajalca),
      smo porabili eno poizvedbo. Sicer pošljemo še dve in o rezultatu glasujemo –
      odsev se med sličicami premakne, zato se napake ne ponovijo enako.        */
-  async function readViaVision(frames, onStatus) {
+  async function readViaVision(frames, wide, onStatus) {
     if (!frames.length) return null;
 
     const first = await visionRead([frameToJpeg(frames[0])], null, "plate");
@@ -458,9 +461,10 @@
     }
     if (first.ok && first.vin && first.confident) return first;
 
-    const rest = frames.slice(1, 3);
+    const rest = frames.slice(1, 2);
+    if (wide) rest.push(wide);              // še celoten kader, če je VIN zgrešil okvir
     if (rest.length) {
-      if (onStatus) onStatus("Preverjam še z dodatnimi posnetki …");
+      if (onStatus) onStatus("Preverjam še s širšim posnetkom …");
       const prior = (first.ok && first.vin) ? [first.vin] : [];
       const more = await visionRead(rest.map(frameToJpeg), prior, "plate");
       if (more.ok && more.vin) return more;
@@ -651,7 +655,8 @@
 
       // 2) Google Vision na najostrejših sličicah
       setMsg('<i class="bi bi-arrow-repeat"></i> Berem VIN …', "primary");
-      const res = await readViaVision(frames, (m) => setMsg(m, "primary"));
+      const wide = captureFrame(v, true);
+      const res = await readViaVision(frames, wide, (m) => setMsg(m, "primary"));
       if (res && res.vin) { foundVin(res.vin, res); return; }
 
       // 3) Rezerva: Tesseract v brskalniku

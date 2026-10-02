@@ -263,48 +263,100 @@ _LABEL_RE = re.compile(
 )
 
 
+# Oznaka, ki na tablici ali v dovoljenju stoji tik pred šasijsko številko.
+# Kar ji sledi, je skoraj zagotovo VIN – to je najmočnejši posamičen namig.
+_LABEL_NEAR_RE = re.compile(
+    r"(?:VIN|CHASSIS|FAHRGESTELL(?:NUMMER)?|[ŠS]ASIJ\w*|"
+    r"IDENTIFIKACIJSK\w*(?:\s+[ŠS]TEVILK\w*)?)"
+    r"[\s:.–—-]*(?P<val>[A-Z0-9][A-Z0-9 \-]{15,34})"
+)
+
+_VIN_SHAPE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
+
+
+def _vin_substitute(s):
+    """VIN nima črk I, O in Q – vedno so to števke."""
+    return s.replace("I", "1").replace("O", "0").replace("Q", "0")
+
+
+def _emit_windows(raw_chunk, bonus, offer):
+    """Vsa 17-znakovna okna v nizu, ki so po obliki lahko VIN."""
+    sub = _vin_substitute(raw_chunk)        # pretvorba je znak za znak – indeksi se ujemajo
+    for i in range(0, max(0, len(sub) - 16)):
+        w = sub[i:i + 17]
+        if not _VIN_SHAPE.match(w):
+            continue
+        digits = sum(c.isdigit() for c in w)
+        letters = 17 - digits
+        # „Native" so števke, ki so bile števke že pred pretvorbo I→1 / O→0.
+        # Brez tega pogoja bi iz besedila „REPUBLIKA SLOVENIJA" nastal
+        # navidezni VIN.
+        native = sum(c.isdigit() for c in raw_chunk[i:i + 17])
+        if native < 2 or digits < 3 or letters < 3:
+            continue
+        offer(w, bonus)
+
+
 def _vin_candidates(text):
-    """Iz besedila Vision izlušči vse verjetne 17-mestne VIN kandidate,
-    urejene po oceni (najboljši prvi)."""
+    """Iz besedila izlušči vse verjetne 17-mestne VIN kandidate, urejene po
+    oceni (najboljši prvi).
+
+    Posnetek sme vsebovati poljubno drugo besedilo – registrsko, kode delov,
+    datume, številko homologacije. Pravi VIN prepoznamo po tem, da:
+      • stoji kot samostojen 17-znakovni blok (ne izrezan iz daljšega niza),
+      • mu včasih neposredno predhodi oznaka (VIN, šasija, Fahrgestell …),
+      • ustreza obliki VIN (brez I/O/Q, veljavno leto, zaporedna št. na koncu).
+    """
     if not text:
         return []
 
-    cleaned = _LABEL_RE.sub(" ", text.upper())
+    upper = text.upper()
 
-    def vin_substitute(s):
-        return s.replace("I", "1").replace("O", "0").replace("Q", "0")
+    bonus = {}
 
-    def plausible(s, native_digits):
-        digits = sum(c.isdigit() for c in s)
-        letters = 17 - digits
-        # Pravi VIN ima obe vrsti znakov, zaporedna številka na koncu pa
-        # poskrbi, da pravih števk ni premalo. „Native" so tiste števke, ki so
-        # bile števke že pred pretvorbo I→1 / O→0 – brez tega pogoja bi iz
-        # besedila „REPUBLIKA SLOVENIJA" nastal navidezni VIN.
-        return native_digits >= 2 and digits >= 3 and letters >= 3
+    def offer(vin, b):
+        if b > bonus.get(vin, -999):
+            bonus[vin] = b
 
-    candidates = []
+    # 1) Številka tik za oznako – najmočnejši namig
+    labelled = {}
+    for m in _LABEL_NEAR_RE.finditer(upper):
+        val = re.sub(r"[^A-Z0-9]", "", m.group("val"))
+        _emit_windows(val, 0, lambda v, _b: labelled.setdefault(v, True))
 
-    def scan(chunk):
-        raw = re.sub(r"[^A-Z0-9]", "", chunk)
-        sub = vin_substitute(raw)           # pretvorba je znak za znak, indeksi se ujemajo
-        for i in range(0, max(0, len(sub) - 16)):
-            w = sub[i:i + 17]
-            native = sum(c.isdigit() for c in raw[i:i + 17])
-            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and plausible(w, native):
-                candidates.append(w)
-
-    # 1) Po vrsticah – da ne spojimo dveh ločenih podatkov v en niz
+    # 2) Po vrsticah: sosednje bloke znakov združujemo, ker OCR VIN pogosto
+    #    razbije s presledkom (npr. „WVWZZZ1KZ AW000001").
+    cleaned = _LABEL_RE.sub(" ", upper)
     for line in cleaned.splitlines():
-        scan(line)
+        runs = re.findall(r"[A-Z0-9]+", line)
+        for i in range(len(runs)):
+            if len(runs[i]) > 30:
+                # Zelo dolg niz – VIN je lahko le del njega, zato z odbitkom.
+                _emit_windows(runs[i], -8, offer)
+                continue
+            total = ""
+            for j in range(i, len(runs)):
+                total += runs[j]
+                if len(total) > 30:
+                    break
+                if len(total) < 17:
+                    continue
+                if len(total) == 17:
+                    b = 30          # samostojen blok točno 17 znakov
+                elif len(total) <= 20:
+                    b = 10
+                else:
+                    b = 0           # izrezan iz daljše kaše – brez prednosti
+                _emit_windows(total, b, offer)
 
-    # 2) Če nič, poskusi čez cel očiščen niz (Vision včasih vrne vse v eni vrstici)
-    if not candidates:
-        scan(cleaned)
+    # 3) Če po vrsticah ni nič, poskusi čez celotno besedilo
+    if not bonus:
+        _emit_windows(re.sub(r"[^A-Z0-9]", "", cleaned), -5, offer)
 
-    candidates = list(dict.fromkeys(candidates))   # brez podvojenih, vrstni red ohranjen
-    candidates.sort(key=_vin_score, reverse=True)
-    return candidates
+    def total_score(v):
+        return _vin_score(v) + bonus[v] + (25 if v in labelled else 0)
+
+    return sorted(bonus, key=total_score, reverse=True)
 
 
 def _vin_cleanup(text):
