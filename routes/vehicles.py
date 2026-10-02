@@ -252,99 +252,223 @@ def _vin_check_valid(vin):
     return vin[8] == check
 
 
-def _vin_cleanup(text):
-    """Iz besedila Vision izlušči pravi VIN (17 znakov), ne napisa poleg."""
+# Napisi s prometnega dovoljenja in tablic, ki NISO VIN. Odstranimo jih iz
+# besedila, preden iščemo številko – sicer iz samih črk napisa (I→1, O→0)
+# nastane niz, ki je na pogled videti kot VIN.
+_LABEL_RE = re.compile(
+    r"IDENTIFIKAC\w*|[ŠS]TEVILK\w*|VOZIL\w*|LETO|IZDELAV\w*|PROMETN\w*|"
+    r"DOVOLJENJ\w*|REGISTRSK\w*|VELJAVN\w*|LASTNI\w*|SEDE[ŽZ]\w*|"
+    r"TIP|VARIANTA|IZVEDBA|ZNAMKA|MODEL|BARVA|MASA|NAJVE[ČC]J\w*|"
+    r"VIN|CHASSIS|FAHRGESTELL|FRAME\s*N[OR]\w*"
+)
+
+
+def _vin_candidates(text):
+    """Iz besedila Vision izlušči vse verjetne 17-mestne VIN kandidate,
+    urejene po oceni (najboljši prvi)."""
     if not text:
-        return ""
+        return []
 
-    raw_upper = text.upper()
-
-    # Slovenske/oznake besede, ki NISO VIN (da ne zajamemo napisa)
-    bad_words = ("IDENTIFIKAC", "STEVILKA", "ŠTEVILKA", "VOZILO", "LETO",
-                 "IZDELAVE", "SEDEZ", "SEDEŽ", "PROMETN", "DOVOLJENJ")
+    cleaned = _LABEL_RE.sub(" ", text.upper())
 
     def vin_substitute(s):
         return s.replace("I", "1").replace("O", "0").replace("Q", "0")
 
-    def has_letter_and_digit(s):
-        return any(c.isalpha() for c in s) and any(c.isdigit() for c in s)
+    def plausible(s, native_digits):
+        digits = sum(c.isdigit() for c in s)
+        letters = 17 - digits
+        # Pravi VIN ima obe vrsti znakov, zaporedna številka na koncu pa
+        # poskrbi, da pravih števk ni premalo. „Native" so tiste števke, ki so
+        # bile števke že pred pretvorbo I→1 / O→0 – brez tega pogoja bi iz
+        # besedila „REPUBLIKA SLOVENIJA" nastal navidezni VIN.
+        return native_digits >= 2 and digits >= 3 and letters >= 3
 
     candidates = []
 
-    # 1) Najprej po vrsticah – išči vrstico, ki je videti kot VIN
-    for line in raw_upper.splitlines():
-        # preskoči vrstice z očitnimi napisi
-        if any(w in line for w in bad_words):
+    def scan(chunk):
+        raw = re.sub(r"[^A-Z0-9]", "", chunk)
+        sub = vin_substitute(raw)           # pretvorba je znak za znak, indeksi se ujemajo
+        for i in range(0, max(0, len(sub) - 16)):
+            w = sub[i:i + 17]
+            native = sum(c.isdigit() for c in raw[i:i + 17])
+            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and plausible(w, native):
+                candidates.append(w)
+
+    # 1) Po vrsticah – da ne spojimo dveh ločenih podatkov v en niz
+    for line in cleaned.splitlines():
+        scan(line)
+
+    # 2) Če nič, poskusi čez cel očiščen niz (Vision včasih vrne vse v eni vrstici)
+    if not candidates:
+        scan(cleaned)
+
+    candidates = list(dict.fromkeys(candidates))   # brez podvojenih, vrstni red ohranjen
+    candidates.sort(key=_vin_score, reverse=True)
+    return candidates
+
+
+def _vin_cleanup(text):
+    """Združljivost nazaj: vrne enega, najboljšega kandidata."""
+    c = _vin_candidates(text)
+    return c[0] if c else ""
+
+
+# Znane predpone proizvajalcev (WMI) – močan namig, da gre res za VIN.
+KNOWN_WMI = (
+    "WVW", "WVG", "WV1", "WV2", "WAU", "WA1", "TRU", "WME", "W0L", "W0V", "VXK",
+    "WBA", "WBS", "WBY", "4US", "5UX", "WBX",
+    "WDB", "WDC", "WDD", "WDF", "W1K", "W1N", "W1V", "W1T", "VSA",
+    "VF1", "VF3", "VF7", "VF6", "VF8", "VF9", "VR1", "VR3", "VR7",
+    "ZFA", "ZFF", "ZAR", "ZAC", "ZAM", "ZFC",
+    "TMB", "TMP", "TMK", "TMA", "TMH",
+    "VSS", "VSK", "VSE", "VSX",
+    "SB1", "SJN", "JTD", "JTM", "JT1", "JTE", "JHM", "JHL", "SHH", "SHS", "NLA",
+    "KMH", "KNA", "KNB", "KNE", "U5Y", "U6Y", "KNM", "VNK",
+    "1C4", "SAL", "SAJ", "SAD", "SCA", "SCB",
+    "YV1", "YV4", "YS3", "YK1",
+    "LVS", "LGX", "LC0", "LSV", "L6T", "LB3",
+    "MA1", "MA3", "MAT", "MEE", "ML3",
+    "3VW", "9BW", "8AW", "93Y", "935", "936", "8A1", "9BD",
+    "ZDM", "ZD4", "ZKH", "JYA", "JS1", "JKA", "VTT", "MLH", "VBK",
+    "WP0", "WP1", "WF0", "WFO", "VNE", "VN1", "NM0", "ZCF", "ZAP",
+    "1HG", "2HG", "3HG", "19X", "2HK", "5J6", "5FN", "1FA", "1FT",
+    "1G1", "1GC", "1N4", "5N1", "4T1", "5TD", "2T1", "1C6", "3C4",
+)
+
+
+def _vin_score(v):
+    """Oceni, kako verjetno je niz pravi VIN."""
+    if not v or len(v) != 17:
+        return -100
+    digits = sum(ch.isdigit() for ch in v)
+    letters = 17 - digits
+    s = 0
+    if _vin_check_valid(v):
+        s += 40
+    if v[:3] in KNOWN_WMI:
+        s += 25
+    if 3 <= digits <= 12:
+        s += 5
+    if 5 <= letters <= 14:
+        s += 5
+    # 10. znak je leto izdelave – nikoli I, O, Q, U, Z ali 0
+    if v[9] in "ABCDEFGHJKLMNPRSTVWXY123456789":
+        s += 3
+    # Zadnjih šest znakov je zaporedna številka vozila – pri skoraj vseh
+    # proizvajalcih same števke. Vsaka črka tam je znak napačnega branja.
+    s -= 3 * sum(ch.isalpha() for ch in v[11:])
+    # pet enakih znakov zapored je skoraj zagotovo napaka branja
+    if re.search(r"(.)\1{4,}", v):
+        s -= 15
+    return s
+
+
+# Znaki, ki jih OCR najpogosteje zamenja med sabo.
+_CONFUSIONS = {
+    "8": "B", "B": "8",
+    "5": "S", "S": "5",
+    "2": "Z", "Z": "2",
+    "6": "G", "G": "6",
+    "4": "A", "A": "4",
+    "0": "D", "D": "0",
+    "7": "T", "T": "7",
+    "1": "7",
+}
+
+
+def _vin_repair(vin):
+    """Popravek ene same napačno prebrane črke s pomočjo kontrolne številke.
+
+    Uporabimo ga SAMO, kadar je 9. znak števka ali X – takrat gre res za
+    kontrolno številko. Veliko evropskih vozil ima tam polnilo (npr. „Z") in
+    kontrolne številke sploh nima, zato tam ne popravljamo ničesar.
+
+    Vrne (popravljen_vin, izvirnik) ali (None, None), če popravek ni enoličen.
+    """
+    if len(vin) != 17 or vin[8] not in "0123456789X":
+        return (None, None)
+    if _vin_check_valid(vin):
+        return (None, None)
+
+    fixes = []
+    for i, ch in enumerate(vin):
+        if i == 8:
             continue
-        compact = re.sub(r"[^A-Z0-9]", "", vin_substitute(line))
-        # drsno okno 17 znakov
-        for i in range(0, max(0, len(compact) - 16)):
-            w = compact[i:i + 17]
-            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and has_letter_and_digit(w):
-                candidates.append(w)
+        alt = _CONFUSIONS.get(ch)
+        if not alt:
+            continue
+        cand = vin[:i] + alt + vin[i + 1:]
+        if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", cand) and _vin_check_valid(cand):
+            fixes.append(cand)
 
-    # 2) Če nič, poskusi čez cel niz (zadnja možnost)
-    if not candidates:
-        compact = re.sub(r"[^A-Z0-9]", "", vin_substitute(raw_upper))
-        for i in range(0, max(0, len(compact) - 16)):
-            w = compact[i:i + 17]
-            if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", w) and has_letter_and_digit(w):
-                candidates.append(w)
+    fixes = list(dict.fromkeys(fixes))
+    if not fixes:
+        return (None, None)
+    if len(fixes) == 1:
+        return (fixes[0], vin)
 
-    if not candidates:
-        return ""
+    # Več možnih popravkov: odloči ocena, ob tem pa upoštevaj, da je zadnjih
+    # šest znakov zaporedna številka vozila in so skoraj vedno same števke.
+    def rank(v):
+        return (_vin_score(v), -sum(c.isalpha() for c in v[11:]))
 
-    # Ocenjevanje: VIN ima običajno mešanico črk in števk.
-    # Znane WMI predpone evropskih znamk (prvi 3 znaki) → večja verjetnost.
-    known_wmi = ("WVW", "WVG", "WV1", "WV2", "WAU", "WA1", "TRU",  # VW/Audi
-                 "WBA", "WBS", "WBY", "4US", "5UX",                # BMW
-                 "WDB", "WDC", "WDD", "WDF", "W1K", "W1N", "W1V",  # Mercedes
-                 "VF1", "VF3", "VF7", "VF6",                       # Renault/Peugeot/Citroen
-                 "ZFA", "ZFF", "ZAR",                              # Fiat/Ferrari/Alfa
-                 "TMB", "TMP",                                     # Škoda
-                 "VSS", "VSK",                                     # Seat/Nissan ES
-                 "SB1", "SJN", "JTD", "JTM", "JT1",                # Toyota
-                 "KMH", "KNA", "KNB", "U5Y", "TMA",                # Hyundai/Kia
-                 "ZAC", "1C4", "SAL", "SAJ",                       # Jeep/LandRover/Jaguar
-                 "YV1", "YV4", "VF8", "W0L", "W0V", "VXK")         # Volvo/Opel
+    fixes.sort(key=rank, reverse=True)
+    if rank(fixes[0]) > rank(fixes[1]):
+        return (fixes[0], vin)
+    return (None, None)   # dvoumno – raje pustimo, kar smo prebrali
 
-    def score(v):
-        digits = sum(ch.isdigit() for ch in v)
-        letters = 17 - digits
-        s = 0
-        # Veljavna kontrolna številka (ISO 3779) → skoraj gotovo pravi VIN
-        if _vin_check_valid(v):
-            s += 40
-        # Mešanica črk in števk (pravi VIN)
-        if 3 <= digits <= 12:
-            s += 5
-        if 5 <= letters <= 14:
-            s += 5
-        # Znana WMI predpona → skoraj gotovo VIN
-        if v[:3] in known_wmi:
-            s += 20
-        # 10. znak (leto) je črka ali številka brez I,O,Q,U,Z,0 → tipično VIN
-        year_char = v[9]
-        if year_char in "ABCDEFGHJKLMNPRSTVWXY123456789":
-            s += 3
-        # Kazen če je preveč enega znaka zapored (npr. OCR napaka)
-        if re.search(r"(.)\1{4,}", v):
-            s -= 10
-        return s
 
-    candidates = list(dict.fromkeys(candidates))  # odstrani duplikate, ohrani vrstni red
-    candidates.sort(key=score, reverse=True)
-    return candidates[0]
+def _vision_text(api_key, img_b64):
+    """Pošlje eno sliko v Google Vision in vrne prebrano besedilo."""
+    payload = json.dumps({
+        "requests": [{
+            "image": {"content": img_b64},
+            "features": [
+                {"type": "DOCUMENT_TEXT_DETECTION"},
+                {"type": "TEXT_DETECTION"},
+            ],
+            "imageContext": {"languageHints": ["en", "sl"]},
+        }]
+    }).encode()
+
+    url = f"https://vision.googleapis.com/v1/images:annotate?key={urllib.parse.quote(api_key)}"
+    req = urllib.request.Request(url, data=payload,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        res = json.loads(r.read().decode())
+    anno = (res.get("responses") or [{}])[0]
+    text = (anno.get("fullTextAnnotation") or {}).get("text", "")
+    if not text:
+        ta = anno.get("textAnnotations") or []
+        text = ta[0].get("description", "") if ta else ""
+    return text
 
 
 @vehicles_bp.route("/api/vin-ocr", methods=["POST"])
 @login_required
 def api_vin_ocr():
+    """Prebere VIN z ene ali več slik.
+
+    Sprejme {"image": "<dataURL>"} (staro) ali {"images": [...], "prior": [...]}.
+    Pri več slikah o rezultatu glasujemo: ista napaka se na različnih posnetkih
+    redko ponovi, zato je najpogostejši odgovor skoraj vedno pravi.
+    """
     api_key = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
     if not api_key:
-        return jsonify({"ok": False, "error": "no_key"}), 200  # rezerva (Tesseract) na strani odjemalca
+        return jsonify({"ok": False, "error": "no_key"}), 200  # rezerva (Tesseract) pri odjemalcu
 
-    # Dnevna varnostna omejitev (privzeto 200 poizvedb/dan)
+    data = request.get_json(silent=True) or {}
+    images = data.get("images")
+    if not images:
+        one = data.get("image")
+        images = [one] if one else []
+    if not isinstance(images, list):
+        images = [images]
+    images = [i for i in images if i][:4]        # največ 4 slike na zahtevo
+    if not images:
+        return jsonify({"ok": False, "error": "no_image"}), 400
+
+    # Dnevna varnostna omejitev (šteje se vsaka slika)
     try:
         limit = int(os.environ.get("VISION_DAILY_LIMIT", "200"))
     except ValueError:
@@ -353,34 +477,61 @@ def api_vin_ocr():
     if _vision_quota["day"] != today:
         _vision_quota["day"] = today
         _vision_quota["count"] = 0
-    if _vision_quota["count"] >= limit:
+    if _vision_quota["count"] + len(images) > limit:
         return jsonify({"ok": False, "error": "daily_limit"}), 200
 
-    data = request.get_json(silent=True) or {}
-    img_b64 = (data.get("image") or "").split(",")[-1]  # odstrani "data:image/...;base64,"
-    if not img_b64:
-        return jsonify({"ok": False, "error": "no_image"}), 400
+    votes = {}
+    raw_seen = ""
+    errors = []
 
-    payload = json.dumps({
-        "requests": [{
-            "image": {"content": img_b64},
-            "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
-        }]
-    }).encode()
-
-    url = f"https://vision.googleapis.com/v1/images:annotate?key={urllib.parse.quote(api_key)}"
-    try:
-        req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            res = json.loads(r.read().decode())
-        _vision_quota["count"] += 1
-        anno = (res.get("responses") or [{}])[0]
-        text = (anno.get("fullTextAnnotation") or {}).get("text", "") \
-            or (anno.get("textAnnotations") or [{}])[0].get("description", "")
-        vin = _vin_cleanup(text)
+    def add_vote(vin, weight):
         if vin:
-            return jsonify({"ok": True, "vin": vin, "valid": _vin_check_valid(vin)})
-        return jsonify({"ok": False, "error": "no_vin", "raw": text[:200]})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 502
+            votes[vin] = votes.get(vin, 0) + weight
+
+    # Kandidati iz prejšnjega kroga (odjemalec jih pošlje, da glasujemo skupaj)
+    for p in (data.get("prior") or [])[:4]:
+        if isinstance(p, str) and len(p) == 17:
+            add_vote(p.upper(), 1)
+
+    for img in images:
+        b64 = (img or "").split(",")[-1]
+        if not b64:
+            continue
+        try:
+            text = _vision_text(api_key, b64)
+            _vision_quota["count"] += 1
+        except Exception as e:
+            errors.append(str(e))
+            continue
+        if text and not raw_seen:
+            raw_seen = text
+        cands = _vin_candidates(text)
+        # Prvi kandidat šteje polno, drugi pol – da ne izgubimo bližnjih zadetkov
+        for idx, c in enumerate(cands[:2]):
+            add_vote(c, 1 if idx == 0 else 0.5)
+
+    if not votes:
+        if errors and len(errors) == len(images):
+            return jsonify({"ok": False, "error": errors[0]}), 502
+        return jsonify({"ok": False, "error": "no_vin", "raw": raw_seen[:200]})
+
+    # Zmaga največ glasov; ob izenačenju odloči ocena (kontrolna št., WMI …)
+    best = max(votes.items(), key=lambda kv: (kv[1], _vin_score(kv[0])))
+    vin, n_votes = best[0], best[1]
+
+    # Enkratni popravek po kontrolni številki (le kjer ta sploh obstaja)
+    corrected_from = None
+    fixed, orig = _vin_repair(vin)
+    if fixed:
+        corrected_from, vin = orig, fixed
+
+    valid = _vin_check_valid(vin)
+    return jsonify({
+        "ok": True,
+        "vin": vin,
+        "valid": valid,
+        "votes": int(n_votes) if float(n_votes).is_integer() else n_votes,
+        "confident": bool(valid or vin[:3] in KNOWN_WMI or n_votes >= 2),
+        "corrected": corrected_from,
+        "candidates": sorted(votes, key=lambda k: (votes[k], _vin_score(k)), reverse=True)[:4],
+    })
