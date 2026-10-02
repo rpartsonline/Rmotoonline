@@ -418,15 +418,17 @@ def _vin_repair(vin):
     return (None, None)   # dvoumno – raje pustimo, kar smo prebrali
 
 
-def _vision_text(api_key, img_b64):
-    """Pošlje eno sliko v Google Vision in vrne prebrano besedilo."""
+def _vision_text(api_key, img_b64, feature="TEXT_DETECTION"):
+    """Pošlje eno sliko v Google Vision in vrne prebrano besedilo.
+
+    Google zaračuna vsako lastnost (feature) posebej, zato pošljemo samo eno:
+      TEXT_DETECTION          – redko besedilo na fotografiji (tablica z VIN)
+      DOCUMENT_TEXT_DETECTION – gosto besedilo (prometno dovoljenje)
+    """
     payload = json.dumps({
         "requests": [{
             "image": {"content": img_b64},
-            "features": [
-                {"type": "DOCUMENT_TEXT_DETECTION"},
-                {"type": "TEXT_DETECTION"},
-            ],
+            "features": [{"type": feature}],
             "imageContext": {"languageHints": ["en", "sl"]},
         }]
     }).encode()
@@ -468,7 +470,14 @@ def api_vin_ocr():
     if not images:
         return jsonify({"ok": False, "error": "no_image"}), 400
 
-    # Dnevna varnostna omejitev (šteje se vsaka slika)
+    # Katero branje je za ta posnetek bolj primerno. Drugo uporabimo le, če
+    # prvo ne najde ničesar – tako v običajnem primeru porabimo eno enoto.
+    if (data.get("mode") or "plate") == "document":
+        features = ("DOCUMENT_TEXT_DETECTION", "TEXT_DETECTION")
+    else:
+        features = ("TEXT_DETECTION", "DOCUMENT_TEXT_DETECTION")
+
+    # Dnevna varnostna omejitev (šteje se vsak klic na Vision)
     try:
         limit = int(os.environ.get("VISION_DAILY_LIMIT", "200"))
     except ValueError:
@@ -477,12 +486,13 @@ def api_vin_ocr():
     if _vision_quota["day"] != today:
         _vision_quota["day"] = today
         _vision_quota["count"] = 0
-    if _vision_quota["count"] + len(images) > limit:
+    if _vision_quota["count"] >= limit:
         return jsonify({"ok": False, "error": "daily_limit"}), 200
 
     votes = {}
     raw_seen = ""
     errors = []
+    tried = 0
 
     def add_vote(vin, weight):
         if vin:
@@ -497,22 +507,30 @@ def api_vin_ocr():
         b64 = (img or "").split(",")[-1]
         if not b64:
             continue
-        try:
-            text = _vision_text(api_key, b64)
-            _vision_quota["count"] += 1
-        except Exception as e:
-            errors.append(str(e))
-            continue
-        if text and not raw_seen:
-            raw_seen = text
-        cands = _vin_candidates(text)
-        # Prvi kandidat šteje polno, drugi pol – da ne izgubimo bližnjih zadetkov
-        for idx, c in enumerate(cands[:2]):
-            add_vote(c, 1 if idx == 0 else 0.5)
+        tried += 1
+        for feat in features:
+            if _vision_quota["count"] >= limit:
+                break
+            try:
+                text = _vision_text(api_key, b64, feat)
+                _vision_quota["count"] += 1
+            except Exception as e:
+                errors.append(str(e))
+                break
+            if text and not raw_seen:
+                raw_seen = text
+            cands = _vin_candidates(text)
+            if cands:
+                # Prvi kandidat šteje polno, drugi pol – da ne izgubimo bližnjih
+                for idx, c in enumerate(cands[:2]):
+                    add_vote(c, 1 if idx == 0 else 0.5)
+                break          # našli smo; drugega načina branja ne rabimo
 
     if not votes:
-        if errors and len(errors) == len(images):
+        if errors and len(errors) >= tried > 0:
             return jsonify({"ok": False, "error": errors[0]}), 502
+        if _vision_quota["count"] >= limit:
+            return jsonify({"ok": False, "error": "daily_limit"}), 200
         return jsonify({"ok": False, "error": "no_vin", "raw": raw_seen[:200]})
 
     # Zmaga največ glasov; ob izenačenju odloči ocena (kontrolna št., WMI …)

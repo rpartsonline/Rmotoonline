@@ -430,12 +430,14 @@
 
   // ── Google Vision ─────────────────────────────────────────────────────────
 
-  async function visionRead(jpegs, prior) {
+  // mode: "plate" = tablica z VIN (redko besedilo), "document" = prometno
+  // dovoljenje (gosto besedilo). Strežnik po tem izbere primernejše branje.
+  async function visionRead(jpegs, prior, mode) {
     try {
       const r = await fetch("/vehicles/api/vin-ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: jpegs, prior: prior || [] }),
+        body: JSON.stringify({ images: jpegs, prior: prior || [], mode: mode || "plate" }),
       });
       return await r.json();
     } catch (e) {
@@ -450,7 +452,7 @@
   async function readViaVision(frames, onStatus) {
     if (!frames.length) return null;
 
-    const first = await visionRead([frameToJpeg(frames[0])]);
+    const first = await visionRead([frameToJpeg(frames[0])], null, "plate");
     if (first.error === "no_key" || first.error === "daily_limit" || first.error === "network") {
       return { unavailable: true, why: first.error };
     }
@@ -460,7 +462,7 @@
     if (rest.length) {
       if (onStatus) onStatus("Preverjam še z dodatnimi posnetki …");
       const prior = (first.ok && first.vin) ? [first.vin] : [];
-      const more = await visionRead(rest.map(frameToJpeg), prior);
+      const more = await visionRead(rest.map(frameToJpeg), prior, "plate");
       if (more.ok && more.vin) return more;
     }
     return (first.ok && first.vin) ? first : null;
@@ -757,7 +759,7 @@
     putGray(ctx, g, w, h);
     const flatJpeg = c.toDataURL("image/jpeg", 0.92);
 
-    const j = await visionRead([flatJpeg, rawJpeg]);
+    const j = await visionRead([flatJpeg, rawJpeg], null, "document");
     if (j.ok && j.vin) {
       setVinResult(j.vin, cfg, status, j);
       if (decode) decode(j.vin);
