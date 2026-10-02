@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Preizkus branja VIN{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Preizkus branja VIN</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-upc-scan me-2 text-primary"></i>Preizkus branja VIN</h1>
+</div>
+
+<!-- Stanje bralnikov -->
+<div class="card-plain mb-3">
+  <div class="form-section-title"><i class="bi bi-gear"></i> Kateri bralniki so na voljo</div>
+  <div class="info-grid">
+    <div class="info-row">
+      <label>Vizualni model</label>
+      <span>
+        {% if stanje.gemini %}
+          <span class="badge bg-success">GEMINI_API_KEY je nastavljen</span>
+        {% else %}
+          <span class="badge bg-danger">GEMINI_API_KEY manjka</span>
+        {% endif %}
+      </span>
+    </div>
+    <div class="info-row">
+      <label>Model</label>
+      <span class="font-monospace small">{{ stanje.model }}</span>
+    </div>
+    <div class="info-row">
+      <label>Cloud Vision</label>
+      <span>
+        {% if stanje.vision %}
+          <span class="badge bg-success">GOOGLE_VISION_API_KEY je nastavljen</span>
+        {% else %}
+          <span class="badge bg-secondary">GOOGLE_VISION_API_KEY manjka</span>
+        {% endif %}
+      </span>
+    </div>
+    <div class="info-row">
+      <label>Poraba Vision danes</label>
+      <span>{{ stanje.porabljeno }} / {{ stanje.limit }}</span>
+    </div>
+  </div>
+
+  {% if not stanje.gemini and not stanje.vision %}
+  <div class="alert alert-danger small mt-3 mb-0">
+    <i class="bi bi-exclamation-octagon me-1"></i>
+    <strong>Nobeden od bralnikov ni nastavljen.</strong> Aplikacija zato bere s
+    Tesseractom v brskalniku, ki je za šasijske številke slab. Dokler ne dodaš
+    vsaj enega ključa med spremenljivke okolja na Renderju, branje ne more
+    delovati dobro – ne glede na kakovost slike.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Preizkus -->
+<div class="card-plain mb-3">
+  <div class="form-section-title"><i class="bi bi-image"></i> Preizkusi s sliko</div>
+  <form method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-end flex-wrap">
+    <div class="flex-grow-1" style="min-width:240px">
+      <label class="form-label small fw-semibold">Slika tablice ali prometnega dovoljenja</label>
+      <input type="file" name="slika" accept="image/*" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-play-fill me-1"></i>Preberi
+    </button>
+  </form>
+  <div class="form-text mt-2">
+    Vsak bralnik se požene posebej in izpiše, kaj je prebral. Tako vidiš, kje
+    točno se zatakne – ali slika ni berljiva, ali ključ ne deluje, ali pa je
+    številka prebrana, a napačno izbrana.
+  </div>
+</div>
+
+{% if izpis %}
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-list-check me-2"></i>Rezultat po bralnikih</h6>
+  </div>
+  <div class="p-3">
+    {% for k in izpis.koraki %}
+    <div class="mb-3 p-3 rounded" style="background:#f8fafc; border:1px solid #e5eaf2;">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="fw-bold">
+          {% if k.ok %}
+          <i class="bi bi-check-circle-fill text-success me-1"></i>
+          {% else %}
+          <i class="bi bi-x-circle text-secondary me-1"></i>
+          {% endif %}
+          {{ k.ime }}
+        </div>
+        <div class="font-monospace fw-bold" style="letter-spacing:.06em; font-size:1.05rem;">
+          {{ k.vin }}
+        </div>
+      </div>
+      <div class="small text-muted mt-1">{{ k.opis }}</div>
+      {% if k.raw %}
+      <details class="mt-2">
+        <summary class="small text-primary" style="cursor:pointer">Pokaži, kaj je bralnik vrnil</summary>
+        <pre class="small mt-2 mb-0 p-2 rounded" style="background:#0f172a; color:#e2e8f0; white-space:pre-wrap; word-break:break-word; max-height:320px; overflow:auto;">{{ k.raw }}</pre>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -347,8 +347,17 @@
     return g;
   }
 
+  // Surova sličica – kličemo jo PRED frameToJpeg, ki kanvas prepiše z obdelano.
+  // Vizualni model iz naravne slike pogosto odčita več kot iz obdelane, zato
+  // mu pošljemo obe in sam primerja.
+  function frameToRawJpeg(f) {
+    if (!f.rawJpeg) f.rawJpeg = f.canvas.toDataURL("image/jpeg", 0.92);
+    return f.rawJpeg;
+  }
+
   function frameToJpeg(f) {
     if (f.jpeg) return f.jpeg;
+    frameToRawJpeg(f);                       // surovo shranimo, dokler je še na voljo
     putGray(f.ctx, enhance(f), f.w, f.h);
     f.jpeg = f.canvas.toDataURL("image/jpeg", 0.92);
     return f.jpeg;
@@ -455,7 +464,8 @@
   async function readViaVision(frames, wide, onStatus) {
     if (!frames.length) return null;
 
-    const first = await visionRead([frameToJpeg(frames[0])], null, "plate");
+    const f0 = frames[0];
+    const first = await visionRead([frameToRawJpeg(f0), frameToJpeg(f0)], null, "plate");
     if (first.error === "no_key" || first.error === "daily_limit" || first.error === "network") {
       return { unavailable: true, why: first.error };
     }
