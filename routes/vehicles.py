@@ -791,6 +791,20 @@ def api_vin_ocr():
     })
 
 
+@vehicles_bp.route("/api/vin-status")
+@login_required
+def api_vin_status():
+    """Pove, ali je na strežniku sploh nastavljen kakšen bralnik VIN.
+    Obrazec to prikaže takoj ob odprtju, da vzrok ni skrit."""
+    gem = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    vis = bool(os.environ.get("GOOGLE_VISION_API_KEY", "").strip())
+    return jsonify({
+        "engine": "ai" if gem else ("vision" if vis else "none"),
+        "gemini": gem,
+        "vision": vis,
+    })
+
+
 # ── Diagnostika: kaj se pri branju VIN dejansko dogaja ────────────────────────
 
 @vehicles_bp.route("/vin-test", methods=["GET", "POST"])

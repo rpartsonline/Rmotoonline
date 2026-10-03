@@ -172,6 +172,7 @@
     </div>
     <!-- Slika VIN se odda kot slika naročila (in se shrani) -->
     <input type="file" id="vin_photo_store" name="order_images" multiple style="display:none">
+    <div id="nv_engine_warn" class="alert alert-danger small mt-2 mb-2" style="display:none"></div>
     <div id="nv_status" class="small mt-2"></div>
     <div class="form-text">Fotografiraj, naloži sliko ali <strong>prilepi printscreen</strong> (Ctrl+V) prometnega dovoljenja – aplikacija prebere šasijsko številko.</div>
   </div>
@@ -649,7 +650,23 @@
     return true;
   }
 
-  function failMsg() {
+  function failMsg(res) {
+    var why = res && res.unavailable;
+    if (why === 'no_key') {
+      setStatus('<i class="bi bi-x-octagon-fill text-danger me-1"></i><strong>Branje šasijske ni nastavljeno '
+        + 'na strežniku.</strong> Manjka ključ (GEMINI_API_KEY ali GOOGLE_VISION_API_KEY) med spremenljivkami '
+        + 'okolja na Renderju. Dokler ga ni, slike ni mogoče prebrati – vpiši ročno.', KIND.danger);
+      return;
+    }
+    if (why === 'daily_limit') {
+      setStatus('<i class="bi bi-hourglass-split me-1"></i>Dnevna meja branja je dosežena. '
+        + 'Dvigni VISION_DAILY_LIMIT na Renderju ali vpiši ročno.', KIND.warning);
+      return;
+    }
+    if (res && res.badImage) {
+      setStatus('<i class="bi bi-image me-1"></i>Te slike ni bilo mogoče odpreti. Poskusi z drugo.', KIND.warning);
+      return;
+    }
     setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. '
       + 'Najbolje deluje <strong>printscreen</strong> (Ctrl+V) ali fotografija <strong>samega dokumenta</strong> – '
       + 'fotografiranje telefonskega zaslona je skoraj vedno preslabo. Lahko vpišeš tudi ročno.', KIND.warning);
@@ -663,13 +680,31 @@
       return;
     }
     VehicleSmart.readImageFile(file, engineStatus).then(function(res) {
-      if (!showResult(res)) failMsg();
+      if (!showResult(res)) failMsg(res);
     }).catch(function() {
       setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', KIND.danger);
     });
   }
 
+  // Ob odprtju strani preverimo, ali je na strežniku sploh kakšen bralnik.
+  // Brez tega bi delavec slikal in slikal, pa ne bi vedel, zakaj ne gre.
+  function checkEngine() {
+    var warn = document.getElementById('nv_engine_warn');
+    if (!warn) return;
+    fetch('/vehicles/api/vin-status').then(function(r) { return r.json(); }).then(function(d) {
+      if (d && d.engine === 'none') {
+        warn.style.display = '';
+        warn.innerHTML = '<i class="bi bi-x-octagon-fill me-1"></i>'
+          + '<strong>Branje šasijske številke ni nastavljeno.</strong><br>'
+          + 'Na Renderju manjka ključ <code>GEMINI_API_KEY</code> (ali <code>GOOGLE_VISION_API_KEY</code>) '
+          + 'med spremenljivkami okolja. Fotografiranje in nalaganje slik zato ne bo prebralo številke – '
+          + 'vpiši jo ročno. Podrobnosti: <a href="/vehicles/vin-test" class="alert-link">preizkus branja VIN</a>.';
+      }
+    }).catch(function() {});
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
+    checkEngine();
     var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     var photoMob  = document.getElementById('nv_vin_photo');       // z capture (mobitel)
@@ -791,6 +826,12 @@
             if (out.result && out.result.vin) {
               wModal.hide();
               showResult(out.result);
+            } else if (out.unavailable === 'no_key') {
+              wModal.hide();
+              failMsg({ unavailable: 'no_key' });
+            } else if (out.unavailable === 'daily_limit') {
+              wModal.hide();
+              failMsg({ unavailable: 'daily_limit' });
             } else {
               // Okno pustimo odprto, da lahko takoj poskusi znova
               wsay('Nisem prepoznal. Pojdi <b>bližje</b>, prižgi <b>svetilko</b> ali '

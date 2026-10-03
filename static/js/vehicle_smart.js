@@ -737,8 +737,8 @@
         c.getContext("2d").drawImage(video, 0, 0);
         blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.95));
       } catch (e) {}
-      const { result } = await runCapture(video, onStatus);
-      return { result, blob };
+      const out = await runCapture(video, onStatus);
+      return { result: out.result, blob, unavailable: out.unavailable ? out.why : null };
     } finally {
       VS._busy = false;
     }
@@ -818,7 +818,7 @@
 
     let bmp;
     try { bmp = await createImageBitmap(file); }
-    catch (e) { return null; }
+    catch (e) { return { vin: null, badImage: true }; }
 
     // Daljšo stranico omejimo na 3200 px – dovolj, da VIN vrstica obdrži
     // podrobnosti tudi na posnetku celotnega prometnega dovoljenja.
@@ -862,7 +862,9 @@
     const t = await readViaTesseract([frame]);
     if (t) return { vin: t, source: "lokalno", valid: vinChecksumValid(t) };
 
-    return null;
+    // Nič – a je razlog pomemben: brez ključa na strežniku ni pravega bralnika
+    return { vin: null, unavailable: (j.error === "no_key" || j.error === "daily_limit")
+                                     ? j.error : null };
   };
 
   async function readVinFromPhoto(file, cfg, status, decode) {
