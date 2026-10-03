@@ -415,59 +415,10 @@ def _vin_score(v):
     return s
 
 
-# Znaki, ki jih OCR najpogosteje zamenja med sabo.
-_CONFUSIONS = {
-    "8": "B", "B": "8",
-    "5": "S", "S": "5",
-    "2": "Z", "Z": "2",
-    "6": "G", "G": "6",
-    "4": "A", "A": "4",
-    "0": "D", "D": "0",
-    "7": "T", "T": "7",
-    "1": "7",
-}
-
-
-def _vin_repair(vin):
-    """Popravek ene same napačno prebrane črke s pomočjo kontrolne številke.
-
-    Uporabimo ga SAMO, kadar je 9. znak števka ali X – takrat gre res za
-    kontrolno številko. Veliko evropskih vozil ima tam polnilo (npr. „Z") in
-    kontrolne številke sploh nima, zato tam ne popravljamo ničesar.
-
-    Vrne (popravljen_vin, izvirnik) ali (None, None), če popravek ni enoličen.
-    """
-    if len(vin) != 17 or vin[8] not in "0123456789X":
-        return (None, None)
-    if _vin_check_valid(vin):
-        return (None, None)
-
-    fixes = []
-    for i, ch in enumerate(vin):
-        if i == 8:
-            continue
-        alt = _CONFUSIONS.get(ch)
-        if not alt:
-            continue
-        cand = vin[:i] + alt + vin[i + 1:]
-        if re.match(r"^[A-HJ-NPR-Z0-9]{17}$", cand) and _vin_check_valid(cand):
-            fixes.append(cand)
-
-    fixes = list(dict.fromkeys(fixes))
-    if not fixes:
-        return (None, None)
-    if len(fixes) == 1:
-        return (fixes[0], vin)
-
-    # Več možnih popravkov: odloči ocena, ob tem pa upoštevaj, da je zadnjih
-    # šest znakov zaporedna številka vozila in so skoraj vedno same števke.
-    def rank(v):
-        return (_vin_score(v), -sum(c.isalpha() for c in v[11:]))
-
-    fixes.sort(key=rank, reverse=True)
-    if rank(fixes[0]) > rank(fixes[1]):
-        return (fixes[0], vin)
-    return (None, None)   # dvoumno – raje pustimo, kar smo prebrali
+# OPOMBA: tu je bil samodejni popravek posameznega znaka po kontrolni številki.
+# Odstranjen je namerno. Prebrano številko puščamo TOČNO tako, kot jo vrne
+# bralnik – popravljanje je pravilno prebrano šasijsko številko pokvarilo.
+# Kontrolno številko še vedno preverimo, a jo samo SPOROČIMO, ne spreminjamo.
 
 
 # ── Bralnik 1: vizualni model (Gemini) ────────────────────────────────────────
@@ -676,10 +627,6 @@ def api_vin_ocr():
             vin, conf, where = None, None, None
             print(f"⚠️  Gemini branje VIN ni uspelo: {e}")
         if vin:
-            corrected_from = None
-            fixed, orig = _vin_repair(vin)
-            if fixed:
-                corrected_from, vin = orig, fixed
             valid = _vin_check_valid(vin)
             return jsonify({
                 "ok": True,
@@ -690,7 +637,7 @@ def api_vin_ocr():
                 "where": where,
                 "votes": 1,
                 "confident": bool(valid or vin[:3] in KNOWN_WMI or conf == "high"),
-                "corrected": corrected_from,
+                "corrected": None,
                 "candidates": [vin],
             })
         # Vizualni model ni našel ničesar → poskusimo še s Cloud Vision
@@ -772,12 +719,6 @@ def api_vin_ocr():
     best = max(votes.items(), key=lambda kv: (kv[1], _vin_score(kv[0])))
     vin, n_votes = best[0], best[1]
 
-    # Enkratni popravek po kontrolni številki (le kjer ta sploh obstaja)
-    corrected_from = None
-    fixed, orig = _vin_repair(vin)
-    if fixed:
-        corrected_from, vin = orig, fixed
-
     valid = _vin_check_valid(vin)
     return jsonify({
         "ok": True,
@@ -786,7 +727,7 @@ def api_vin_ocr():
         "engine": "vision",
         "votes": int(n_votes) if float(n_votes).is_integer() else n_votes,
         "confident": bool(valid or vin[:3] in KNOWN_WMI or n_votes >= 2),
-        "corrected": corrected_from,
+        "corrected": None,
         "candidates": sorted(votes, key=lambda k: (votes[k], _vin_score(k)), reverse=True)[:4],
     })
 

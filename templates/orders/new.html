@@ -633,9 +633,6 @@
     if (res.source === 'koda') {
       setStatus('<i class="bi bi-upc-scan text-success me-1"></i>Šasijska prebrana s <strong>črtne kode</strong>: '
                 + v + ' — točno.', KIND.success);
-    } else if (res.corrected) {
-      setStatus('<i class="bi bi-exclamation-triangle me-1"></i>Šasijska prebrana in popravljena po kontrolni '
-                + 'številki: ' + res.corrected + ' → ' + v + '. <strong>Preveri znake.</strong>', KIND.warning);
     } else if (res.valid) {
       setStatus('<i class="bi bi-patch-check-fill text-success me-1"></i>Prebrana in <strong>preverjena</strong> '
                 + 'šasijska: ' + v + ' (kontrolna številka se ujema).', KIND.success);
@@ -644,8 +641,8 @@
                 + ' — enako prebrano na ' + res.votes + ' posnetkih.', KIND.success);
     } else {
       setStatus('<i class="bi bi-check-circle me-1"></i>Prebrana šasijska: ' + v
-                + ' — <strong>preveri po potrebi</strong> (kontrolna se ni ujela, '
-                + 'kar je pri evropskih vozilih normalno).', KIND.warning);
+                + ' — vpisana <strong>točno tako, kot je prebrana</strong>. '
+                + '(Kontrolna številka se ni ujela, kar je pri evropskih vozilih običajno.)', KIND.warning);
     }
     return true;
   }

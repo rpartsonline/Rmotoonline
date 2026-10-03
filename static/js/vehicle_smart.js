@@ -763,10 +763,6 @@
     let kind = "success", txt;
     if (info.source === "koda") {
       txt = "VIN prebran s črtne kode – točno.";
-    } else if (info.corrected) {
-      kind = "warning";
-      txt = "VIN prebran in popravljen po kontrolni številki (" + escapeHtml(info.corrected)
-          + " → " + escapeHtml(vin) + "). Preveri znake.";
     } else if (info.valid) {
       txt = "VIN prebran, kontrolna številka se ujema.";
     } else if (info.votes && info.votes > 1) {
@@ -885,9 +881,6 @@
     info = info || {};
     if (info.source === "koda") {
       status("VIN prebran s črtne kode – točno.", "success");
-    } else if (info.corrected) {
-      status("VIN prebran in popravljen po kontrolni številki (" + escapeHtml(info.corrected)
-             + " → " + escapeHtml(vin) + "). Preveri znake.", "warning");
     } else if (info.valid || vinChecksumValid(vin)) {
       status("VIN prebran, kontrolna številka se ujema.", "success");
     } else {
