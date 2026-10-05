@@ -298,18 +298,18 @@
 
   // ── Zajem sličice iz žive slike ───────────────────────────────────────────
 
-  // Okvir je namerno širok – VIN ni treba natančno poravnati. Odvečno
-  // besedilo okoli njega izločimo pri izboru kandidatov, ne pri zajemu.
-  const GUIDE_W = 0.94, GUIDE_H = 0.34;   // enako kot modri okvir v oknu
+  /* Zajamemo CEL kader, tako kot navaden fotoaparat. Ozek pas je bil potreben
+     le, dokler je bral navaden OCR – vizualni model najde šasijsko številko
+     kjerkoli na sliki, zato uporabnika ni treba siliti v poravnavanje. */
+  const GUIDE_W = 1, GUIDE_H = 1;
   const MAX_OUT_W = 3000;
 
-  // full = true → zajame celoten kader (če je VIN zgrešil okvir)
   function cropFrame(video, full) {
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!vw) return null;
     const sw = vw * (full ? 1 : GUIDE_W), sh = vh * (full ? 1 : GUIDE_H);
     const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
-    const scale = Math.min(2.5, MAX_OUT_W / sw);
+    const scale = Math.min(2.5, MAX_OUT_W / Math.max(sw, sh));
     const w = Math.round(sw * scale), h = Math.round(sh * scale);
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
@@ -442,6 +442,19 @@
 
   // ── Google Vision ─────────────────────────────────────────────────────────
 
+  // Kateri bralnik je na strežniku. Vizualni model se z odsevi spopade sam,
+  // zato mu pošljemo naravno sliko in preskočimo drago obdelavo.
+  VS._engine = null;
+  async function engineKind() {
+    if (VS._engine) return VS._engine;
+    try {
+      const r = await fetch("/vehicles/api/vin-status");
+      const d = await r.json();
+      VS._engine = (d && d.engine) || "none";
+    } catch (e) { VS._engine = "none"; }
+    return VS._engine;
+  }
+
   // mode: "plate" = tablica z VIN (redko besedilo), "document" = prometno
   // dovoljenje (gosto besedilo). Strežnik po tem izbere primernejše branje.
   async function visionRead(jpegs, prior, mode) {
@@ -461,22 +474,26 @@
      zanesljiv (ujema se kontrolna številka ali poznamo predpono proizvajalca),
      smo porabili eno poizvedbo. Sicer pošljemo še dve in o rezultatu glasujemo –
      odsev se med sličicami premakne, zato se napake ne ponovijo enako.        */
-  async function readViaVision(frames, wide, onStatus) {
+  async function readViaVision(frames, onStatus) {
     if (!frames.length) return null;
 
     const f0 = frames[0];
-    const first = await visionRead([frameToRawJpeg(f0), frameToJpeg(f0)], null, "plate");
+    const ai = (await engineKind()) === "ai";
+    const first = await visionRead(
+      ai ? [frameToRawJpeg(f0)]                      // model bere naravno sliko bolje
+         : [frameToRawJpeg(f0), frameToJpeg(f0)],
+      null, "plate");
     if (first.error === "no_key" || first.error === "daily_limit" || first.error === "network") {
       return { unavailable: true, why: first.error };
     }
     if (first.ok && first.vin && first.confident) return first;
 
-    const rest = frames.slice(1, 2);
-    if (wide) rest.push(wide);              // še celoten kader, če je VIN zgrešil okvir
+    const rest = frames.slice(1, 3);
     if (rest.length) {
-      if (onStatus) onStatus("Preverjam še s širšim posnetkom …");
+      if (onStatus) onStatus("Preverjam še z dodatnimi posnetki …");
       const prior = (first.ok && first.vin) ? [first.vin] : [];
-      const more = await visionRead(rest.map(frameToJpeg), prior, "plate");
+      const more = await visionRead(
+        rest.map(ai ? frameToRawJpeg : frameToJpeg), prior, "plate");
       if (more.ok && more.vin) return more;
     }
     return (first.ok && first.vin) ? first : null;
@@ -664,8 +681,7 @@
 
     // 2) Google Vision na najostrejših sličicah
     say('<i class="bi bi-arrow-repeat"></i> Berem VIN …');
-    const wide = captureFrame(video, true);
-    const res = await readViaVision(frames, wide, say);
+    const res = await readViaVision(frames, say);
     if (res && res.vin) return { result: res, frames };
 
     // 3) Rezerva: Tesseract v brskalniku
@@ -836,19 +852,25 @@
     const rawJpeg = c.toDataURL("image/jpeg", 0.92);
 
     const gray = toGray(ctx, w, h);
-    const radius = Math.max(12, Math.round(Math.min(w, h) / 8));
-    let g = denoise(gray, w, h);
-    g = flattenIllumination(g, w, h, radius);
-    g = stretchContrast(g);
-    g = sharpen(g, w, h, 0.5);
+    // prepared pustimo prazno – obdelavo izračunamo šele, če jo kdo potrebuje
+    const frame = { canvas: c, ctx, w, h, gray, prepared: null, score: 1, jpeg: null };
 
-    const frame = { canvas: c, ctx, w, h, gray, prepared: g, score: 1, jpeg: null };
+    // 2) Pošljemo v branje. Vizualni model se z odsevi spopade sam, zato dobi
+    //    naravno sliko; klasičnemu OCR pošljemo še obdelano in o njiju glasuje.
+    const ai2 = (await engineKind()) === "ai";
+    let images = [rawJpeg];
+    if (!ai2) {
+      const radius = Math.max(12, Math.round(Math.min(w, h) / 8));
+      let g = denoise(gray, w, h);
+      g = flattenIllumination(g, w, h, radius);
+      g = stretchContrast(g);
+      g = sharpen(g, w, h, 0.5);
+      frame.prepared = g;
+      putGray(ctx, g, w, h);
+      images = [c.toDataURL("image/jpeg", 0.92), rawJpeg];
+    }
 
-    // 2) Vision na obeh različicah – surovi in obdelani; o njiju glasuje
-    putGray(ctx, g, w, h);
-    const flatJpeg = c.toDataURL("image/jpeg", 0.92);
-
-    const j = await visionRead([flatJpeg, rawJpeg], null, "document");
+    const j = await visionRead(images, null, "document");
     if (j.ok && j.vin) return j;
 
     // 3) Rezerva: Tesseract v brskalniku

@@ -9,15 +9,11 @@
       <div class="modal-body text-center">
         <div style="position:relative; background:#000; border-radius:8px; overflow:hidden;">
           <video id="scan-video" playsinline muted
-                 style="width:100%; max-height:62vh; display:block;"></video>
+                 style="width:100%; max-height:72vh; display:block;"></video>
 
-          <!-- Vodilo za poravnavo VIN (široko – natančno poravnavanje ni potrebno) -->
-          <div style="position:absolute; top:50%; left:3%; right:3%; height:34%; transform:translateY(-50%);
-                      border:2px solid rgba(59,130,246,.95); border-radius:6px;
-                      box-shadow:0 0 0 9999px rgba(0,0,0,.32); pointer-events:none;">
-            <span style="position:absolute; top:-22px; left:0; color:#93c5fd; font-size:11px;
-                         font-weight:600; letter-spacing:.04em;">VIN kamor koli v okvir</span>
-          </div>
+          <!-- Brez ozkega pasu: zajamemo cel kader kot navaden fotoaparat.
+               Oglišča so samo rahel namig, kam usmeriti – nič ni obvezno. -->
+          <div class="scan-corners" aria-hidden="true"><i></i><i></i></div>
 
           <!-- Svetilka (če jo naprava podpira) -->
           <button type="button" id="scan-torch" class="btn btn-sm scan-torch-btn"
@@ -35,13 +31,13 @@
           <i class="bi bi-zoom-in text-muted small"></i>
         </div>
 
-        <p id="scan-msg" class="small text-muted mt-2 mb-0">Poravnaj VIN v okvir…</p>
+        <p id="scan-msg" class="small text-muted mt-2 mb-0">Usmeri kamero v šasijsko številko…</p>
 
         <div class="small text-muted mt-2" style="line-height:1.45">
           <i class="bi bi-info-circle me-1"></i>
-          VIN ni treba natančno poravnati – iz posnetka vzamem samo 17-mestno številko,
-          tudi če so okoli nje druge oznake. Če je na tablici <b>črtna koda</b>, jo preberem sam.
-          Pri bleščanju pomaga <b>rahel kot</b> in prižgana svetilka.
+          Slikaj kot z navadnim fotoaparatom – šasijsko številko najdem sama, tudi če je
+          kje ob strani in če so okoli nje druge oznake. Če je na tablici <b>črtna koda</b>,
+          jo preberem brez pritiska na gumb. Pri bleščanju pomaga <b>rahel kot</b> in svetilka.
         </div>
       </div>
       <div class="modal-footer">
@@ -63,6 +59,16 @@
   }
   .scan-torch-btn:hover { background: rgba(255,255,255,.26); color: #fff; }
   .scan-torch-btn.active { background: #facc15; color: #1f2937; border-color: #facc15; }
+
+  /* Oglišča namesto okvirja – pogled ostane odprt kot pri fotoaparatu */
+  .scan-corners { position: absolute; inset: 7%; pointer-events: none; }
+  .scan-corners::before, .scan-corners::after,
+  .scan-corners > i:first-child, .scan-corners > i:last-child { content: ""; position: absolute;
+    width: 36px; height: 36px; border: 3px solid rgba(96,165,250,.9); }
+  .scan-corners::before { top: 0; left: 0;  border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+  .scan-corners::after  { top: 0; right: 0; border-left: 0;  border-bottom: 0; border-radius: 0 8px 0 0; }
+  .scan-corners > i:first-child { bottom: 0; left: 0;  border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
+  .scan-corners > i:last-child  { bottom: 0; right: 0; border-left: 0;  border-top: 0; border-radius: 0 0 8px 0; }
 </style>
 
 <script>window.CAR_MAKES = {{ car_makes | tojson }};</script>

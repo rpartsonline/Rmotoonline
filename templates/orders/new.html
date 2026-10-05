@@ -526,7 +526,7 @@
 
 <!-- Webcam modal za računalnik -->
 <div class="modal fade" id="vinWebcamModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered" style="max-width:440px">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content" style="border-radius:14px;border:none;overflow:hidden">
       <div class="modal-header" style="background:linear-gradient(135deg,#1e293b,#334155)">
         <h6 class="modal-title text-white fw-bold mb-0"><i class="bi bi-upc-scan me-2"></i>Skeniraj VIN</h6>
@@ -535,12 +535,9 @@
       <div class="modal-body p-0 text-center bg-black">
         <div style="position:relative; width:100%;">
           <video id="wcam-vid" autoplay playsinline muted
-                 style="width:100%; max-height:42vh; display:block; object-fit:cover;"></video>
-          <!-- Vodilo za poravnavo VIN (široko – natančno poravnavanje ni potrebno) -->
-          <div style="position:absolute; top:50%; left:3%; right:3%; height:34%;
-                      transform:translateY(-50%); border:2px solid rgba(59,130,246,.95);
-                      border-radius:6px; box-shadow:0 0 0 9999px rgba(0,0,0,.32);
-                      pointer-events:none;"></div>
+                 style="width:100%; max-height:66vh; display:block;"></video>
+          <!-- Brez ozkega pasu: zajamemo cel kader kot navaden fotoaparat -->
+          <div class="scan-corners" aria-hidden="true"><i></i><i></i></div>
           <!-- Svetilka (če jo naprava podpira) -->
           <button type="button" id="wcam-torch" class="btn btn-sm scan-torch-btn"
                   style="display:none" title="Svetilka">
@@ -781,7 +778,7 @@
 
           vid.onloadedmetadata = function() {
             snap.disabled = false;
-            wsay('Poravnaj VIN v okvir in pritisni <b>Zajemi</b>. Črtno kodo preberem sam.', 'success');
+            wsay('Usmeri kamero v šasijsko številko in pritisni <b>Zajemi</b>. Črtno kodo preberem sam.', 'success');
             // Črtna koda se išče ves čas v ozadju – če je na tablici, je rezultat točen
             if (window.VehicleSmart && VehicleSmart.startBarcodeWatch) {
               stopWatch = VehicleSmart.startBarcodeWatch(vid, function(res) {
@@ -831,8 +828,8 @@
               failMsg({ unavailable: 'daily_limit' });
             } else {
               // Okno pustimo odprto, da lahko takoj poskusi znova
-              wsay('Nisem prepoznal. Pojdi <b>bližje</b>, prižgi <b>svetilko</b> ali '
-                   + 'nagni kamero, da ni odseva – nato znova Zajemi.', 'warning');
+              wsay('Nisem prepoznal. Pojdi <b>bližje</b> (naj številka zapolni čim več slike), '
+                   + 'prižgi <b>svetilko</b> ali nagni kamero, da ni odseva – nato znova Zajemi.', 'warning');
             }
           }).catch(function() {
             snap.disabled = false;
