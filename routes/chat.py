@@ -180,6 +180,27 @@ def thread(partner_id):
                            je_mehanik=_is_partner())
 
 
+def _neprebranih_za_mehanika(partner_id):
+    """Koliko sporočil od nas mehanik še ni prebral."""
+    try:
+        return (ChatMessage.query
+                .filter(ChatMessage.partner_id == partner_id,
+                        ChatMessage.sender_id != partner_id,
+                        ChatMessage.seen_by_partner.is_(False)).count())
+    except Exception:
+        return 0
+
+
+def _neprebranih_za_osebje():
+    """Koliko sporočil mehanikov zaposleni še niso prebrali (skupno)."""
+    try:
+        return (ChatMessage.query
+                .filter(ChatMessage.sender_id == ChatMessage.partner_id,
+                        ChatMessage.seen_by_staff.is_(False)).count())
+    except Exception:
+        return 0
+
+
 def _obvesti(partner, m):
     """Potisno obvestilo nasprotni strani. Mehaniku se predstavimo z imenom
     podjetja, zaposlenim pa z imenom mehanika, da takoj vedo, kdo piše."""
@@ -196,11 +217,14 @@ def _obvesti(partner, m):
     if m.sender_id == partner.id:
         # Mehanik je pisal nam → obvestimo zaposlene (razen njega samega)
         prejemniki = [u for u in staff_ids() if u != m.sender_id]
-        notify(prejemniki, partner.full_name, besedilo, url, f"klepet-{partner.id}")
+        # Pri zaposlenih je število neprebranih skupno, zato je za vse enako
+        notify(prejemniki, partner.full_name, besedilo, url,
+               f"klepet-{partner.id}", _neprebranih_za_osebje())
     else:
         # Zaposleni je pisal mehaniku
         notify([partner.id], "Bartog Ajdovščina", besedilo,
-               url_for("chat.index"), f"klepet-{partner.id}")
+               url_for("chat.index"), f"klepet-{partner.id}",
+               _neprebranih_za_mehanika(partner.id))
 
 
 @chat_bp.route("/<int:partner_id>/poslji", methods=["POST"])

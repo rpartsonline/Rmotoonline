@@ -153,6 +153,15 @@
   function toBottom() { body.scrollTop = body.scrollHeight; }
   toBottom();
 
+  /* Ob odprtju so sporočila na strežniku že označena kot prebrana, zato
+     oblaček in značko na ikoni uskladimo takoj – brez čakanja na naslednje
+     preverjanje. Pri zaposlenem to ne pomeni nič, ker ima lahko neprebrana
+     sporočila še pri drugih mehanikih; zato vedno vprašamo za pravo število. */
+  function uskladiOznake() {
+    if (window.BartogPush) window.BartogPush.osveziNeprebrano();
+  }
+  uskladiOznake();
+
   function escapeHtml(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   }
@@ -277,6 +286,8 @@
           d.messages.forEach(addMsg);
           if (spodaj) toBottom();
           if (tuje && window.BartogPush) window.BartogPush.pisk();
+          // Pravkar smo jih prebrali – oznake takoj uskladimo
+          if (tuje) uskladiOznake();
         }
         state.textContent = 'Sporočila se osvežujejo sproti';
         state.className = 'small text-muted';

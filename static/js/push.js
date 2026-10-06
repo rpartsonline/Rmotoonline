@@ -108,6 +108,38 @@
     try { await Push.vklopi(); } catch (e) {}
   };
 
+  // ── Značka na ikoni aplikacije ────────────────────────────────────────────
+  // Deluje, ko je aplikacija nameščena na začetni zaslon. V navadnem zavihku
+  // brskalnika je to tiho brez učinka.
+  Push.znacka = function (n) {
+    try {
+      if (n > 0) {
+        if (navigator.setAppBadge) navigator.setAppBadge(n);
+      } else {
+        if (navigator.clearAppBadge) navigator.clearAppBadge();
+        else if (navigator.setAppBadge) navigator.setAppBadge(0);
+      }
+    } catch (e) {}
+  };
+
+  /* Prebere pravo število neprebranih in po njem uskladi oblaček IN značko
+     na ikoni. Kličemo takoj, ko uporabnik sporočila prebere – da oblaček
+     izgine brez čakanja na naslednje preverjanje. */
+  Push.osveziNeprebrano = function () {
+    return fetch("/klepet/api/neprebrano", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var n = (d && d.count) || 0;
+        var oblacek = document.getElementById("chat-badge");
+        var stevilo = document.getElementById("chat-badge-count");
+        if (oblacek) oblacek.style.display = n > 0 ? "" : "none";
+        if (stevilo && n > 0) stevilo.textContent = n;
+        Push.znacka(n);
+        return n;
+      })
+      .catch(function () { return -1; });
+  };
+
   window.BartogPush = Push;
 
   // ── Vrstica z vabilom ─────────────────────────────────────────────────────

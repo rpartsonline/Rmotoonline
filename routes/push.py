@@ -101,7 +101,7 @@ def status():
 
 # ── Pošiljanje ────────────────────────────────────────────────────────────────
 
-def _send_now(app, user_ids, title, body, url, tag):
+def _send_now(app, user_ids, title, body, url, tag, badge):
     """Teče v ozadju, da pisanje sporočila ne čaka na pošiljanje obvestil."""
     with app.app_context():
         pub, priv = vapid_keys()
@@ -114,7 +114,7 @@ def _send_now(app, user_ids, title, body, url, tag):
             try:
                 webpush.send(
                     {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth},
-                    {"title": title, "body": body, "url": url, "tag": tag},
+                    {"title": title, "body": body, "url": url, "tag": tag, "badge": badge},
                     priv, pub, subject,
                 )
             except webpush.PushError as e:
@@ -131,7 +131,7 @@ def _send_now(app, user_ids, title, body, url, tag):
             db.session.commit()
 
 
-def notify(user_ids, title, body, url="/klepet/", tag="klepet"):
+def notify(user_ids, title, body, url="/klepet/", tag="klepet", badge=0):
     """Pošlje obvestilo naštetim uporabnikom. Nikoli ne vrže napake navzgor."""
     user_ids = [u for u in set(user_ids or []) if u]
     if not user_ids:
@@ -139,7 +139,7 @@ def notify(user_ids, title, body, url="/klepet/", tag="klepet"):
     try:
         app = current_app._get_current_object()
         threading.Thread(target=_send_now,
-                         args=(app, user_ids, title, body, url, tag),
+                         args=(app, user_ids, title, body, url, tag, badge),
                          daemon=True).start()
     except Exception as e:
         print(f"⚠️  Obvestil ni bilo mogoče sprožiti: {e}")

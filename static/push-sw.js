@@ -20,12 +20,25 @@ self.addEventListener("push", function (event) {
     vibrate: [120, 60, 120],
     data: { url: d.url || "/klepet/" }
   };
+  // Število neprebranih pokažemo tudi na ikoni aplikacije
+  try {
+    if (typeof d.badge === "number" && self.navigator) {
+      if (d.badge > 0 && self.navigator.setAppBadge) self.navigator.setAppBadge(d.badge);
+      else if (self.navigator.clearAppBadge) self.navigator.clearAppBadge();
+    }
+  } catch (e) {}
+
   event.waitUntil(self.registration.showNotification(naslov, moznosti));
 });
 
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
   var cilj = (event.notification.data && event.notification.data.url) || "/klepet/";
+
+  // Uporabnik gre brat – značko počistimo; stran jo bo ob odprtju popravila
+  // na pravo število, če je kje ostalo še kaj neprebranega.
+  try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); }
+  catch (e) {}
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true })

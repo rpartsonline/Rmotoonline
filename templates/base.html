@@ -439,6 +439,8 @@
         prej = d.count;
         if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
         else { badge.style.display = 'none'; }
+        // Enako število pokažemo tudi na ikoni aplikacije na namizju
+        if (window.BartogPush) window.BartogPush.znacka(d.count);
       } catch (e) {}
     }
     setInterval(poll, 15000);
