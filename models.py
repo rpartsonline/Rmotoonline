@@ -481,10 +481,10 @@ ORDER_ITEM_CATALOG = [
     {
         "category": "Mali servis",
         "items": [
-            {"key": "FO",     "label": "FO"},
-            {"key": "FZ",     "label": "FZ"},
-            {"key": "FK",     "label": "FK"},
-            {"key": "FG",     "label": "FG"},
+            {"key": "FO",     "label": "FO – Filter olja"},
+            {"key": "FZ",     "label": "FZ – Filter zraka"},
+            {"key": "FK",     "label": "FK – Filter kabine"},
+            {"key": "FG",     "label": "FG – Filter goriva"},
             {"key": "OLJE",   "label": "OLJE"},
             {"key": "SVECKE", "label": "SVEČKE"},
         ],
@@ -492,10 +492,10 @@ ORDER_ITEM_CATALOG = [
     {
         "category": "Velik servis",
         "items": [
-            {"key": "GZ",        "label": "GZ"},
-            {"key": "VC",        "label": "VČ"},
-            {"key": "GZVC",      "label": "GZ+VČ"},
-            {"key": "MJ",        "label": "MJ"},
+            {"key": "GZ",        "label": "GZ – Garnitura zobati jermen"},
+            {"key": "VC",        "label": "VČ – Vodna črpalka"},
+            {"key": "GZVC",      "label": "GZ+VČ – Garnitura zobati jermen + vodna črpalka"},
+            {"key": "MJ",        "label": "MJ – Mikro jermen"},
             {"key": "NAPENJALEC","label": "NAPENJALEC"},
             {"key": "DRSNIK",    "label": "DRSNIK"},
             {"key": "SET_MIKRO", "label": "SET MIKRO JERMENA"},
