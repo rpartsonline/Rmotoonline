@@ -524,39 +524,6 @@
 
 </form>
 
-<!-- Webcam modal za računalnik -->
-<div class="modal fade" id="vinWebcamModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content" style="border-radius:14px;border:none;overflow:hidden">
-      <div class="modal-header" style="background:linear-gradient(135deg,#1e293b,#334155)">
-        <h6 class="modal-title text-white fw-bold mb-0"><i class="bi bi-upc-scan me-2"></i>Skeniraj VIN</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0 text-center bg-black">
-        <div style="position:relative; width:100%;">
-          <video id="wcam-vid" autoplay playsinline muted
-                 style="width:100%; max-height:66vh; display:block;"></video>
-          <!-- Brez ozkega pasu: zajamemo cel kader kot navaden fotoaparat -->
-          <div class="scan-corners" aria-hidden="true"><i></i><i></i></div>
-          <!-- Svetilka (če jo naprava podpira) -->
-          <button type="button" id="wcam-torch" class="btn btn-sm scan-torch-btn"
-                  style="display:none" title="Svetilka">
-            <i class="bi bi-lightning-charge-fill"></i>
-          </button>
-        </div>
-        <canvas id="wcam-cv" style="display:none"></canvas>
-        <div id="wcam-stat" class="py-2 small text-white-50" style="min-height:30px"></div>
-      </div>
-      <div class="modal-footer justify-content-center border-0 pb-3 bg-black">
-        <button type="button" class="btn btn-primary btn-sm px-4" id="wcam-snap" disabled>
-          <i class="bi bi-camera-fill me-2"></i>Zajemi VIN
-        </button>
-        <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Prekliči</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block extra_scripts %}
@@ -721,121 +688,14 @@
       });
     }
 
-    // FOTOGRAFIRAJ gumb
+    // FOTOGRAFIRAJ gumb – odpre fotoaparat naprave.
+    // Posnetek iz kamere telefona je bistveno boljši od video sličice v
+    // brskalniku: polna ločljivost, prava izostritev, brez stiskanja.
     var camBtn = document.getElementById('nv_vin_cam_btn');
-    var wcStream = null, wcTrack = null, wcTorch = false, stopWatch = null;
     if (camBtn) {
       camBtn.addEventListener('click', function() {
-        var mEl = document.getElementById('vinWebcamModal');
-        var canGUM = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
-        // Če okenca ni ali kamera ni podprta → rezerva na sistemsko kamero/datoteko
-        if (!mEl || !canGUM) {
-          if (isMobile && photoMob) { photoMob.click(); }
-          else if (photoDesk) { photoDesk.click(); }
-          return;
-        }
-        var wModal = new bootstrap.Modal(mEl);
-        var vid      = document.getElementById('wcam-vid');
-        var snap     = document.getElementById('wcam-snap');
-        var wstat    = document.getElementById('wcam-stat');
-        var torchBtn = document.getElementById('wcam-torch');
-
-        function wsay(html, cls) {
-          wstat.innerHTML = '<span class="text-' + (cls || 'white-50') + '">' + html + '</span>';
-        }
-
-        wsay('Vzpostavljam kamero…', 'warning');
-        snap.disabled = true;
-        if (torchBtn) torchBtn.style.display = 'none';
-        wModal.show();
-
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width:  { ideal: 2560 },
-            height: { ideal: 1440 },
-            advanced: [{ focusMode: 'continuous' }]
-          }
-        })
-        .then(function(stream) {
-          wcStream = stream;
-          vid.srcObject = stream;
-          wcTrack = stream.getVideoTracks()[0] || null;
-          wcTorch = false;
-
-          // Svetilka, če jo naprava podpira
-          var caps = null;
-          try { caps = (wcTrack && wcTrack.getCapabilities) ? wcTrack.getCapabilities() : null; } catch (e) {}
-          if (torchBtn) {
-            torchBtn.style.display = (caps && 'torch' in caps) ? '' : 'none';
-            torchBtn.classList.remove('active');
-            torchBtn.onclick = function() {
-              wcTorch = !wcTorch;
-              try { wcTrack.applyConstraints({ advanced: [{ torch: wcTorch }] }); } catch (e) {}
-              torchBtn.classList.toggle('active', wcTorch);
-            };
-          }
-
-          vid.onloadedmetadata = function() {
-            snap.disabled = false;
-            wsay('Usmeri kamero v šasijsko številko in pritisni <b>Zajemi</b>. Črtno kodo preberem sam.', 'success');
-            // Črtna koda se išče ves čas v ozadju – če je na tablici, je rezultat točen
-            if (window.VehicleSmart && VehicleSmart.startBarcodeWatch) {
-              stopWatch = VehicleSmart.startBarcodeWatch(vid, function(res) {
-                wModal.hide();
-                showResult(res);
-              });
-            }
-          };
-        })
-        .catch(function(err) {
-          wsay('Kamere ni bilo mogoče odpreti (' + (err.message || err.name || '')
-               + '). Dovoli kamero ali uporabi <b>Naloži sliko</b>.', 'danger');
-          if (isMobile && photoMob) { wModal.hide(); photoMob.click(); }
-        });
-
-        mEl.addEventListener('hidden.bs.modal', function() {
-          if (stopWatch) { stopWatch(); stopWatch = null; }
-          if (wcTorch && wcTrack) {
-            try { wcTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
-            wcTorch = false;
-          }
-          if (wcStream) { wcStream.getTracks().forEach(function(t) { t.stop(); }); wcStream = null; }
-          wcTrack = null;
-          snap.disabled = true;
-          vid.srcObject = null;
-          wstat.textContent = '';
-        }, { once: true });
-
-        snap.onclick = function() {
-          if (!window.VehicleSmart || !VehicleSmart.readVideoBurst) return;
-          snap.disabled = true;
-          VehicleSmart.readVideoBurst(vid, function(m, k) {
-            wsay(m, k === 'danger' ? 'danger' : (k === 'warning' ? 'warning' : 'light'));
-          }).then(function(out) {
-            snap.disabled = false;
-            if (out.blob) {
-              keepImage(new File([out.blob], 'vin-cam.jpg', { type: 'image/jpeg' }));
-            }
-            if (out.result && out.result.vin) {
-              wModal.hide();
-              showResult(out.result);
-            } else if (out.unavailable === 'no_key') {
-              wModal.hide();
-              failMsg({ unavailable: 'no_key' });
-            } else if (out.unavailable === 'daily_limit') {
-              wModal.hide();
-              failMsg({ unavailable: 'daily_limit' });
-            } else {
-              // Okno pustimo odprto, da lahko takoj poskusi znova
-              wsay('Nisem prepoznal. Pojdi <b>bližje</b> (naj številka zapolni čim več slike), '
-                   + 'prižgi <b>svetilko</b> ali nagni kamero, da ni odseva – nato znova Zajemi.', 'warning');
-            }
-          }).catch(function() {
-            snap.disabled = false;
-            wsay('Napaka pri branju. Poskusi znova.', 'danger');
-          });
-        };
+        if (isMobile && photoMob) { photoMob.click(); }   // zadnja kamera telefona
+        else if (photoDesk)       { photoDesk.click(); }  // na računalniku izbira datoteke
       });
     }
 

@@ -1,75 +1,9 @@
-<!-- Skupni viri za pametna polja vozila (skener + skripte). Vključi pred init. -->
-<div class="modal fade" id="scanModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title" id="scan-title"><i class="bi bi-upc-scan me-1"></i>Skeniraj VIN</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="VehicleSmart.stopCam()"></button>
-      </div>
-      <div class="modal-body text-center">
-        <div style="position:relative; background:#000; border-radius:8px; overflow:hidden;">
-          <video id="scan-video" playsinline muted
-                 style="width:100%; max-height:72vh; display:block;"></video>
+<!-- Skupni viri za pametna polja vozila. Vključi pred init.
 
-          <!-- Brez ozkega pasu: zajamemo cel kader kot navaden fotoaparat.
-               Oglišča so samo rahel namig, kam usmeriti – nič ni obvezno. -->
-          <div class="scan-corners" aria-hidden="true"><i></i><i></i></div>
-
-          <!-- Svetilka (če jo naprava podpira) -->
-          <button type="button" id="scan-torch" class="btn btn-sm scan-torch-btn"
-                  style="display:none" onclick="VehicleSmart.toggleTorch()" title="Svetilka">
-            <i class="bi bi-lightning-charge-fill"></i>
-          </button>
-        </div>
-
-        <canvas id="scan-canvas" style="display:none;"></canvas>
-
-        <!-- Približevanje (če ga naprava podpira) -->
-        <div id="scan-zoom-wrap" class="d-flex align-items-center gap-2 mt-2" style="display:none !important;">
-          <i class="bi bi-zoom-out text-muted small"></i>
-          <input type="range" id="scan-zoom" class="form-range flex-grow-1">
-          <i class="bi bi-zoom-in text-muted small"></i>
-        </div>
-
-        <p id="scan-msg" class="small text-muted mt-2 mb-0">Usmeri kamero v šasijsko številko…</p>
-
-        <div class="small text-muted mt-2" style="line-height:1.45">
-          <i class="bi bi-info-circle me-1"></i>
-          Slikaj kot z navadnim fotoaparatom – šasijsko številko najdem sama, tudi če je
-          kje ob strani in če so okoli nje druge oznake. Če je na tablici <b>črtna koda</b>,
-          jo preberem brez pritiska na gumb. Pri bleščanju pomaga <b>rahel kot</b> in svetilka.
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" id="scan-capture" class="btn btn-primary" onclick="VehicleSmart.captureOCR()">
-          <i class="bi bi-camera me-1"></i>Zajemi VIN
-        </button>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="VehicleSmart.stopCam()">Prekliči</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<style>
-  .scan-torch-btn {
-    position: absolute; top: 10px; right: 10px; z-index: 5;
-    width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.3);
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .scan-torch-btn:hover { background: rgba(255,255,255,.26); color: #fff; }
-  .scan-torch-btn.active { background: #facc15; color: #1f2937; border-color: #facc15; }
-
-  /* Oglišča namesto okvirja – pogled ostane odprt kot pri fotoaparatu */
-  .scan-corners { position: absolute; inset: 7%; pointer-events: none; }
-  .scan-corners::before, .scan-corners::after,
-  .scan-corners > i:first-child, .scan-corners > i:last-child { content: ""; position: absolute;
-    width: 36px; height: 36px; border: 3px solid rgba(96,165,250,.9); }
-  .scan-corners::before { top: 0; left: 0;  border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
-  .scan-corners::after  { top: 0; right: 0; border-left: 0;  border-bottom: 0; border-radius: 0 8px 0 0; }
-  .scan-corners > i:first-child { bottom: 0; left: 0;  border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
-  .scan-corners > i:last-child  { bottom: 0; right: 0; border-left: 0;  border-top: 0; border-radius: 0 0 8px 0; }
-</style>
+     Okna z živo kamero ni več: gumb za slikanje odpre kar fotoaparat naprave.
+     Posnetek iz kamere je bistveno boljši od video sličice v brskalniku
+     (polna ločljivost, prava izostritev, brez stiskanja in zamegljenosti od
+     premika), zato je branje šasijske številke z njim precej zanesljivejše. -->
 
 <script>window.CAR_MAKES = {{ car_makes | tojson }};</script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>

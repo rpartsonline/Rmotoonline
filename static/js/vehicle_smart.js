@@ -276,26 +276,6 @@
     return out;
   }
 
-  // Ostrina (varianca Laplaceovega operatorja) – za izbor najboljših sličic.
-  function sharpnessScore(g, w, h) {
-    let sum = 0, n = 0;
-    for (let y = 2; y < h - 2; y += 2) {
-      for (let x = 2; x < w - 2; x += 2) {
-        const p = y * w + x;
-        const lap = 4 * g[p] - g[p - 1] - g[p + 1] - g[p - w] - g[p + w];
-        sum += lap * lap; n++;
-      }
-    }
-    return n ? sum / n : 0;
-  }
-
-  // Delež presvetljenih pik – sličice s hudim odsevom zavržemo.
-  function blownFraction(g) {
-    let n = 0;
-    for (let p = 0; p < g.length; p += 3) if (g[p] >= 250) n++;
-    return n / (g.length / 3);
-  }
-
   // ── Zajem sličice iz žive slike ───────────────────────────────────────────
 
   /* Zajamemo CEL kader, tako kot navaden fotoaparat. Ozek pas je bil potreben
@@ -304,37 +284,9 @@
   const GUIDE_W = 1, GUIDE_H = 1;
   const MAX_OUT_W = 3000;
 
-  function cropFrame(video, full) {
-    const vw = video.videoWidth, vh = video.videoHeight;
-    if (!vw) return null;
-    const sw = vw * (full ? 1 : GUIDE_W), sh = vh * (full ? 1 : GUIDE_H);
-    const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
-    const scale = Math.min(2.5, MAX_OUT_W / Math.max(sw, sh));
-    const w = Math.round(sw * scale), h = Math.round(sh * scale);
-    const c = document.createElement("canvas");
-    c.width = w; c.height = h;
-    const ctx = c.getContext("2d", { willReadFrequently: true });
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
-    return { canvas: c, ctx, w, h };
-  }
-
   /* Med zajemom serije delamo samo poceni stvari (izrez, sivine, ocena ostrine),
      da sličice res sledijo druga drugi. Drago obdelavo opravimo šele na tistih
      nekaj sličicah, ki jih zares pošljemo v branje. */
-  function captureFrame(video, full) {
-    const f = cropFrame(video, full);
-    if (!f) return null;
-    const { canvas, ctx, w, h } = f;
-    const gray = toGray(ctx, w, h);
-    const blown = blownFraction(gray);
-    return {
-      canvas, ctx, w, h, gray, prepared: null, jpeg: null,
-      // sličice z odsevom čez 25 % površine potisnemo na dno vrste
-      score: sharpnessScore(gray, w, h) * (blown > 0.25 ? 0.25 : 1),
-    };
-  }
-
   /* Poravnana osvetlitev + raztegnjen kontrast + izostritev. Namenoma NE
      binariziramo – Google Vision iz sivinske slike odčita bistveno več. */
   function enhance(f) {
@@ -347,33 +299,7 @@
     return g;
   }
 
-  // Surova sličica – kličemo jo PRED frameToJpeg, ki kanvas prepiše z obdelano.
-  // Vizualni model iz naravne slike pogosto odčita več kot iz obdelane, zato
-  // mu pošljemo obe in sam primerja.
-  function frameToRawJpeg(f) {
-    if (!f.rawJpeg) f.rawJpeg = f.canvas.toDataURL("image/jpeg", 0.92);
-    return f.rawJpeg;
-  }
-
-  function frameToJpeg(f) {
-    if (f.jpeg) return f.jpeg;
-    frameToRawJpeg(f);                       // surovo shranimo, dokler je še na voljo
-    putGray(f.ctx, enhance(f), f.w, f.h);
-    f.jpeg = f.canvas.toDataURL("image/jpeg", 0.92);
-    return f.jpeg;
-  }
-
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  async function grabBurst(video, count, gapMs) {
-    const out = [];
-    for (let i = 0; i < count; i++) {
-      const f = captureFrame(video);
-      if (f) out.push(f);
-      if (i < count - 1) await sleep(gapMs);
-    }
-    return out;
-  }
 
   // ── Branje črtne kode (Code 39 / Data Matrix na tablici) ──────────────────
   // Teče ves čas med odprto kamero. Koda je vedno točna – brez ugibanja črk.
@@ -474,31 +400,6 @@
      zanesljiv (ujema se kontrolna številka ali poznamo predpono proizvajalca),
      smo porabili eno poizvedbo. Sicer pošljemo še dve in o rezultatu glasujemo –
      odsev se med sličicami premakne, zato se napake ne ponovijo enako.        */
-  async function readViaVision(frames, onStatus) {
-    if (!frames.length) return null;
-
-    const f0 = frames[0];
-    const ai = (await engineKind()) === "ai";
-    const first = await visionRead(
-      ai ? [frameToRawJpeg(f0)]                      // model bere naravno sliko bolje
-         : [frameToRawJpeg(f0), frameToJpeg(f0)],
-      null, "plate");
-    if (first.error === "no_key" || first.error === "daily_limit" || first.error === "network") {
-      return { unavailable: true, why: first.error };
-    }
-    if (first.ok && first.vin && first.confident) return first;
-
-    const rest = frames.slice(1, 3);
-    if (rest.length) {
-      if (onStatus) onStatus("Preverjam še z dodatnimi posnetki …");
-      const prior = (first.ok && first.vin) ? [first.vin] : [];
-      const more = await visionRead(
-        rest.map(ai ? frameToRawJpeg : frameToJpeg), prior, "plate");
-      if (more.ok && more.vin) return more;
-    }
-    return (first.ok && first.vin) ? first : null;
-  }
-
   // ── Tesseract (rezerva v brskalniku) ──────────────────────────────────────
 
   async function readViaTesseract(frames) {
@@ -536,274 +437,43 @@
     return best;
   }
 
-  // ── Skener (okno s kamero) ────────────────────────────────────────────────
+  // ── Fotoaparat ────────────────────────────────────────────────────────────
+  /* Namesto žive slike iz brskalnika odpremo kar fotoaparat naprave. Posnetek
+     iz kamere telefona je bistveno boljši od video sličice: polna ločljivost,
+     prava izostritev in osvetlitev, brez stiskanja in zamegljenosti od premika.
+     Prav ta razlika je bila vzrok, da je prilepljena slika delovala, skeniranje
+     z živo sliko pa ne. */
 
   function el(id) { return document.getElementById(id); }
 
-  function setMsg(html, kind) {
-    const m = el("scan-msg");
-    if (!m) return;
-    m.className = "small mt-2 mb-0 text-" + (kind || "muted");
-    m.innerHTML = html;
+  function nativeCamera() {
+    let inp = el("vs-native-cam");
+    if (inp) return inp;
+    inp = document.createElement("input");
+    inp.type = "file";
+    inp.id = "vs-native-cam";
+    inp.accept = "image/*";
+    inp.setAttribute("capture", "environment");   // na telefonu odpre zadnjo kamero
+    inp.style.cssText = "position:absolute;left:-9999px;opacity:0;width:1px;height:1px";
+    document.body.appendChild(inp);
+    inp.addEventListener("change", function () {
+      const f = this.files && this.files[0];
+      this.value = "";                            // da gre lahko takoj znova
+      if (!f) return;
+      const cfg = VS._cfg;
+      const say = VS._status || function () {};
+      if (cfg) readVinFromPhoto(f, cfg, say, VS._decode);
+    });
+    return inp;
   }
 
-  async function openScanner(mode) {
-    const cam = VS._cam;
-    cam.mode = mode;
-    const t = el("scan-title");
-    if (t) t.textContent = mode === "barcode" ? "Skeniraj VIN kodo" : "Skeniraj VIN";
-    const cap = el("scan-capture");
-    if (cap) cap.style.display = "";          // zajem je na voljo v obeh načinih
-    if (!cam.modal) cam.modal = new bootstrap.Modal(el("scanModal"));
-    cam.modal.show();
+  function openScanner() { nativeCamera().click(); }
 
-    try {
-      cam.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width:  { ideal: 2560 },
-          height: { ideal: 1440 },
-          advanced: [{ focusMode: "continuous" }],
-        },
-      });
-    } catch (e) {
-      try {
-        cam.stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      } catch (e2) {
-        setMsg("Ni dostopa do kamere. Dovoli kamero v brskalniku ali vpiši VIN ročno.", "danger");
-        return;
-      }
-    }
-
-    const v = el("scan-video");
-    v.srcObject = cam.stream;
-    try { await v.play(); } catch (e) {}
-
-    cam.track = cam.stream.getVideoTracks()[0] || null;
-    setupCameraControls();
-
-    setMsg("Poravnaj VIN v okvir. Kodo preberem sam, sicer pritisni <b>Zajemi VIN</b>.", "muted");
-    startBarcodeLoop();
-  }
-
-  // Svetilka, približevanje in izostritev z dotikom – če jih naprava podpira.
-  function setupCameraControls() {
-    const cam = VS._cam;
-    const torchBtn = el("scan-torch"), zoomWrap = el("scan-zoom-wrap"), zoom = el("scan-zoom");
-    let caps = null;
-    try { caps = cam.track && cam.track.getCapabilities ? cam.track.getCapabilities() : null; } catch (e) {}
-
-    if (torchBtn) torchBtn.style.display = (caps && "torch" in caps) ? "" : "none";
-    cam.torch = false;
-    if (torchBtn) torchBtn.classList.remove("active");
-
-    if (zoomWrap && zoom) {
-      if (caps && caps.zoom) {
-        zoomWrap.style.setProperty("display", "flex", "important");
-        zoom.min = caps.zoom.min; zoom.max = caps.zoom.max;
-        zoom.step = caps.zoom.step || 0.1;
-        zoom.value = cam.track.getSettings().zoom || caps.zoom.min;
-        zoom.oninput = () => {
-          try { cam.track.applyConstraints({ advanced: [{ zoom: +zoom.value }] }); } catch (e) {}
-        };
-      } else {
-        zoomWrap.style.setProperty("display", "none", "important");
-      }
-    }
-
-    // Dotik na sliko = izostri na to točko
-    const v = el("scan-video");
-    if (v && caps && caps.focusMode && caps.focusMode.indexOf("single-shot") >= 0) {
-      v.onclick = async (ev) => {
-        const r = v.getBoundingClientRect();
-        const x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
-        try {
-          await cam.track.applyConstraints({
-            advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] }],
-          });
-          setMsg("Ostrim …", "primary");
-          setTimeout(() => setMsg("Poravnaj VIN v okvir, nato <b>Zajemi VIN</b>.", "muted"), 900);
-        } catch (e) {}
-      };
-    }
-  }
-
-  function toggleTorch() {
-    const cam = VS._cam;
-    if (!cam.track) return;
-    cam.torch = !cam.torch;
-    try { cam.track.applyConstraints({ advanced: [{ torch: cam.torch }] }); } catch (e) {}
-    const b = el("scan-torch");
-    if (b) b.classList.toggle("active", cam.torch);
-  }
-
-  // Zvezno iskanje črtne kode v ozadju – brez pritiska na gumb.
-  function startBarcodeLoop() {
-    const cam = VS._cam, v = el("scan-video");
-    let busy = false;
-    const tick = async () => {
-      if (!cam.stream) return;
-      if (!busy && !VS._busy && v.videoWidth) {
-        busy = true;
-        try {
-          const f = cropFrame(v);
-          if (f) {
-            const vin = await detectBarcode(f.canvas);
-            if (vin) { foundVin(vin, { source: "koda", valid: vinChecksumValid(vin) }); return; }
-          }
-        } catch (e) {}
-        busy = false;
-      }
-      cam.raf = setTimeout(tick, 250);
-    };
-    tick();
-  }
-
-  // Glavni zajem – sproži se z gumbom „Zajemi VIN".
-  /* Celoten postopek branja iz žive slike. Uporabljata ga tako vgrajeno okno
-     skenerja kot obrazec za novo naročilo, da je stroj povsod isti. */
-  async function runCapture(video, onStatus) {
-    const say = (m, k) => { if (onStatus) onStatus(m, k || "primary"); };
-
-    say('<i class="bi bi-camera"></i> Zajemam … držite mirno');
-    const frames = await grabBurst(video, 7, 90);
-    if (!frames.length) return { result: null, frames: [] };
-
-    // 1) Črtna koda v katerikoli sličici – najbolj točno, kar obstaja
-    for (const f of frames) {
-      const vin = await detectBarcode(f.canvas);
-      if (vin) {
-        return { result: { vin, source: "koda", valid: vinChecksumValid(vin) }, frames };
-      }
-    }
-
-    frames.sort((a, b) => b.score - a.score);
-
-    // 2) Google Vision na najostrejših sličicah
-    say('<i class="bi bi-arrow-repeat"></i> Berem VIN …');
-    const res = await readViaVision(frames, say);
-    if (res && res.vin) return { result: res, frames };
-
-    // 3) Rezerva: Tesseract v brskalniku
-    say(res && res.unavailable && res.why === "daily_limit"
-      ? "Dnevna meja branja je dosežena – berem lokalno …"
-      : '<i class="bi bi-arrow-repeat"></i> Poskušam še lokalno branje …', "warning");
-    const t = await readViaTesseract(frames);
-    if (t) {
-      return { result: { vin: t, source: "lokalno", valid: vinChecksumValid(t) }, frames };
-    }
-    return { result: null, frames, unavailable: res && res.unavailable, why: res && res.why };
-  }
-
-  async function captureOCR() {
-    const v = el("scan-video");
-    if (!v || !v.videoWidth || VS._busy) return;
-    VS._busy = true;
-    const btn = el("scan-capture");
-    if (btn) btn.disabled = true;
-
-    try {
-      const { result } = await runCapture(v, setMsg);
-      if (result) { foundVin(result.vin, result); return; }
-      setMsg("VIN ni prepoznan. Pojdi bližje (naj okvir zapolni številka), "
-           + "prižgi <b>svetilko</b> in poskusi pod rahlim kotom, da ni odseva.", "danger");
-    } finally {
-      VS._busy = false;
-      if (btn) btn.disabled = false;
-    }
-  }
-
-  /* Zvezno iskanje črtne kode na tujem video elementu. Vrne funkcijo za ustavitev.
-     Namenjeno stranem, ki imajo svoje okno s kamero. */
-  VS.startBarcodeWatch = function (video, onFound) {
-    let stopped = false, timer = null;
-    const tick = async () => {
-      if (stopped) return;
-      if (!VS._busy && video && video.videoWidth) {
-        try {
-          const f = cropFrame(video, true);
-          if (f) {
-            const vin = await detectBarcode(f.canvas);
-            if (vin) {
-              stopped = true;
-              onFound({ vin, source: "koda", valid: vinChecksumValid(vin) });
-              return;
-            }
-          }
-        } catch (e) {}
-      }
-      if (!stopped) timer = setTimeout(tick, 300);
-    };
-    tick();
-    return function () { stopped = true; if (timer) clearTimeout(timer); };
-  };
-
-  /* Javni vmesnik za druge strani (npr. obrazec novega naročila), ki imajo
-     svoje okno s kamero, a naj berejo z istim strojem.
-     Vrne { result, blob } – blob je čista barvna slika kadra za shranjevanje. */
-  VS.readVideoBurst = async function (video, onStatus) {
-    if (!video || !video.videoWidth || VS._busy) return { result: null, blob: null };
-    VS._busy = true;
-    try {
-      // Čist barvni posnetek kadra – shrani se k naročilu
-      let blob = null;
-      try {
-        const c = document.createElement("canvas");
-        c.width = video.videoWidth; c.height = video.videoHeight;
-        c.getContext("2d").drawImage(video, 0, 0);
-        blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.95));
-      } catch (e) {}
-      const out = await runCapture(video, onStatus);
-      return { result: out.result, blob, unavailable: out.unavailable ? out.why : null };
-    } finally {
-      VS._busy = false;
-    }
-  };
-
-  function foundVin(vin, info) {
-    const cfg = VS._cfg;
-    stopCam();
-    if (VS._cam.modal) VS._cam.modal.hide();
-    if (cfg && cfg.vin) {
-      const e = el(cfg.vin);
-      if (e) { e.value = vin; e.focus(); }
-    }
-    announce(vin, info || {});
-    if (VS._decode) VS._decode(vin);
-  }
-
-  // Pove, od kod je številka in kako zanesljiva je – da jo delavec po potrebi preveri.
-  function announce(vin, info) {
-    const st = VS._cfg && VS._cfg.status ? el(VS._cfg.status) : null;
-    if (!st) return;
-    let kind = "success", txt;
-    if (info.source === "koda") {
-      txt = "VIN prebran s črtne kode – točno.";
-    } else if (info.valid) {
-      txt = "VIN prebran, kontrolna številka se ujema.";
-    } else if (info.votes && info.votes > 1) {
-      txt = "VIN prebran – enako na " + info.votes + " posnetkih.";
-    } else {
-      kind = "warning";
-      txt = "VIN prebran – natančno preveri vsak znak.";
-    }
-    st.className = "small mt-2 text-" + kind;
-    st.innerHTML = '<i class="bi bi-' + (kind === "success" ? "check-circle" : "exclamation-triangle")
-                 + ' me-1"></i>' + txt;
-  }
-
-  function stopCam() {
-    const cam = VS._cam;
-    if (cam.raf) { clearTimeout(cam.raf); cam.raf = null; }
-    if (cam.torch && cam.track) {
-      try { cam.track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
-      cam.torch = false;
-    }
-    if (cam.stream) { cam.stream.getTracks().forEach((t) => t.stop()); cam.stream = null; }
-    cam.track = null;
-    const v = el("scan-video");
-    if (v) { v.srcObject = null; v.onclick = null; }
-  }
+  // Ostanki starega skenerja – da se starejše predloge, ki jih še kličejo,
+  // ne sesujejo. Ne delajo ničesar.
+  function stopCam() {}
+  function captureOCR() { openScanner(); }
+  function toggleTorch() {}
 
   // ── Branje VIN iz naložene fotografije / printscreena ─────────────────────
 
@@ -985,6 +655,7 @@
 
     VS._cfg = cfg;
     VS._decode = decode;
+    VS._status = status;
 
     // Gumbi (preko data-vs atributov)
     document.querySelectorAll('[data-vs="decode"]').forEach((b) =>
