@@ -362,6 +362,33 @@ class ChatMessage(db.Model):
         return f"<ChatMessage {self.id} partner={self.partner_id}>"
 
 
+# ── Potisna obvestila na telefon ─────────────────────────────────────────────
+# Vsaka naprava, ki je dovolila obvestila, se tu zapiše enkrat. Isti uporabnik
+# ima lahko več naprav (telefon, računalnik). Ko naročnina ni več veljavna
+# (uporabnik je obvestila izklopil ali odstranil aplikacijo), zapis izbrišemo.
+
+class PushSubscription(db.Model):
+    __tablename__ = "push_subscriptions"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    endpoint   = db.Column(db.Text, nullable=False)
+    p256dh     = db.Column(db.String(255), nullable=False)
+    auth       = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User")
+
+
+class AppSetting(db.Model):
+    """Trajne nastavitve aplikacije (npr. ključa za potisna obvestila).
+    V bazi zato, ker Render ob vsakem zagonu postreže svež datotečni sistem."""
+    __tablename__ = "app_settings"
+
+    key   = db.Column(db.String(60), primary_key=True)
+    value = db.Column(db.Text)
+
+
 # ── Dostava (rute) ────────────────────────────────────────────────────────────
 DELIVERY_ROUTES = [
     ("vipava",         "Ruta Vipava"),

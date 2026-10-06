@@ -273,8 +273,10 @@
         napake = 0;
         if (d.ok && d.messages && d.messages.length) {
           var spodaj = (body.scrollHeight - body.scrollTop - body.clientHeight) < 80;
+          var tuje = d.messages.some(function (m) { return !m.mine; });
           d.messages.forEach(addMsg);
           if (spodaj) toBottom();
+          if (tuje && window.BartogPush) window.BartogPush.pisk();
         }
         state.textContent = 'Sporočila se osvežujejo sproti';
         state.className = 'small text-muted';

@@ -187,6 +187,7 @@ def create_app():
     from routes.complaints import complaints_bp
     from routes.create_accounts import create_acc_bp
     from routes.chat import chat_bp
+    from routes.push import push_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -200,6 +201,7 @@ def create_app():
     app.register_blueprint(complaints_bp)
     app.register_blueprint(create_acc_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(push_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -213,7 +215,7 @@ def create_app():
         ep = request.endpoint or ""
         # dovoljeni deli + VIN branje/razčlemba (vehicles API) za izpolnjevanje naročila
         allowed_vehicle_eps = {"vehicles.api_vin_ocr", "vehicles.api_decode_vin", "vehicles.api_models"}
-        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "complaints.", "chat.", "static")) or ep in allowed_vehicle_eps:
+        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "complaints.", "chat.", "push.", "static")) or ep in allowed_vehicle_eps:
             return
         flash("Do te strani nimaš dostopa.", "danger")
         return redirect(url_for("orders.list_orders"))
@@ -228,7 +230,7 @@ def create_app():
             return
         ep = request.endpoint or ""
         # Računovodja: samo Ure, Dopusti, Beležka (+ prijava/statika)
-        if ep == "static" or ep.startswith(("staff.", "notes.", "auth.", "chat.", "static")):
+        if ep == "static" or ep.startswith(("staff.", "notes.", "auth.", "chat.", "push.", "static")):
             return
         # Osnovne main. strani dovolimo (npr. odjava, sw.js), a preusmerimo na Ure
         if ep in ("main.sw", "main.zamenjaj_platformo"):

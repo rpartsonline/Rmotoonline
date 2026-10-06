@@ -180,6 +180,29 @@ def thread(partner_id):
                            je_mehanik=_is_partner())
 
 
+def _obvesti(partner, m):
+    """Potisno obvestilo nasprotni strani. Mehaniku se predstavimo z imenom
+    podjetja, zaposlenim pa z imenom mehanika, da takoj vedo, kdo piše."""
+    try:
+        from routes.push import notify, staff_ids
+    except Exception:
+        return
+
+    besedilo = (m.text or "").strip() or "📷 Slika"
+    if len(besedilo) > 120:
+        besedilo = besedilo[:120] + "…"
+    url = url_for("chat.thread", partner_id=partner.id)
+
+    if m.sender_id == partner.id:
+        # Mehanik je pisal nam → obvestimo zaposlene (razen njega samega)
+        prejemniki = [u for u in staff_ids() if u != m.sender_id]
+        notify(prejemniki, partner.full_name, besedilo, url, f"klepet-{partner.id}")
+    else:
+        # Zaposleni je pisal mehaniku
+        notify([partner.id], "Bartog Ajdovščina", besedilo,
+               url_for("chat.index"), f"klepet-{partner.id}")
+
+
 @chat_bp.route("/<int:partner_id>/poslji", methods=["POST"])
 @login_required
 def send(partner_id):
@@ -204,6 +227,8 @@ def send(partner_id):
     )
     db.session.add(m)
     db.session.commit()
+
+    _obvesti(partner, m)
 
     if request.form.get("ajax"):
         return jsonify({"ok": True, "message": _msg_json(m)})

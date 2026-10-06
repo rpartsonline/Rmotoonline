@@ -326,6 +326,18 @@
   .notes-incoming-badge { bottom: 262px !important; background: #6366f1 !important; } /* modra – nova zame */
   .kupec-offer-badge { bottom: 22px !important; background: #16a34a !important; } /* kupec: ponudba */
   .chat-badge       { bottom: 322px !important; background: #0891b2 !important; } /* turkizna – klepet */
+
+  /* Vabilo za vklop obvestil */
+  .push-vabilo {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 1060;
+    width: min(620px, calc(100vw - 24px));
+    display: flex; align-items: center; gap: 10px;
+    background: #1e293b; color: #fff; border-radius: 14px;
+    padding: 12px 16px; font-size: .92rem; line-height: 1.35;
+    box-shadow: 0 10px 30px rgba(15,23,42,.35);
+  }
+  .push-vabilo .btn { white-space: nowrap; }
 </style>
 
 {% if current_user.role != 'kupec' %}
@@ -417,10 +429,14 @@
     const badge = document.getElementById('chat-badge');
     const cnt = document.getElementById('chat-badge-count');
     if (!badge || !cnt) return;
+    let prej = parseInt(cnt.textContent || '0', 10) || 0;
     async function poll() {
       try {
         const r = await fetch(url, { cache: 'no-store' });
         const d = await r.json();
+        // Zapiskamo samo ob NOVEM sporočilu, ne ob vsaki osvežitvi
+        if (d.count > prej && window.BartogPush) window.BartogPush.pisk();
+        prej = d.count;
         if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
         else { badge.style.display = 'none'; }
       } catch (e) {}
@@ -635,6 +651,7 @@
   });
 })();
 </script>
+<script src="{{ url_for('static', filename='js/push.js') }}"></script>
 {% block extra_scripts %}{% endblock %}
 <script>
   // Registracija service workerja (potreben za namestitev ikone)
