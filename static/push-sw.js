@@ -13,7 +13,7 @@ self.addEventListener("push", function (event) {
   var naslov = d.title || "Bartog Ajdovščina";
   var moznosti = {
     body:  d.body || "Novo sporočilo",
-    icon:  "/static/img/icons/apple-touch-icon.png",
+    icon:  "/static/img/icons/icon-192.png",
     badge: "/static/img/icons/favicon-32.png",
     tag:   d.tag || "klepet",
     renotify: true,                    // zapiskaj tudi, če je staro še odprto
