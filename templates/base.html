@@ -37,7 +37,7 @@
       img, video, canvas { max-width: 100%; height: auto; }
       .container-fluid { overflow-x: hidden; }
       /* Manjši plavajoči oblački, da ne prekrivajo vsebine */
-      .new-orders-badge, .delivery-badge, .notes-badge, .notes-incoming-badge {
+      .new-orders-badge, .delivery-badge, .notes-badge, .notes-incoming-badge, .chat-badge {
         right: 12px !important; padding: 9px 13px !important; font-size: .85rem !important;
       }
       .new-orders-badge { bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
@@ -45,6 +45,7 @@
       .delivery-badge   { bottom: calc(120px + env(safe-area-inset-bottom)) !important; }
       .notes-badge      { bottom: calc(174px + env(safe-area-inset-bottom)) !important; }
       .notes-incoming-badge { bottom: calc(228px + env(safe-area-inset-bottom)) !important; }
+      .chat-badge       { bottom: calc(282px + env(safe-area-inset-bottom)) !important; }
       .nob-text { display: none; }   /* na telefonu pokaži samo ikono + število */
     }
     /* Varno območje ob zarezi (iPhone) */
@@ -285,7 +286,7 @@
 <!-- Plavajoči oblački (samo zaposleni/admin) -->
 <style>
   /* Plavajoči oblački – samostojno pozicioniranje (zloženi desno spodaj) */
-  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge, .notes-incoming-badge, .new-inq-badge {
+  .new-orders-badge, .delivery-badge, .notes-badge, .kupec-offer-badge, .notes-incoming-badge, .new-inq-badge, .chat-badge {
     position: fixed !important; right: 22px !important; z-index: 1050;
     display: inline-flex; align-items: center; gap: 10px;
     padding: 11px 18px; border-radius: 40px; color: #fff !important;
@@ -305,13 +306,13 @@
     box-shadow: 0 14px 34px rgba(0,0,0,.38) !important;
   }
   .new-orders-badge i, .delivery-badge i, .notes-badge i,
-  .kupec-offer-badge i, .notes-incoming-badge i, .new-inq-badge i,
+  .kupec-offer-badge i, .notes-incoming-badge i, .new-inq-badge i, .chat-badge i,
   .new-orders-badge span, .delivery-badge span, .notes-badge span,
-  .kupec-offer-badge span, .notes-incoming-badge span, .new-inq-badge span {
+  .kupec-offer-badge span, .notes-incoming-badge span, .new-inq-badge span, .chat-badge span {
     pointer-events: none;   /* poteg se vedno prime oblačka, ne besedila v njem */
   }
   .new-orders-badge .nob-count, .delivery-badge .nob-count,
-  .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count,
+  .notes-badge .nob-count, .kupec-offer-badge .nob-count, .notes-incoming-badge .nob-count, .chat-badge .nob-count,
   .new-inq-badge .nob-count {
     background: rgba(255,255,255,.28); border-radius: 999px;
     min-width: 24px; height: 24px; padding: 0 7px;
@@ -324,6 +325,7 @@
   .notes-badge      { bottom: 202px !important; background: #16a34a !important; } /* zelena – obdelana */
   .notes-incoming-badge { bottom: 262px !important; background: #6366f1 !important; } /* modra – nova zame */
   .kupec-offer-badge { bottom: 22px !important; background: #16a34a !important; } /* kupec: ponudba */
+  .chat-badge       { bottom: 322px !important; background: #0891b2 !important; } /* turkizna – klepet */
 </style>
 
 {% if current_user.role != 'kupec' %}
@@ -373,6 +375,15 @@
   <span class="nob-count" id="delivery-count">{{ delivery_alert_count }}</span>
 </a>
 
+<!-- Oblaček: novo sporočilo v klepetu (zaposleni in mehaniki) -->
+<a href="{{ url_for('chat.index') }}" id="chat-badge"
+   class="chat-badge" title="Novo sporočilo"
+   style="{% if not chat_unread_count %}display:none;{% endif %}">
+  <i class="bi bi-chat-dots-fill"></i>
+  <span class="nob-text">Novo sporočilo</span>
+  <span class="nob-count" id="chat-badge-count">{{ chat_unread_count }}</span>
+</a>
+
 <!-- Oblaček za mehanika (kupca): nova ponudba na povpraševanju -->
 {% if current_user.role == 'kupec' %}
 <a href="{{ url_for('orders.list_inquiries') }}" id="kupec-offer-badge"
@@ -399,6 +410,25 @@
       } catch (e) {}
     }
     setInterval(poll, 30000);
+  })();
+
+  (function () {
+    const url = "{{ url_for('chat.unread_count') }}";
+    const badge = document.getElementById('chat-badge');
+    const cnt = document.getElementById('chat-badge-count');
+    if (!badge || !cnt) return;
+    async function poll() {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.count > 0) { cnt.textContent = d.count; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      } catch (e) {}
+    }
+    setInterval(poll, 15000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) poll();      // ob vrnitvi na zavihek takoj preveri
+    });
   })();
 
   (function () {
@@ -460,7 +490,7 @@
   // Položaj se shrani v brskalnik in ostane tudi po osvežitvi strani.
   // Kratek klik še vedno odpre povezavo; za vlečenje ga malo potegni.
   var IDS = ['new-orders-badge', 'new-inq-badge', 'delivery-badge',
-             'notes-badge', 'notes-incoming-badge', 'kupec-offer-badge'];
+             'notes-badge', 'notes-incoming-badge', 'kupec-offer-badge', 'chat-badge'];
   var KLJUC = 'oblacki_pozicije_v2';
   var PRAG = 6;   // koliko pikslov premika šteje kot vlečenje (in ne klik)
 
@@ -598,7 +628,7 @@
   // Dvoklik na oblaček = vrni vse oblačke na privzeta mesta
   document.addEventListener('dblclick', function (e) {
     var el = e.target.closest && e.target.closest(
-      '#new-orders-badge, #new-inq-badge, #delivery-badge, #notes-badge, #notes-incoming-badge, #kupec-offer-badge');
+      '#new-orders-badge, #new-inq-badge, #delivery-badge, #notes-badge, #notes-incoming-badge, #kupec-offer-badge, #chat-badge');
     if (!el) return;
     try { localStorage.removeItem(KLJUC); } catch (err) {}
     location.reload();
