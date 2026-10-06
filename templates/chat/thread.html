@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Klepet · {{ partner.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  {% if not je_mehanik %}
+  <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">Klepet</a></li>
+  {% endif %}
+  <li class="breadcrumb-item active">{{ partner.full_name }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="chat-wrap">
+
+  <div class="chat-head">
+    {% if not je_mehanik %}
+    <a href="{{ url_for('chat.index') }}" class="btn btn-sm btn-light border me-2">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    {% endif %}
+    <div class="chat-ava">{{ partner.full_name[:1]|upper }}</div>
+    <div class="flex-grow-1 min-w-0">
+      <div class="fw-bold text-truncate">
+        {% if je_mehanik %}Bartog Ajdovščina{% else %}{{ partner.full_name }}{% endif %}
+      </div>
+      <div class="small text-muted" id="chat-state">Sporočila se osvežujejo sproti</div>
+    </div>
+  </div>
+
+  <div class="chat-body" id="chat-body">
+    {% for m in sporocila %}
+    <div class="msg {% if m.sender_id == current_user.id %}mine{% else %}theirs{% endif %}"
+         data-id="{{ m.id }}">
+      <div class="bubble">
+        {% if m.sender_id != current_user.id %}
+        <div class="who">{{ m.sender.full_name if m.sender else '?' }}</div>
+        {% endif %}
+        {% if m.image %}
+        <a href="{{ url_for('chat.message_image', message_id=m.id) }}" target="_blank">
+          <img src="{{ url_for('chat.message_image', message_id=m.id) }}" class="msg-img" alt="slika">
+        </a>
+        {% endif %}
+        {% if m.text %}<div class="txt">{{ m.text }}</div>{% endif %}
+        <div class="meta">{{ m.created_at|sl_time }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5" id="chat-empty">
+      <i class="bi bi-chat-square-text d-block mb-2" style="font-size:2rem"></i>
+      Tu še ni sporočil. Napiši prvo.
+    </div>
+    {% endfor %}
+  </div>
+
+  <form class="chat-foot" id="chat-form"
+        action="{{ url_for('chat.send', partner_id=partner.id) }}" method="POST"
+        enctype="multipart/form-data">
+    <input type="hidden" name="ajax" value="1">
+
+    <div id="chat-preview" class="chat-preview" style="display:none">
+      <img id="chat-preview-img" alt="priloga">
+      <button type="button" id="chat-preview-del" class="btn btn-sm btn-danger">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="chat-input">
+      <button type="button" class="btn btn-light border" id="chat-attach" title="Pripni sliko">
+        <i class="bi bi-paperclip"></i>
+      </button>
+      <input type="file" name="image" id="chat-file" accept="image/*" style="display:none">
+      <textarea name="text" id="chat-text" class="form-control" rows="1"
+                placeholder="Napiši sporočilo…" autocomplete="off"></textarea>
+      <button type="submit" class="btn btn-primary" id="chat-send" title="Pošlji">
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </div>
+    <div class="form-text px-1">
+      Enter pošlje · Shift+Enter nova vrstica · sliko lahko tudi prilepiš (Ctrl+V)
+    </div>
+  </form>
+</div>
+
+<style>
+  .chat-wrap {
+    display: flex; flex-direction: column; background: #fff;
+    border: 1px solid #e7ecf3; border-radius: 14px; overflow: hidden;
+    height: calc(100vh - 190px); min-height: 420px;
+  }
+  .chat-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    border-bottom: 1px solid #eef2f7; background: #f8fafc;
+  }
+  .chat-ava {
+    flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
+    background: #2563eb; color: #fff; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .chat-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+    background: #f1f5f9; display: flex; flex-direction: column; gap: 8px;
+  }
+  .msg { display: flex; }
+  .msg.mine   { justify-content: flex-end; }
+  .msg.theirs { justify-content: flex-start; }
+  .bubble {
+    max-width: min(78%, 560px); padding: 8px 12px; border-radius: 14px;
+    background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.08);
+    word-break: break-word; position: relative;
+  }
+  .msg.mine .bubble { background: #d9fdd3; border-bottom-right-radius: 4px; }
+  .msg.theirs .bubble { border-bottom-left-radius: 4px; }
+  .bubble .who  { font-size: .76rem; font-weight: 700; color: #2563eb; margin-bottom: 2px; }
+  .bubble .txt  { white-space: pre-wrap; line-height: 1.4; }
+  .bubble .meta { font-size: .7rem; color: #94a3b8; text-align: right; margin-top: 2px; }
+  .msg-img { max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin-bottom: 4px; }
+
+  .chat-foot { border-top: 1px solid #eef2f7; padding: 10px 12px 8px; background: #fff; }
+  .chat-input { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input textarea {
+    resize: none; max-height: 140px; overflow-y: auto; border-radius: 10px;
+  }
+  .chat-preview { position: relative; display: inline-block; margin-bottom: 8px; }
+  .chat-preview img { max-height: 90px; border-radius: 8px; border: 1px solid #dee2e6; display: block; }
+  .chat-preview .btn { position: absolute; top: 4px; right: 4px; padding: 1px 6px; line-height: 1; }
+
+  @media (max-width: 640px) {
+    .chat-wrap { height: calc(100vh - 150px); border-radius: 0; border-left: 0; border-right: 0; }
+    .bubble { max-width: 86%; }
+  }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  var body    = document.getElementById('chat-body');
+  var form    = document.getElementById('chat-form');
+  var text    = document.getElementById('chat-text');
+  var file    = document.getElementById('chat-file');
+  var attach  = document.getElementById('chat-attach');
+  var sendBtn = document.getElementById('chat-send');
+  var prev    = document.getElementById('chat-preview');
+  var prevImg = document.getElementById('chat-preview-img');
+  var prevDel = document.getElementById('chat-preview-del');
+  var state   = document.getElementById('chat-state');
+
+  var POLL_URL = "{{ url_for('chat.poll', partner_id=partner.id) }}";
+  var lastId   = {{ zadnji_id }};
+  var posting  = false;
+
+  function toBottom() { body.scrollTop = body.scrollHeight; }
+  toBottom();
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  function cas(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+      return d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function addMsg(m) {
+    if (document.querySelector('.msg[data-id="' + m.id + '"]')) return;
+    var empty = document.getElementById('chat-empty');
+    if (empty) empty.remove();
+
+    var wrap = document.createElement('div');
+    wrap.className = 'msg ' + (m.mine ? 'mine' : 'theirs');
+    wrap.setAttribute('data-id', m.id);
+
+    var html = '<div class="bubble">';
+    if (!m.mine) html += '<div class="who">' + escapeHtml(m.sender) + '</div>';
+    if (m.image) {
+      html += '<a href="' + m.image + '" target="_blank">'
+            + '<img src="' + m.image + '" class="msg-img" alt="slika"></a>';
+    }
+    if (m.text) html += '<div class="txt">' + escapeHtml(m.text) + '</div>';
+    html += '<div class="meta">' + cas(m.time) + '</div></div>';
+    wrap.innerHTML = html;
+
+    body.appendChild(wrap);
+    if (m.id > lastId) lastId = m.id;
+  }
+
+  // ── Pošiljanje ─────────────────────────────────────────────────────────────
+  function poslji() {
+    if (posting) return;
+    var besedilo = text.value.trim();
+    var slika = file.files && file.files[0];
+    if (!besedilo && !slika) return;
+
+    posting = true;
+    sendBtn.disabled = true;
+
+    var fd = new FormData(form);
+    fetch(form.action, { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok && d.message) {
+          addMsg(d.message);
+          toBottom();
+          text.value = '';
+          text.style.height = 'auto';
+          clearFile();
+        }
+      })
+      .catch(function () {
+        state.textContent = 'Sporočila ni bilo mogoče poslati. Poskusi znova.';
+        state.className = 'small text-danger';
+      })
+      .finally(function () { posting = false; sendBtn.disabled = false; text.focus(); });
+  }
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); poslji(); });
+
+  // Enter pošlje, Shift+Enter nova vrstica
+  text.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); poslji(); }
+  });
+
+  // Polje raste z besedilom
+  text.addEventListener('input', function () {
+    text.style.height = 'auto';
+    text.style.height = Math.min(text.scrollHeight, 140) + 'px';
+  });
+
+  // ── Priloga ────────────────────────────────────────────────────────────────
+  function showFile(f) {
+    if (!f) return;
+    try {
+      var dt = new DataTransfer();
+      dt.items.add(f);
+      file.files = dt.files;
+    } catch (e) {}
+    prevImg.src = URL.createObjectURL(f);
+    prev.style.display = '';
+  }
+  function clearFile() {
+    try { file.value = ''; } catch (e) {}
+    prev.style.display = 'none';
+    prevImg.src = '';
+  }
+
+  attach.addEventListener('click', function () { file.click(); });
+  file.addEventListener('change', function () { if (this.files[0]) showFile(this.files[0]); });
+  prevDel.addEventListener('click', clearFile);
+
+  // Prilepi sliko (Ctrl+V)
+  document.addEventListener('paste', function (e) {
+    var items = (e.clipboardData || {}).items || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image') === 0) {
+        e.preventDefault();
+        showFile(items[i].getAsFile());
+        text.focus();
+        break;
+      }
+    }
+  });
+
+  // ── Sprotno osveževanje ────────────────────────────────────────────────────
+  var napake = 0;
+  function poll() {
+    fetch(POLL_URL + '?after=' + lastId)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        napake = 0;
+        if (d.ok && d.messages && d.messages.length) {
+          var spodaj = (body.scrollHeight - body.scrollTop - body.clientHeight) < 80;
+          d.messages.forEach(addMsg);
+          if (spodaj) toBottom();
+        }
+        state.textContent = 'Sporočila se osvežujejo sproti';
+        state.className = 'small text-muted';
+      })
+      .catch(function () {
+        napake++;
+        if (napake > 2) {
+          state.textContent = 'Ni povezave – poskušam znova…';
+          state.className = 'small text-warning';
+        }
+      });
+  }
+
+  // Hitreje, dokler je zavihek odprt; ko ni v ospredju, redkeje
+  setInterval(function () {
+    if (document.hidden) return;
+    poll();
+  }, 4000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) poll();
+  });
+})();
+</script>
+{% endblock %}

@@ -150,7 +150,17 @@ def create_app():
                     kind="povprasevanje", status="novo_povprasevanje").count()
         except Exception:
             pass
+        # Neprebrana sporočila v klepetu
+        chat_unread = 0
+        try:
+            from flask_login import current_user as _cu3
+            if _cu3.is_authenticated:
+                from routes.chat import unread_for
+                chat_unread = unread_for(_cu3)
+        except Exception:
+            pass
         return {
+            "chat_unread_count": chat_unread,
             "new_orders_count": new_count,
             "new_inquiries_count": new_inq_count,
             "delivery_alert_count": deliv_count,
@@ -176,6 +186,7 @@ def create_app():
     from routes.staff import staff_bp
     from routes.complaints import complaints_bp
     from routes.create_accounts import create_acc_bp
+    from routes.chat import chat_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -188,6 +199,7 @@ def create_app():
     app.register_blueprint(staff_bp)
     app.register_blueprint(complaints_bp)
     app.register_blueprint(create_acc_bp)
+    app.register_blueprint(chat_bp)
 
     # ── Omejitev dostopa za kupce (vidijo samo svoja naročila/povpraševanja) ──
     @app.before_request
@@ -201,7 +213,7 @@ def create_app():
         ep = request.endpoint or ""
         # dovoljeni deli + VIN branje/razčlemba (vehicles API) za izpolnjevanje naročila
         allowed_vehicle_eps = {"vehicles.api_vin_ocr", "vehicles.api_decode_vin", "vehicles.api_models"}
-        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "complaints.", "static")) or ep in allowed_vehicle_eps:
+        if ep == "static" or ep.startswith(("orders.", "auth.", "main.", "complaints.", "chat.", "static")) or ep in allowed_vehicle_eps:
             return
         flash("Do te strani nimaš dostopa.", "danger")
         return redirect(url_for("orders.list_orders"))
@@ -216,7 +228,7 @@ def create_app():
             return
         ep = request.endpoint or ""
         # Računovodja: samo Ure, Dopusti, Beležka (+ prijava/statika)
-        if ep == "static" or ep.startswith(("staff.", "notes.", "auth.", "static")):
+        if ep == "static" or ep.startswith(("staff.", "notes.", "auth.", "chat.", "static")):
             return
         # Osnovne main. strani dovolimo (npr. odjava, sw.js), a preusmerimo na Ure
         if ep in ("main.sw", "main.zamenjaj_platformo"):

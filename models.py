@@ -331,6 +331,37 @@ class Note(db.Model):
     created_by = db.relationship("User")
 
 
+# ── Klepet med zaposlenimi in mehaniki ───────────────────────────────────────
+# En pogovor na mehanika. „partner" je vedno mehanik (vloga kupec); na drugi
+# strani je kdorkoli od zaposlenih. Mehanik vidi samo svoj pogovor, zaposleni
+# vidijo seznam vseh.
+
+class ChatMessage(db.Model):
+    __tablename__ = "chat_messages"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    sender_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    text       = db.Column(db.Text)
+    image      = db.Column(db.String(255))            # ime shranjene datoteke
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    # Prebrano na posamezni strani – od tod števci neprebranih
+    seen_by_staff   = db.Column(db.Boolean, default=False)
+    seen_by_partner = db.Column(db.Boolean, default=False)
+
+    partner = db.relationship("User", foreign_keys=[partner_id])
+    sender  = db.relationship("User", foreign_keys=[sender_id])
+
+    @property
+    def from_partner(self):
+        """Je sporočilo poslal mehanik (in ne kdo od zaposlenih)?"""
+        return self.sender_id == self.partner_id
+
+    def __repr__(self):
+        return f"<ChatMessage {self.id} partner={self.partner_id}>"
+
+
 # ── Dostava (rute) ────────────────────────────────────────────────────────────
 DELIVERY_ROUTES = [
     ("vipava",         "Ruta Vipava"),

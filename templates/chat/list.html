@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Klepet{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Pregled</a></li>
+  <li class="breadcrumb-item active">Klepet</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1>
+    <i class="bi bi-chat-dots me-2 text-primary"></i>Klepet z mehaniki
+    {% if skupaj_neprebranih %}
+    <span class="badge bg-danger ms-2">{{ skupaj_neprebranih }}</span>
+    {% endif %}
+  </h1>
+</div>
+
+<form method="GET" class="mb-3">
+  <div class="input-group">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="text" name="search" value="{{ search }}" class="form-control"
+           placeholder="Poišči mehanika po imenu…" autocomplete="off">
+    {% if search %}
+    <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+    {% endif %}
+    <button class="btn btn-primary" type="submit">Išči</button>
+  </div>
+  <div class="form-text">Mehanika lahko poiščeš tudi, če mu še nisi nikoli pisal.</div>
+</form>
+
+<div class="tbl-card">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-people me-2"></i>Pogovori</h6>
+  </div>
+  <div class="chat-list">
+    {% for p in pogovori %}
+    <a href="{{ url_for('chat.thread', partner_id=p.partner.id) }}" class="chat-row">
+      <div class="chat-ava">{{ p.partner.full_name[:1]|upper }}</div>
+      <div class="chat-mid">
+        <div class="chat-name">{{ p.partner.full_name }}</div>
+        <div class="chat-prev">
+          {% if not p.od_mehanika %}<i class="bi bi-reply-fill me-1 text-muted"></i>{% endif %}
+          {{ p.zadnje or '—' }}
+        </div>
+      </div>
+      <div class="chat-right">
+        <div class="chat-time">{{ p.kdaj|sl_time if p.kdaj else '' }}</div>
+        {% if p.neprebrano %}
+        <span class="badge bg-danger rounded-pill">{{ p.neprebrano }}</span>
+        {% endif %}
+      </div>
+    </a>
+    {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="bi bi-chat-square-text d-block mb-2" style="font-size:1.8rem"></i>
+      {% if search %}
+        Med pogovori ni zadetka za „{{ search }}".
+      {% else %}
+        Ni še nobenega pogovora. Poišči mehanika zgoraj in mu piši.
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if novi %}
+<div class="tbl-card mt-3">
+  <div class="tbl-header">
+    <h6 class="tbl-header-title"><i class="bi bi-plus-circle me-2"></i>Začni nov pogovor</h6>
+  </div>
+  <div class="chat-list">
+    {% for u in novi %}
+    <a href="{{ url_for('chat.thread', partner_id=u.id) }}" class="chat-row">
+      <div class="chat-ava" style="background:#94a3b8">{{ u.full_name[:1]|upper }}</div>
+      <div class="chat-mid">
+        <div class="chat-name">{{ u.full_name }}</div>
+        <div class="chat-prev text-muted">Še brez sporočil</div>
+      </div>
+      <div class="chat-right"><i class="bi bi-chevron-right text-muted"></i></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+  .chat-list { display: flex; flex-direction: column; }
+  .chat-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    text-decoration: none; color: #0f172a; border-bottom: 1px solid #f1f5f9;
+  }
+  .chat-row:last-child { border-bottom: 0; }
+  .chat-row:hover { background: #f8fafc; }
+  .chat-ava {
+    flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%;
+    background: #2563eb; color: #fff; font-weight: 700;
+    display: grid; place-items: center; font-size: 1.05rem;
+  }
+  .chat-mid { flex: 1; min-width: 0; }
+  .chat-name { font-weight: 600; }
+  .chat-prev { font-size: .88rem; color: #64748b; overflow: hidden;
+               text-overflow: ellipsis; white-space: nowrap; }
+  .chat-right { text-align: right; display: flex; flex-direction: column;
+                align-items: flex-end; gap: 4px; }
+  .chat-time { font-size: .78rem; color: #94a3b8; }
+</style>
+{% endblock %}

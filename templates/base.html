@@ -128,6 +128,13 @@
         <i class="bi bi-exclamation-triangle"></i><span>Reklamacije</span>
       </a>
     </li>
+    <li>
+      <a href="{{ url_for('chat.index') }}"
+         class="sb-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-chat-dots"></i><span>Klepet</span>
+        {% if chat_unread_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ chat_unread_count }}</span>{% endif %}
+      </a>
+    </li>
 
     {% else %}
     <!-- Zaposleni / admin -->
@@ -147,6 +154,13 @@
       <a href="{{ url_for('orders.list_inquiries') }}"
          class="sb-link {% if request.endpoint in ['orders.list_inquiries', 'orders.new_inquiry'] %}active{% endif %}">
         <i class="bi bi-chat-left-text"></i><span>Povpraševanja</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('chat.index') }}"
+         class="sb-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-chat-dots"></i><span>Klepet</span>
+        {% if chat_unread_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ chat_unread_count }}</span>{% endif %}
       </a>
     </li>
     <li>
