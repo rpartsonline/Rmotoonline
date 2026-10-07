@@ -158,9 +158,19 @@
      preverjanje. Pri zaposlenem to ne pomeni nič, ker ima lahko neprebrana
      sporočila še pri drugih mehanikih; zato vedno vprašamo za pravo število. */
   function uskladiOznake() {
-    if (window.BartogPush) window.BartogPush.osveziNeprebrano();
+    if (!window.BartogPush) return;
+    // Obvestilo tega pogovora zapremo vedno – sporočila smo pravkar prebrali.
+    // Brez tega ostane v predalu z obvestili in ikona na namizju še naprej
+    // kaže piko, čeprav je vse prebrano.
+    window.BartogPush.pocisciObvestila("klepet-{{ partner.id }}");
+    window.BartogPush.osveziNeprebrano();
   }
   uskladiOznake();
+
+  // Ko se uporabnik vrne v aplikacijo, znova uskladimo
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) uskladiOznake();
+  });
 
   function escapeHtml(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');

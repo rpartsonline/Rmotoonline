@@ -443,6 +443,7 @@
         if (window.BartogPush) window.BartogPush.znacka(d.count);
       } catch (e) {}
     }
+    poll();                              // takoj ob odprtju strani
     setInterval(poll, 15000);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) poll();      // ob vrnitvi na zavihek takoj preveri

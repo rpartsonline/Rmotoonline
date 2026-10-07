@@ -125,6 +125,30 @@
   /* Prebere pravo število neprebranih in po njem uskladi oblaček IN značko
      na ikoni. Kličemo takoj, ko uporabnik sporočila prebere – da oblaček
      izgine brez čakanja na naslednje preverjanje. */
+  /* Zapre obvestila, ki še visijo v predalu z obvestili.
+
+     To je bistveno: Android in iPhone rišeta piko na ikoni aplikacije tudi
+     zaradi NEPREBRANEGA OBVESTILA v predalu, ne le zaradi značke. Če smo
+     sporočila prebrali v aplikaciji, obvestilo pa je ostalo, pika ne izgine,
+     pa naj značko počistimo kolikorkrat hočemo. */
+  // tag: če ga podamo, zapremo samo obvestila tega pogovora
+  Push.pocisciObvestila = function (tag) {
+    if (!("serviceWorker" in navigator)) return Promise.resolve();
+    return navigator.serviceWorker.getRegistrations()
+      .then(function (regs) {
+        return Promise.all(regs.map(function (reg) {
+          if (!reg.getNotifications) return null;
+          return reg.getNotifications().then(function (seznam) {
+            seznam.forEach(function (o) {
+              if (tag) { if (o.tag === tag) o.close(); }
+              else if (!o.tag || o.tag.indexOf("klepet") === 0) o.close();
+            });
+          }).catch(function () {});
+        }));
+      })
+      .catch(function () {});
+  };
+
   Push.osveziNeprebrano = function () {
     return fetch("/klepet/api/neprebrano", { cache: "no-store" })
       .then(function (r) { return r.json(); })
@@ -135,6 +159,7 @@
         if (oblacek) oblacek.style.display = n > 0 ? "" : "none";
         if (stevilo && n > 0) stevilo.textContent = n;
         Push.znacka(n);
+        if (n === 0) Push.pocisciObvestila();   // brez tega pika na ikoni ostane
         return n;
       })
       .catch(function () { return -1; });
@@ -145,6 +170,7 @@
   // ── Vrstica z vabilom ─────────────────────────────────────────────────────
   document.addEventListener("DOMContentLoaded", function () {
     Push.osveziTiho();
+    Push.osveziNeprebrano();          // ob odprtju takoj uskladi oblaček in ikono
 
     const stanje = Push.stanje();
     if (stanje !== "vprasaj" && stanje !== "ios-namesti") return;
