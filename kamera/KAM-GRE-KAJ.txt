@@ -1,0 +1,74 @@
+FOTOAPARAT NA RAČUNALNIKU – POPRAVEK
+
+Ta zip vsebuje TUDI včerajšnji popravek branja VIN, zato lahko prepišeš
+vse tri datoteke naenkrat. Če si včerajšnjega že naložil, se nič ne podvoji.
+
+══════════════════════════════════════════════════════════════════════
+1) DATOTEKE – kopiraj v mapo projekta (prepiši stare)
+══════════════════════════════════════════════════════════════════════
+
+  static/js/vehicle_smart.js      ← prepiši
+  templates/orders/new.html       ← prepiši
+  routes/vehicles.py              ← prepiši (včerajšnji popravek branja)
+
+  GitHub Desktop: Commit → Push.
+  Po objavi OBVEZNO osveži s Ctrl+F5 (brskalnik ima staro skripto).
+
+══════════════════════════════════════════════════════════════════════
+2) ZAKAJ SE KAMERA NI ODPRLA
+══════════════════════════════════════════════════════════════════════
+
+  Gumb je na računalniku klical `<input type="file" capture="environment">`.
+  Nastavitev `capture` deluje SAMO na telefonu – tam odpre kamero naprave.
+  Na računalniku je brskalnik ne upošteva in odpre samo izbiro datoteke.
+
+  Ko sem na tvojo prošnjo odstranil staro skeniranje v živo, za računalnik
+  nisem dal nobene kamere nazaj. Gumb je torej res ni imel za sabo.
+  To je bil moj spregled.
+
+══════════════════════════════════════════════════════════════════════
+3) KAKO DELA ZDAJ
+══════════════════════════════════════════════════════════════════════
+
+  TELEFON  – nespremenjeno: odpre kamero naprave (polna ločljivost,
+             izostritev, bliskavica). To je najboljši možni posnetek.
+
+  RAČUNALNIK – odpre se okno s spletno kamero čez cel zaslon:
+             • živa slika
+             • moder gumb „Posnemi"
+             • „Naloži sliko" (če je slika že na disku)
+             • „Prekliči" ali tipka Esc
+             • če imaš več kamer (npr. USB dokumentna kamera),
+               se zgoraj pokaže spustni seznam za izbiro
+
+  To NI stari skener. Ni branja v živo, ni ozkega okvirja, ni nenehnega
+  prepoznavanja – tisto je bilo odstranjeno in ostaja odstranjeno.
+  Je navaden fotoaparat: posname eno sliko, ko klikneš „Posnemi".
+
+  Posneta slika gre po isti poti kot vsaka druga: bistrenje (izravnava
+  osvetlitve, kontrast, izostritev) → branje → številka v polje.
+  Shrani se tudi k naročilu in je pri ogledu označena kot
+  „Prometno dovoljenje / VIN".
+
+  Zahtevamo najvišjo ločljivost, ki jo kamera zmore (do 4K).
+
+══════════════════════════════════════════════════════════════════════
+4) ČE SE KAMERA NE ODPRE
+══════════════════════════════════════════════════════════════════════
+
+  • Brskalnik vpraša za dovoljenje – klikni „Dovoli".
+    Če si že kdaj zavrnil: klikni ikono ob naslovu strani (ključavnica
+    ali drsnika) → Kamera → Dovoli → osveži stran.
+
+  • Če dovoljenja ni ali kamere ni, se samodejno odpre izbira datoteke,
+    tako kot doslej. Nič se ne zatakne.
+
+  • Kamera dela samo prek https. r-parts.si to ima, torej v redu.
+
+  • „Kamero uporablja drug program" pomeni, da jo ima zasedeno npr.
+    Teams ali Zoom. Zapri tisti program.
+
+  • Na prenosniku je vgrajena kamera obrnjena proti tebi in za
+    prometno dovoljenje ni najboljša. Bolje je slikati s telefonom
+    ali sliko naložiti. Zunanja USB kamera dela dobro – izbereš jo
+    v spustnem seznamu v oknu.
