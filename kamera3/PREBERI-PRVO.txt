@@ -1,0 +1,76 @@
+KAMERA SE NE ODPRE – ODPRAVLJENO
+
+══════════════════════════════════════════════════════════════════════
+VZROK
+══════════════════════════════════════════════════════════════════════
+
+  Beseda „MOJE DATOTEKE" je bila ključ. Tako se imenuje upravitelj
+  datotek na Samsungovih telefonih.
+
+  Gumb je klical `<input type="file" capture="environment">`. To ni
+  kamera – to je prošnja sistemu, naj odpre nekaj, s čimer se izbere
+  slika. Android si zapomni, katero aplikacijo je uporabnik enkrat
+  izbral. Če si kdaj izbral „Moje datoteke" in potrdil „Vedno", se
+  odslej ob vsakem kliku odpre TA aplikacija, ne kamera.
+
+  Te izbire iz spletne strani NI mogoče preglasiti. Zato se je
+  „popravek" treh zaporednih različic sploh ni dotaknil.
+
+══════════════════════════════════════════════════════════════════════
+REŠITEV
+══════════════════════════════════════════════════════════════════════
+
+  Gumb zdaj NE sprašuje več sistema. Kamero odpre kar stran sama –
+  na telefonu in na računalniku enako. Sistemska izbira aplikacije
+  tako ni več vmes in se ne more vtakniti.
+
+  V oknu kamere so:
+     • „Posnemi"             – posname sliko
+     • „Fotoaparat naprave"  – če hočeš vseeno kamero telefona
+                               (boljša slika, a gre spet prek sistema)
+     • „Naloži sliko"        – izbira datoteke, kadar jo res hočeš
+     • „Prekliči" / Esc
+
+  Datoteke se odslej odprejo SAMO, če sam klikneš „Naloži sliko".
+  Nikoli same od sebe.
+
+══════════════════════════════════════════════════════════════════════
+ČE SE KAMERA NE MORE ODPRETI
+══════════════════════════════════════════════════════════════════════
+
+  Prej se je v tem primeru tiho odprla izbira datotek – in izgledalo
+  je, kot da gumb odpira napačno stvar. Zdaj okno ostane odprto in
+  z rdečim besedilom pove, kaj je narobe:
+
+     „Brskalnik nima dovoljenja za kamero"  + kako to dovoliti
+     „Na tej napravi ni najdene kamere"     + kaj namesto tega
+     „Kamero uporablja drug program"        + kaj zapreti
+
+  Zraven je gumb „Poskusi znova", da ti po dovoljenju ni treba
+  osveževati strani.
+
+══════════════════════════════════════════════════════════════════════
+DATOTEKE – kopiraj v mapo projekta (prepiši stare)
+══════════════════════════════════════════════════════════════════════
+
+  static/js/vehicle_smart.js                ← prepiši
+  templates/_vehicle_smart_assets.html      ← prepiši
+  templates/orders/new.html                 ← prepiši
+  routes/vehicles.py                        ← prepiši
+
+  GitHub Desktop: Commit → Push.
+
+  Skripta ima v naslovu oznako različice (?v=2026-10-08-kamera2), zato
+  bo brskalnik potegnil novo datoteko sam. Če bi vseeno vrtel staro,
+  ti bo to zdaj izpisal z rdečim opozorilom.
+
+══════════════════════════════════════════════════════════════════════
+PRVIČ TE BO BRSKALNIK VPRAŠAL ZA DOVOLJENJE
+══════════════════════════════════════════════════════════════════════
+
+  Ob prvem kliku se pojavi vprašanje „Dovoli dostop do kamere?".
+  Klikni DOVOLI. Brskalnik si to zapomni.
+
+  Če si kdaj prej zavrnil, te ne bo več vprašal – takrat klikni
+  ikono levo od naslova strani (ključavnica ali drsnika) → Kamera →
+  Dovoli. Okno ti to tudi samo napiše.

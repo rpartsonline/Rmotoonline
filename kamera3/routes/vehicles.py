@@ -1,0 +1,976 @@
+import json
+import unicodedata
+import urllib.error
+import urllib.parse
+import urllib.request
+
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask_login import login_required, current_user
+from models import db, Vehicle, Customer, ENGINE_TYPES, TRANSMISSIONS
+
+vehicles_bp = Blueprint("vehicles", __name__, url_prefix="/vehicles")
+
+VPIC_BASE = "https://vpic.nhtsa.dot.gov/api/vehicles"
+
+# Pogoste znamke (za spustni seznam). Delavec lahko vpiše tudi svojo.
+CAR_MAKES = [
+    "Alfa Romeo", "Audi", "BMW", "Citroën", "Cupra", "Dacia", "DS", "Fiat",
+    "Ford", "Honda", "Hyundai", "Jaguar", "Jeep", "Kia", "Lancia",
+    "Land Rover", "Lexus", "Mazda", "Mercedes-Benz", "Mini", "Mitsubishi",
+    "Nissan", "Opel", "Peugeot", "Porsche", "Renault", "Seat", "Škoda",
+    "Smart", "SsangYong", "Subaru", "Suzuki", "Tesla", "Toyota",
+    "Volkswagen", "Volvo", "Chevrolet", "Chrysler", "Dodge", "Saab",
+    "Iveco", "MAN", "DAF", "Scania", "Maserati", "Bentley", "Ferrari",
+    "Lamborghini", "Abarth", "Infiniti", "Genesis", "BYD", "MG",
+]
+
+
+# ── Pomožne funkcije za preslikavo vPIC → naše vrednosti ──────────────────────
+
+def _strip_diacritics(text):
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c)
+    )
+
+
+def _map_fuel(value):
+    v = (value or "").lower()
+    if "diesel" in v:
+        return "diesel"
+    if "electric" in v and ("gasol" in v or "hybrid" in v):
+        return "hibrid"
+    if "electric" in v:
+        return "elektro"
+    if "hybrid" in v:
+        return "hibrid"
+    if any(g in v for g in ("compressed natural", "propane", "lpg", "cng", "natural gas")):
+        return "plin"
+    if "gasol" in v or "petrol" in v or "flex" in v:
+        return "bencin"
+    return ""
+
+
+def _map_transmission(value):
+    v = (value or "").lower()
+    if "manual" in v and "auto" in v:
+        return "poluavtomatski"
+    if "manual" in v:
+        return "ročni"
+    if "auto" in v or "cvt" in v or "dual" in v:
+        return "avtomatski"
+    return ""
+
+
+def _hp_to_kw(hp):
+    try:
+        return str(round(float(hp) * 0.7457))
+    except (TypeError, ValueError):
+        return ""
+
+
+def _vehicle_from_form(f, customer_id, vehicle=None):
+    """Fill vehicle object from form data."""
+    if vehicle is None:
+        vehicle = Vehicle(customer_id=customer_id)
+    year_raw = f.get("year", "").strip()
+    vehicle.brand               = f.get("brand",               "").strip()
+    vehicle.model               = f.get("model",               "").strip()
+    vehicle.vin                 = f.get("vin",                 "").strip() or None
+    vehicle.year                = int(year_raw) if year_raw.isdigit() else None
+    vehicle.engine_type         = f.get("engine_type",         "").strip()
+    vehicle.engine_displacement = f.get("engine_displacement", "").strip()
+    vehicle.engine_power_kw     = f.get("engine_power_kw",    "").strip()
+    vehicle.transmission        = f.get("transmission",        "").strip()
+    vehicle.color               = f.get("color",               "").strip()
+    vehicle.registration        = f.get("registration",        "").strip()
+    vehicle.notes               = f.get("notes",               "").strip()
+    return vehicle
+
+
+def _render_form(vehicle, customers, preselected):
+    return render_template(
+        "vehicles/new.html",
+        customers=customers,
+        vehicle=vehicle,
+        engine_types=ENGINE_TYPES,
+        transmissions=TRANSMISSIONS,
+        car_makes=CAR_MAKES,
+        preselected_customer=preselected,
+    )
+
+
+@vehicles_bp.route("/new", methods=["GET", "POST"])
+@login_required
+def new_vehicle():
+    customers = Customer.query.order_by(Customer.name).all()
+    preselected = request.args.get("customer_id", "")
+
+    if request.method == "POST":
+        customer_id = request.form.get("customer_id", "").strip()
+        if not customer_id:
+            flash("Izberite stranko.", "danger")
+            return _render_form(None, customers, preselected)
+
+        vehicle = _vehicle_from_form(request.form, int(customer_id))
+        if not vehicle.brand or not vehicle.model:
+            flash("Znamka in model sta obvezna.", "danger")
+            return _render_form(None, customers, customer_id)
+
+        db.session.add(vehicle)
+        db.session.commit()
+        flash(f"Vozilo {vehicle.display_name} je bilo dodano.", "success")
+        return redirect(url_for("customers.customer_detail", customer_id=vehicle.customer_id))
+
+    return _render_form(None, customers, preselected)
+
+
+@vehicles_bp.route("/<int:vehicle_id>")
+@login_required
+def vehicle_detail(vehicle_id):
+    vehicle = Vehicle.query.get_or_404(vehicle_id)
+    return render_template("vehicles/detail.html", vehicle=vehicle)
+
+
+@vehicles_bp.route("/<int:vehicle_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_vehicle(vehicle_id):
+    vehicle   = Vehicle.query.get_or_404(vehicle_id)
+    customers = Customer.query.order_by(Customer.name).all()
+
+    if request.method == "POST":
+        vehicle = _vehicle_from_form(request.form, vehicle.customer_id, vehicle)
+        if not vehicle.brand or not vehicle.model:
+            flash("Znamka in model sta obvezna.", "danger")
+        else:
+            db.session.commit()
+            flash("Podatki vozila so bili posodobljeni.", "success")
+            return redirect(url_for("vehicles.vehicle_detail", vehicle_id=vehicle.id))
+
+    return _render_form(vehicle, customers, vehicle.customer_id)
+
+
+# ── API: modeli za znamko (vPIC) ──────────────────────────────────────────────
+
+@vehicles_bp.route("/api/models/<make>")
+@login_required
+def api_models(make):
+    make_q = _strip_diacritics(make).strip()
+
+    def _fetch_models(url):
+        req = urllib.request.Request(url, headers={"User-Agent": "narocilnice"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        return {
+            (row.get("Model_Name") or "").strip()
+            for row in data.get("Results", [])
+            if row.get("Model_Name")
+        }
+
+    base_url = f"{VPIC_BASE}/getmodelsformake/{urllib.parse.quote(make_q)}?format=json"
+    # Samo motorna kolesa za to znamko – da jih lahko odštejemo (Avto platforma → brez motorjev)
+    moto_url = (f"{VPIC_BASE}/getmodelsformakeyear/make/"
+                f"{urllib.parse.quote(make_q)}/vehicletype/motorcycle?format=json")
+
+    try:
+        all_models = _fetch_models(base_url)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "models": []}), 502
+
+    # Odstrani motorna kolesa. Če ta poizvedba ne uspe, raje pokažemo vse
+    # (bolje kot da bi funkcija padla in ne bi bilo nobenih modelov).
+    try:
+        moto_models = _fetch_models(moto_url)
+    except Exception:
+        moto_models = set()
+
+    moto_lower = {m.lower() for m in moto_models}
+    names = sorted(m for m in all_models if m.lower() not in moto_lower)
+    return jsonify({"ok": True, "models": names})
+
+
+# ── API: razčlenjevanje VIN (vPIC) ────────────────────────────────────────────
+
+@vehicles_bp.route("/api/vin/<vin>")
+@login_required
+def api_decode_vin(vin):
+    vin = vin.strip().upper()
+    url = f"{VPIC_BASE}/decodevinvalues/{urllib.parse.quote(vin)}?format=json"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "narocilnice"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        res = (data.get("Results") or [{}])[0]
+
+        power = (res.get("EngineKW") or "").strip()
+        if not power:
+            power = _hp_to_kw(res.get("EngineHP"))
+
+        return jsonify({
+            "ok": True,
+            "make":         (res.get("Make") or "").title().strip(),
+            "model":        (res.get("Model") or "").strip(),
+            "year":         (res.get("ModelYear") or "").strip(),
+            "engine_type":  _map_fuel(res.get("FuelTypePrimary")),
+            "displacement": (res.get("DisplacementL") or "").strip(),
+            "power_kw":     power,
+            "transmission": _map_transmission(res.get("TransmissionStyle")),
+            "body":         (res.get("BodyClass") or "").strip(),
+            "error":        (res.get("ErrorText") or "").strip(),
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
+
+# ── Branje VIN iz slike prek Google Cloud Vision (z dnevno omejitvijo) ─────────
+import os
+import re
+import base64
+from datetime import date
+
+_vision_quota = {"day": None, "count": 0}
+
+# ── Preverjanje kontrolne številke VIN (ISO 3779, 9. znak) ────────────────────
+# Pravi VIN ima kontrolni znak na 9. mestu. Če se ujema, je skoraj gotovo pravi.
+# (Nekateri evropski VIN-i ga ne upoštevajo, zato ga uporabimo le kot močan namig,
+#  ne kot izločitveni pogoj.)
+_VIN_TRANS = {**{str(d): d for d in range(10)},
+              "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8,
+              "J": 1, "K": 2, "L": 3, "M": 4, "N": 5, "P": 7, "R": 9,
+              "S": 2, "T": 3, "U": 4, "V": 5, "W": 6, "X": 7, "Y": 8, "Z": 9}
+_VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2]
+
+
+def _vin_check_valid(vin):
+    if len(vin) != 17:
+        return False
+    total = 0
+    for ch, w in zip(vin, _VIN_WEIGHTS):
+        if ch not in _VIN_TRANS:
+            return False
+        total += _VIN_TRANS[ch] * w
+    r = total % 11
+    check = "X" if r == 10 else str(r)
+    return vin[8] == check
+
+
+# Napisi s prometnega dovoljenja in tablic, ki NISO VIN. Odstranimo jih iz
+# besedila, preden iščemo številko – sicer iz samih črk napisa (I→1, O→0)
+# nastane niz, ki je na pogled videti kot VIN.
+_LABEL_RE = re.compile(
+    r"IDENTIFIKAC\w*|[ŠS]TEVILK\w*|VOZIL\w*|LETO|IZDELAV\w*|PROMETN\w*|"
+    r"DOVOLJENJ\w*|REGISTRSK\w*|VELJAVN\w*|LASTNI\w*|SEDE[ŽZ]\w*|"
+    r"TIP|VARIANTA|IZVEDBA|ZNAMKA|MODEL|BARVA|MASA|NAJVE[ČC]J\w*|"
+    r"VIN|CHASSIS|FAHRGESTELL|FRAME\s*N[OR]\w*"
+)
+
+
+# Oznaka, ki na tablici ali v dovoljenju stoji tik pred šasijsko številko.
+# Kar ji sledi, je skoraj zagotovo VIN – to je najmočnejši posamičen namig.
+_LABEL_NEAR_RE = re.compile(
+    r"(?:VIN|CHASSIS|FAHRGESTELL(?:NUMMER)?|[ŠS]ASIJ\w*|"
+    r"IDENTIFIKACIJSK\w*(?:\s+[ŠS]TEVILK\w*)?)"
+    r"[\s:.–—-]*(?P<val>[A-Z0-9][A-Z0-9 \-]{15,34})"
+)
+
+_VIN_SHAPE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
+
+
+def _vin_substitute(s):
+    """VIN nima črk I, O in Q – vedno so to števke."""
+    return s.replace("I", "1").replace("O", "0").replace("Q", "0")
+
+
+def _emit_windows(raw_chunk, bonus, offer):
+    """Vsa 17-znakovna okna v nizu, ki so po obliki lahko VIN."""
+    sub = _vin_substitute(raw_chunk)        # pretvorba je znak za znak – indeksi se ujemajo
+    for i in range(0, max(0, len(sub) - 16)):
+        w = sub[i:i + 17]
+        if not _VIN_SHAPE.match(w):
+            continue
+        digits = sum(c.isdigit() for c in w)
+        letters = 17 - digits
+        # „Native" so števke, ki so bile števke že pred pretvorbo I→1 / O→0.
+        # Brez tega pogoja bi iz besedila „REPUBLIKA SLOVENIJA" nastal
+        # navidezni VIN.
+        native = sum(c.isdigit() for c in raw_chunk[i:i + 17])
+        if native < 2 or digits < 3 or letters < 3:
+            continue
+        offer(w, bonus)
+
+
+def _vin_candidates(text):
+    """Iz besedila izlušči vse verjetne 17-mestne VIN kandidate, urejene po
+    oceni (najboljši prvi).
+
+    Posnetek sme vsebovati poljubno drugo besedilo – registrsko, kode delov,
+    datume, številko homologacije. Pravi VIN prepoznamo po tem, da:
+      • stoji kot samostojen 17-znakovni blok (ne izrezan iz daljšega niza),
+      • mu včasih neposredno predhodi oznaka (VIN, šasija, Fahrgestell …),
+      • ustreza obliki VIN (brez I/O/Q, veljavno leto, zaporedna št. na koncu).
+    """
+    if not text:
+        return []
+
+    upper = text.upper()
+
+    bonus = {}
+
+    def offer(vin, b):
+        if b > bonus.get(vin, -999):
+            bonus[vin] = b
+
+    # 1) Številka tik za oznako – najmočnejši namig
+    labelled = {}
+    for m in _LABEL_NEAR_RE.finditer(upper):
+        val = re.sub(r"[^A-Z0-9]", "", m.group("val"))
+        _emit_windows(val, 0, lambda v, _b: labelled.setdefault(v, True))
+
+    # 2) Po vrsticah: sosednje bloke znakov združujemo, ker OCR VIN pogosto
+    #    razbije s presledkom (npr. „WVWZZZ1KZ AW000001").
+    cleaned = _LABEL_RE.sub(" ", upper)
+    for line in cleaned.splitlines():
+        runs = re.findall(r"[A-Z0-9]+", line)
+        for i in range(len(runs)):
+            if len(runs[i]) > 30:
+                # Zelo dolg niz – VIN je lahko le del njega, zato z odbitkom.
+                _emit_windows(runs[i], -8, offer)
+                continue
+            total = ""
+            for j in range(i, len(runs)):
+                total += runs[j]
+                if len(total) > 30:
+                    break
+                if len(total) < 17:
+                    continue
+                if len(total) == 17:
+                    b = 30          # samostojen blok točno 17 znakov
+                elif len(total) <= 20:
+                    b = 10
+                else:
+                    b = 0           # izrezan iz daljše kaše – brez prednosti
+                _emit_windows(total, b, offer)
+
+    # 3) Če po vrsticah ni nič, poskusi čez celotno besedilo
+    if not bonus:
+        _emit_windows(re.sub(r"[^A-Z0-9]", "", cleaned), -5, offer)
+
+    def total_score(v):
+        return _vin_score(v) + bonus[v] + (25 if v in labelled else 0)
+
+    return sorted(bonus, key=total_score, reverse=True)
+
+
+def _vin_cleanup(text):
+    """Združljivost nazaj: vrne enega, najboljšega kandidata."""
+    c = _vin_candidates(text)
+    return c[0] if c else ""
+
+
+# Znane predpone proizvajalcev (WMI) – močan namig, da gre res za VIN.
+KNOWN_WMI = (
+    "WVW", "WVG", "WV1", "WV2", "WAU", "WA1", "TRU", "WME", "W0L", "W0V", "VXK",
+    "WBA", "WBS", "WBY", "4US", "5UX", "WBX",
+    "WDB", "WDC", "WDD", "WDF", "W1K", "W1N", "W1V", "W1T", "VSA",
+    "VF1", "VF3", "VF7", "VF6", "VF8", "VF9", "VR1", "VR3", "VR7",
+    "ZFA", "ZFF", "ZAR", "ZAC", "ZAM", "ZFC",
+    "TMB", "TMP", "TMK", "TMA", "TMH",
+    "VSS", "VSK", "VSE", "VSX",
+    "SB1", "SJN", "JTD", "JTM", "JT1", "JTE", "JHM", "JHL", "SHH", "SHS", "NLA",
+    "KMH", "KNA", "KNB", "KNE", "U5Y", "U6Y", "KNM", "VNK",
+    "1C4", "SAL", "SAJ", "SAD", "SCA", "SCB",
+    "YV1", "YV4", "YS3", "YK1",
+    "LVS", "LGX", "LC0", "LSV", "L6T", "LB3",
+    "MA1", "MA3", "MAT", "MEE", "ML3",
+    "3VW", "9BW", "8AW", "93Y", "935", "936", "8A1", "9BD",
+    "ZDM", "ZD4", "ZKH", "JYA", "JS1", "JKA", "VTT", "MLH", "VBK",
+    "WP0", "WP1", "WF0", "WFO", "VNE", "VN1", "NM0", "ZCF", "ZAP",
+    "1HG", "2HG", "3HG", "19X", "2HK", "5J6", "5FN", "1FA", "1FT",
+    "1G1", "1GC", "1N4", "5N1", "4T1", "5TD", "2T1", "1C6", "3C4",
+)
+
+
+def _vin_score(v):
+    """Oceni, kako verjetno je niz pravi VIN."""
+    if not v or len(v) != 17:
+        return -100
+    digits = sum(ch.isdigit() for ch in v)
+    letters = 17 - digits
+    s = 0
+    if _vin_check_valid(v):
+        s += 40
+    if v[:3] in KNOWN_WMI:
+        s += 25
+    if 3 <= digits <= 12:
+        s += 5
+    if 5 <= letters <= 14:
+        s += 5
+    # 10. znak je leto izdelave – nikoli I, O, Q, U, Z ali 0
+    if v[9] in "ABCDEFGHJKLMNPRSTVWXY123456789":
+        s += 3
+    # Zadnjih šest znakov je zaporedna številka vozila – pri skoraj vseh
+    # proizvajalcih same števke. Vsaka črka tam je znak napačnega branja.
+    s -= 3 * sum(ch.isalpha() for ch in v[11:])
+    # pet enakih znakov zapored je skoraj zagotovo napaka branja
+    if re.search(r"(.)\1{4,}", v):
+        s -= 15
+    return s
+
+
+# OPOMBA: tu je bil samodejni popravek posameznega znaka po kontrolni številki.
+# Odstranjen je namerno. Prebrano številko puščamo TOČNO tako, kot jo vrne
+# bralnik – popravljanje je pravilno prebrano šasijsko številko pokvarilo.
+# Kontrolno številko še vedno preverimo, a jo samo SPOROČIMO, ne spreminjamo.
+
+
+# ── Bralnik 1: vizualni model (Gemini) ────────────────────────────────────────
+# Navaden OCR prebere ZNAKE in šele nato ugibamo, kateri niz je VIN. Vizualni
+# model ve, KAJ je VIN: pozna obliko, ve, da črk I, O in Q ni, in zna ločiti
+# šasijsko številko od registrske, homologacije ali kode motorja na isti sliki.
+# Zato je za to nalogo bistveno zanesljivejši od branja znak za znakom.
+
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+# Zapomnimo si izbrana modela in ali ta model dovoli izklop „razmišljanja".
+_gemini_cache = {"model": None, "strong": None, "no_think": {}}
+
+VIN_PROMPT = """You are reading a Vehicle Identification Number (VIN) from photographs.
+
+The images show the SAME subject rendered differently (for example one raw and one
+contrast-enhanced). Use them together to confirm each character.
+
+The VIN may appear:
+- stamped or embossed on a metal plate, chassis or engine bay sticker
+- etched on the windscreen
+- printed on a vehicle registration certificate. On a Slovenian "prometno dovoljenje"
+  it is field E. German documents call it "Fahrgestellnummer"; Slovenian workshops
+  also say "sasijska stevilka".
+
+Rules:
+- A VIN is EXACTLY 17 characters, letters A-Z and digits 0-9.
+- The letters I, O and Q NEVER appear in a VIN. A character that looks like I, O or Q
+  is 1, 0 or 0.
+- Take extra care with commonly confused pairs: 8/B, 5/S, 2/Z, 0/D, 6/G, 1/7, 4/A, M/W.
+- The last 6 characters are almost always digits (the serial number).
+- IGNORE every other number in the image: registration plate, type approval number
+  (e.g. e1*2007/46*0623*05), engine code, dates, masses, part numbers, phone numbers.
+- Do NOT guess and do NOT invent. If you cannot read all 17 characters with confidence,
+  return null for vin.
+
+Answer with strict JSON only, no other text:
+{"vin": "<the 17 characters, or null>", "confidence": "high" | "medium" | "low",
+ "where": "<a few words: where on the image you read it>"}"""
+
+
+def _gemini_pick_models(api_key):
+    """Izbere dva modela: hitrega za prvi poskus in močnejšega za drugi.
+
+    Imena modelov se pri Googlu sčasoma spreminjajo, zato jih preberemo iz
+    njihovega seznama in izberemo sami. Z GEMINI_MODEL vsiliš hitrega,
+    z GEMINI_MODEL_STRONG pa močnejšega.
+
+    Vrne (hitri, mocni). Močnejši je lahko None, če ga ni na voljo.
+    """
+    forced      = os.environ.get("GEMINI_MODEL", "").strip()
+    forced_str  = os.environ.get("GEMINI_MODEL_STRONG", "").strip()
+    if forced and forced_str:
+        return forced, forced_str
+    if _gemini_cache["model"]:
+        # strong == False pomeni „pogledali smo in močnejšega modela ni" –
+        # tudi to je veljaven odgovor, zato seznama ne beremo znova.
+        shranjen = _gemini_cache["strong"]
+        return (forced or _gemini_cache["model"],
+                forced_str or (shranjen if shranjen else None))
+
+    hiter, mocan = None, None
+    try:
+        url = f"{GEMINI_BASE}/models?pageSize=1000"
+        req = urllib.request.Request(url, headers={"x-goog-api-key": api_key})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read().decode())
+
+        najboljsi = {"flash": (None, None), "pro": (None, None)}
+        for m in data.get("models", []):
+            name = (m.get("name") or "").split("/")[-1]
+            methods = m.get("supportedGenerationMethods") or m.get("supportedActions") or []
+            if "generateContent" not in methods:
+                continue
+            low = name.lower()
+            # Modeli, ki za branje slike niso primerni
+            if any(x in low for x in ("embed", "tts", "live", "audio", "image-gen",
+                                      "flash-image", "imagen", "veo", "aqa",
+                                      "thinking-exp", "learnlm")):
+                continue
+            vrsta = "pro" if "pro" in low else ("flash" if "flash" in low else None)
+            if not vrsta:
+                continue
+            nums = re.findall(r"\d+(?:\.\d+)?", name)
+            version = float(nums[0]) if nums else 0.0
+            # Vrstni red je pomemben: STABILNOST pred številko različice.
+            # Preview model z višjo številko je za vsakodnevno delo slabša
+            # izbira kot preverjen stabilni model – pri branju šasijske
+            # številke šteje zanesljivost, ne novost.
+            key = (0 if ("preview" in low or "-exp" in low or low.endswith("exp")) else 1,
+                   0 if "lite" in low else 1,
+                   version,
+                   -len(name))
+            if najboljsi[vrsta][1] is None or key > najboljsi[vrsta][1]:
+                najboljsi[vrsta] = (name, key)
+
+        hiter = najboljsi["flash"][0]
+        mocan = najboljsi["pro"][0]
+        # Brez flasha naj bo pro glavni; brez pro ostane samo flash
+        if not hiter:
+            hiter, mocan = mocan, None
+        _gemini_cache["model"]  = hiter
+        _gemini_cache["strong"] = mocan or False
+    except Exception as e:
+        print(f"⚠️  Seznama modelov Gemini ni bilo mogoče prebrati: {e}")
+
+    return (forced or hiter or "gemini-3.8-flash",
+            forced_str or mocan or None)
+
+
+def _gemini_pick_model(api_key):
+    """Združljivost s starejšimi klici – vrne samo hitri model."""
+    return _gemini_pick_models(api_key)[0]
+
+
+def _gemini_call(api_key, model, images_b64, prompt, misli=False, max_tok=2048):
+    """Eno vprašanje vizualnemu modelu. Vrne (besedilo, finishReason, surovo).
+
+    POMEMBNO: pri modelih Gemini 2.5 in novejših je „razmišljanje" privzeto
+    vklopljeno in ti tokeni se štejejo v maxOutputTokens. Z nizko mejo model
+    porabi vse za razmišljanje in vrne PRAZEN odgovor s finishReason
+    MAX_TOKENS – branje VIN je takrat videti, kot da ni prepoznal ničesar.
+    Zato razmišljanje izklopimo in pustimo visoko mejo.
+    """
+    # Če je ta model izklop razmišljanja že enkrat zavrnil, ga ne pošiljamo
+    # več – tako ne izgubljamo enega klica pri vsakem branju.
+    if _gemini_cache["no_think"].get(model) is False:
+        misli, max_tok = True, max(max_tok, 4096)
+
+    gen = {
+        "temperature": 0,
+        "responseMimeType": "application/json",
+        "maxOutputTokens": max_tok,
+    }
+    if not misli:
+        gen["thinkingConfig"] = {"thinkingBudget": 0}
+
+    parts = [{"inline_data": {"mime_type": "image/jpeg", "data": b}} for b in images_b64[:4]]
+    parts.append({"text": prompt})
+
+    payload = json.dumps({"contents": [{"parts": parts}],
+                          "generationConfig": gen}).encode()
+    url = f"{GEMINI_BASE}/models/{urllib.parse.quote(model)}:generateContent"
+    req = urllib.request.Request(url, data=payload, headers={
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key,
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=75) as r:
+            res = json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        telo = ""
+        try:
+            telo = e.read().decode()[:500]
+        except Exception:
+            pass
+        # Nekateri modeli (npr. „pro") razmišljanja ne dovolijo izklopiti.
+        # Takrat poskusimo še enkrat brez te nastavitve.
+        if (not misli and e.code == 400
+                and ("thinking" in telo.lower() or "thinkingbudget" in telo.lower())):
+            _gemini_cache["no_think"][model] = False
+            return _gemini_call(api_key, model, images_b64, prompt,
+                                misli=True, max_tok=max(max_tok, 4096))
+        raise RuntimeError(f"HTTP {e.code}: {telo}") from None
+
+    cands = res.get("candidates") or []
+    finish = (cands[0].get("finishReason") if cands else None) or ""
+    txt = ""
+    for cand in cands:
+        for p in ((cand.get("content") or {}).get("parts") or []):
+            if not p.get("thought"):
+                txt += p.get("text") or ""
+    return txt, finish, json.dumps(res)[:600]
+
+
+def _gemini_parse_vin(txt):
+    """Iz odgovora modela izlušči VIN. Ne popravlja znakov – samo preveri obliko."""
+    if not txt:
+        return None, None, None
+    try:
+        obj = json.loads(txt)
+    except Exception:
+        m = re.search(r"\{.*\}", txt, re.S)
+        if not m:
+            return None, None, None
+        try:
+            obj = json.loads(m.group(0))
+        except Exception:
+            return None, None, None
+    if not isinstance(obj, dict):
+        return None, None, None
+
+    vin = obj.get("vin")
+    conf, where = obj.get("confidence"), obj.get("where")
+    if not isinstance(vin, str):
+        return None, conf, where
+    vin = re.sub(r"[^A-Z0-9]", "", vin.upper())
+    # I/O/Q v šasijski številki po standardu ne obstajajo – to ni ugibanje,
+    # ampak branje istega znaka s pravim imenom.
+    vin = vin.replace("I", "1").replace("O", "0").replace("Q", "0")
+    if not _VIN_SHAPE.match(vin):
+        return None, conf, where
+    return vin, conf, where
+
+
+VIN_PROMPT_2 = """Look at these images of a vehicle registration document or a VIN plate.
+
+List EVERY string of 17 characters that could be a Vehicle Identification Number,
+reading as carefully as you can, character by character.
+
+A VIN is exactly 17 characters, A-Z and 0-9, and never contains I, O or Q.
+On a Slovenian "prometno dovoljenje" the VIN is field E.
+The last 6 characters are usually digits.
+Do NOT return the registration plate, the type-approval number
+(e.g. e1*2007/46*0623*05), the engine code, dates or masses.
+
+Answer with strict JSON only:
+{"vin": "<the most likely 17 characters, or null>",
+ "alternatives": ["<other 17-char readings you considered>"],
+ "confidence": "high" | "medium" | "low",
+ "where": "<a few words: where you read it>"}"""
+
+
+def _gemini_read_vin(api_key, images_b64):
+    """Prebere VIN z vizualnim modelom. Vrne (vin, confidence, kje, podrobnosti).
+
+    Dve stopnji: najprej hitri model. Če ne najde ničesar ali ni prepričan,
+    vpraša še močnejši model z drugače zastavljenim vprašanjem. Drugi klic
+    se zgodi samo pri težkih slikah, zato je v praksi redek.
+    """
+    hiter, mocan = _gemini_pick_models(api_key)
+    dnevnik = []
+
+    poskusi = [(hiter, VIN_PROMPT, False)]
+    if mocan and mocan != hiter:
+        poskusi.append((mocan, VIN_PROMPT_2, True))
+    else:
+        # Brez močnejšega modela drugi poskus opravi isti model, a z
+        # dovoljenim razmišljanjem in drugače zastavljenim vprašanjem.
+        poskusi.append((hiter, VIN_PROMPT_2, True))
+
+    zadnji = None
+    for model, prompt, misli in poskusi:
+        try:
+            txt, finish, raw = _gemini_call(api_key, model, images_b64, prompt, misli=misli)
+        except Exception as e:
+            dnevnik.append({"model": model, "napaka": str(e)[:300]})
+            continue
+
+        vin, conf, where = _gemini_parse_vin(txt)
+        dnevnik.append({"model": model, "finish": finish, "vin": vin,
+                        "confidence": conf,
+                        "odgovor": (txt or "")[:200] or raw[:200]})
+
+        if vin and conf != "low":
+            return vin, conf, where, {"model": model, "poskusi": dnevnik}
+        if vin and zadnji is None:
+            zadnji = (vin, conf, where, model)        # obdržimo, če nič boljšega ne pride
+        if finish == "MAX_TOKENS" and not txt:
+            dnevnik[-1]["opomba"] = "odgovor je bil prazen (MAX_TOKENS)"
+
+    if zadnji:
+        return zadnji[0], zadnji[1], zadnji[2], {"model": zadnji[3], "poskusi": dnevnik}
+    return None, None, None, {"model": hiter, "poskusi": dnevnik}
+
+
+def _vision_text(api_key, img_b64, feature="TEXT_DETECTION"):
+    """Pošlje eno sliko v Google Vision in vrne prebrano besedilo.
+
+    Google zaračuna vsako lastnost (feature) posebej, zato pošljemo samo eno:
+      TEXT_DETECTION          – redko besedilo na fotografiji (tablica z VIN)
+      DOCUMENT_TEXT_DETECTION – gosto besedilo (prometno dovoljenje)
+    """
+    payload = json.dumps({
+        "requests": [{
+            "image": {"content": img_b64},
+            "features": [{"type": feature}],
+            "imageContext": {"languageHints": ["en", "sl"]},
+        }]
+    }).encode()
+
+    url = f"https://vision.googleapis.com/v1/images:annotate?key={urllib.parse.quote(api_key)}"
+    req = urllib.request.Request(url, data=payload,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        res = json.loads(r.read().decode())
+    anno = (res.get("responses") or [{}])[0]
+    text = (anno.get("fullTextAnnotation") or {}).get("text", "")
+    if not text:
+        ta = anno.get("textAnnotations") or []
+        text = ta[0].get("description", "") if ta else ""
+    return text
+
+
+@vehicles_bp.route("/api/vin-ocr", methods=["POST"])
+@login_required
+def api_vin_ocr():
+    """Prebere VIN z ene ali več slik.
+
+    Sprejme {"image": "<dataURL>"} (staro) ali {"images": [...], "prior": [...]}.
+    Pri več slikah o rezultatu glasujemo: ista napaka se na različnih posnetkih
+    redko ponovi, zato je najpogostejši odgovor skoraj vedno pravi.
+
+    Vrstni red bralnikov:
+      1. vizualni model (GEMINI_API_KEY) – ve, kaj je VIN, zato je najzanesljivejši
+      2. Google Cloud Vision (GOOGLE_VISION_API_KEY) – bere znake, VIN izluščimo sami
+      3. brez ključa → odjemalec pade na Tesseract v brskalniku
+    """
+    gem_key    = os.environ.get("GEMINI_API_KEY", "").strip()
+    api_key    = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
+    if not gem_key and not api_key:
+        return jsonify({"ok": False, "error": "no_key"}), 200  # rezerva (Tesseract) pri odjemalcu
+
+    data = request.get_json(silent=True) or {}
+    images = data.get("images")
+    if not images:
+        one = data.get("image")
+        images = [one] if one else []
+    if not isinstance(images, list):
+        images = [images]
+    images = [i for i in images if i][:4]        # največ 4 slike na zahtevo
+    if not images:
+        return jsonify({"ok": False, "error": "no_image"}), 400
+
+    # ── 1) Vizualni model ────────────────────────────────────────────────────
+    if gem_key:
+        b64s = [(i or "").split(",")[-1] for i in images if i]
+        diag = None
+        try:
+            vin, conf, where, diag = _gemini_read_vin(gem_key, b64s)
+        except Exception as e:
+            vin, conf, where = None, None, None
+            diag = {"napaka": str(e)[:300]}
+            print(f"⚠️  Gemini branje VIN ni uspelo: {e}")
+        if vin:
+            valid = _vin_check_valid(vin)
+            return jsonify({
+                "ok": True,
+                "vin": vin,
+                "valid": valid,
+                "engine": "ai",
+                "model": (diag or {}).get("model"),
+                "confidence": conf,
+                "where": where,
+                "votes": 1,
+                "confident": bool(valid or vin[:3] in KNOWN_WMI or conf == "high"),
+                "corrected": None,
+                "candidates": [vin],
+                "diag": diag,
+            })
+        # Vizualni model ni našel ničesar → poskusimo še s Cloud Vision
+        if not api_key:
+            return jsonify({"ok": False, "error": "no_vin", "engine": "ai",
+                            "diag": diag})
+
+    # ── 2) Google Cloud Vision ───────────────────────────────────────────────
+    # Katero branje je za ta posnetek bolj primerno. Drugo uporabimo le, če
+    # prvo ne najde ničesar – tako v običajnem primeru porabimo eno enoto.
+    if (data.get("mode") or "plate") == "document":
+        features = ("DOCUMENT_TEXT_DETECTION", "TEXT_DETECTION")
+    else:
+        features = ("TEXT_DETECTION", "DOCUMENT_TEXT_DETECTION")
+
+    # Dnevna varnostna omejitev (šteje se vsak klic na Vision)
+    try:
+        limit = int(os.environ.get("VISION_DAILY_LIMIT", "200"))
+    except ValueError:
+        limit = 200
+    today = date.today().isoformat()
+    if _vision_quota["day"] != today:
+        _vision_quota["day"] = today
+        _vision_quota["count"] = 0
+    if _vision_quota["count"] >= limit:
+        return jsonify({"ok": False, "error": "daily_limit"}), 200
+
+    votes = {}
+    raw_seen = ""
+    errors = []
+    tried = 0
+
+    def add_vote(vin, weight):
+        if vin:
+            votes[vin] = votes.get(vin, 0) + weight
+
+    # Kandidati iz prejšnjega kroga (odjemalec jih pošlje, da glasujemo skupaj)
+    for p in (data.get("prior") or [])[:4]:
+        if isinstance(p, str) and len(p) == 17:
+            add_vote(p.upper(), 1)
+
+    for img in images:
+        b64 = (img or "").split(",")[-1]
+        if not b64:
+            continue
+        tried += 1
+        for feat in features:
+            if _vision_quota["count"] >= limit:
+                break
+            try:
+                text = _vision_text(api_key, b64, feat)
+                _vision_quota["count"] += 1
+            except Exception as e:
+                errors.append(str(e))
+                break
+            if text and not raw_seen:
+                raw_seen = text
+            cands = _vin_candidates(text)
+            if cands:
+                # Prvi kandidat šteje polno, drugi pol – da ne izgubimo bližnjih
+                for idx, c in enumerate(cands[:2]):
+                    add_vote(c, 1 if idx == 0 else 0.5)
+                break          # našli smo; drugega načina branja ne rabimo
+
+        # Če je rezultat že zanesljiv, nadaljnjih slik ne pošiljamo – tako
+        # običajno porabimo eno samo enoto, tudi ko odjemalec pošlje več različic.
+        if votes:
+            top = max(votes.items(), key=lambda kv: (kv[1], _vin_score(kv[0])))
+            if _vin_check_valid(top[0]) or top[0][:3] in KNOWN_WMI or top[1] >= 2:
+                break
+
+    if not votes:
+        if errors and len(errors) >= tried > 0:
+            return jsonify({"ok": False, "error": errors[0]}), 502
+        if _vision_quota["count"] >= limit:
+            return jsonify({"ok": False, "error": "daily_limit"}), 200
+        return jsonify({"ok": False, "error": "no_vin", "raw": raw_seen[:200]})
+
+    # Zmaga največ glasov; ob izenačenju odloči ocena (kontrolna št., WMI …)
+    best = max(votes.items(), key=lambda kv: (kv[1], _vin_score(kv[0])))
+    vin, n_votes = best[0], best[1]
+
+    valid = _vin_check_valid(vin)
+    return jsonify({
+        "ok": True,
+        "vin": vin,
+        "valid": valid,
+        "engine": "vision",
+        "votes": int(n_votes) if float(n_votes).is_integer() else n_votes,
+        "confident": bool(valid or vin[:3] in KNOWN_WMI or n_votes >= 2),
+        "corrected": None,
+        "candidates": sorted(votes, key=lambda k: (votes[k], _vin_score(k)), reverse=True)[:4],
+    })
+
+
+@vehicles_bp.route("/api/vin-status")
+@login_required
+def api_vin_status():
+    """Pove, ali je na strežniku sploh nastavljen kakšen bralnik VIN.
+    Obrazec to prikaže takoj ob odprtju, da vzrok ni skrit."""
+    gem = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    vis = bool(os.environ.get("GOOGLE_VISION_API_KEY", "").strip())
+    return jsonify({
+        "engine": "ai" if gem else ("vision" if vis else "none"),
+        "gemini": gem,
+        "vision": vis,
+    })
+
+
+# ── Diagnostika: kaj se pri branju VIN dejansko dogaja ────────────────────────
+
+@vehicles_bp.route("/vin-test", methods=["GET", "POST"])
+@login_required
+def vin_test():
+    """Preizkusna stran: naložiš sliko in vidiš, kateri bralnik je tekel,
+    kaj je prebral in zakaj je izbral prav ta niz. Namenjeno iskanju vzroka,
+    ko branje ne deluje – da ni treba ugibati."""
+    if getattr(current_user, "role", "") == "kupec":
+        flash("Do te strani nimaš dostopa.", "danger")
+        return redirect(url_for("orders.list_orders"))
+
+    gem_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    vis_key = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
+
+    model_opis = os.environ.get("GEMINI_MODEL", "").strip()
+    if not model_opis and gem_key:
+        try:
+            h, m = _gemini_pick_models(gem_key)
+            model_opis = f"(samodejno) hitri: {h}" + (f" · močni: {m}" if m else "")
+        except Exception:
+            model_opis = "(samodejno)"
+    stanje = {
+        "gemini":  bool(gem_key),
+        "vision":  bool(vis_key),
+        "model":   model_opis or "(samodejno)",
+        "limit":   os.environ.get("VISION_DAILY_LIMIT", "200"),
+        "porabljeno": _vision_quota.get("count", 0),
+    }
+
+    izpis = None
+    if request.method == "POST":
+        f = request.files.get("slika")
+        if not f or not f.filename:
+            flash("Izberi sliko.", "danger")
+            return redirect(url_for("vehicles.vin_test"))
+
+        b64 = base64.b64encode(f.read()).decode()
+        izpis = {"koraki": []}
+
+        if gem_key:
+            try:
+                hiter, mocan = _gemini_pick_models(gem_key)
+                vin, conf, where, diag = _gemini_read_vin(gem_key, [b64])
+                izpis["koraki"].append({
+                    "ime": f"Vizualni model – skupni rezultat",
+                    "vin": vin or "—",
+                    "opis": (f"uporabljen model: {(diag or {}).get('model') or '?'} · "
+                             f"zanesljivost: {conf or '?'} · prebrano: {where or '?'} · "
+                             f"na voljo: hitri {hiter}, močni {mocan or '—'}"),
+                    "raw": "",
+                    "ok": bool(vin),
+                })
+                # Vsak posamezen poskus posebej – tu se vidi pravi vzrok
+                for i, p in enumerate((diag or {}).get("poskusi") or [], 1):
+                    if p.get("napaka"):
+                        opis = f"napaka: {p['napaka']}"
+                    else:
+                        opis = (f"zaključek: {p.get('finish') or '?'}"
+                                + (f" · zanesljivost: {p['confidence']}" if p.get("confidence") else "")
+                                + (f" · {p['opomba']}" if p.get("opomba") else ""))
+                    izpis["koraki"].append({
+                        "ime": f"   {i}. poskus · {p.get('model') or '?'}",
+                        "vin": p.get("vin") or "—",
+                        "opis": opis,
+                        "raw": p.get("odgovor") or "",
+                        "ok": bool(p.get("vin")),
+                    })
+            except Exception as e:
+                izpis["koraki"].append({"ime": "Vizualni model", "vin": "—",
+                                        "opis": f"napaka: {e}", "raw": "", "ok": False})
+        else:
+            izpis["koraki"].append({"ime": "Vizualni model", "vin": "—",
+                                    "opis": "GEMINI_API_KEY ni nastavljen", "raw": "", "ok": False})
+
+        if vis_key:
+            for feat in ("DOCUMENT_TEXT_DETECTION", "TEXT_DETECTION"):
+                try:
+                    text = _vision_text(vis_key, b64, feat)
+                    cands = _vin_candidates(text)
+                    izpis["koraki"].append({
+                        "ime": f"Cloud Vision ({feat})",
+                        "vin": cands[0] if cands else "—",
+                        "opis": ("kandidati: " + ", ".join(cands[:4])) if cands
+                                else "noben niz ne ustreza obliki VIN",
+                        "raw": text[:1200],
+                        "ok": bool(cands),
+                    })
+                except Exception as e:
+                    izpis["koraki"].append({"ime": f"Cloud Vision ({feat})", "vin": "—",
+                                            "opis": f"napaka: {e}", "raw": "", "ok": False})
+        else:
+            izpis["koraki"].append({"ime": "Cloud Vision", "vin": "—",
+                                    "opis": "GOOGLE_VISION_API_KEY ni nastavljen",
+                                    "raw": "", "ok": False})
+
+    return render_template("vehicles/vin_test.html", stanje=stanje, izpis=izpis)

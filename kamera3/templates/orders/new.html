@@ -1,0 +1,1368 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title|default('Novo naročilo') }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ cancel_url|default(url_for('orders.list_orders')) }}">{{ (kind == 'povprasevanje') and 'Povpraševanja' or 'Naročila' }}</a></li>
+  <li class="breadcrumb-item active">Novo</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <h1><i class="bi bi-plus-circle me-2 text-primary"></i>{{ page_title|default('Novo naročilo') }}</h1>
+</div>
+
+<form method="POST" id="order-form" enctype="multipart/form-data" action="{{ form_action|default(url_for('orders.new_order')) }}">
+
+<!-- ── 1. STRANKA ─────────────────────────────────────────────────────────── -->
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
+
+  {% if current_user.role == 'kupec' and current_user.username == 'bartog' %}
+  <!-- Bartog: končne stranke – vpiši ročno -->
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Ime in priimek stranke <span class="text-danger">*</span></label>
+      <input type="text" name="new_customer_name" class="form-control" placeholder="npr. Janez Novak"
+             value="{{ form_data.get('new_customer_name', '') }}" autocomplete="name" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Telefon <span class="text-danger">*</span></label>
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="npr. 041 123 456"
+             value="{{ form_data.get('new_customer_phone', '') }}" autocomplete="tel" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">E-pošta <span class="text-muted fw-normal">(neobvezno)</span></label>
+      <input type="email" name="new_customer_email" class="form-control" placeholder="ime@email.com"
+             value="{{ form_data.get('new_customer_email', '') }}">
+    </div>
+  </div>
+  <input type="hidden" name="customer_id" id="customer-select" value="new">
+  {% elif current_user.role == 'kupec' %}
+  <!-- Mehanik: stranka je zaklenjena na njegov račun -->
+  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:#f0f4ff; border:1px solid #c7d7f8;">
+    <i class="bi bi-person-fill text-primary fs-4"></i>
+    <div>
+      <div class="fw-bold">{{ (kupec_customer.name if kupec_customer else current_user.full_name) }}</div>
+      <div class="small text-muted mt-1">
+        {% if kupec_customer and kupec_customer.phone %}<span class="me-3"><i class="bi bi-telephone me-1"></i>{{ kupec_customer.phone }}</span>{% endif %}
+        {% if kupec_customer and kupec_customer.email %}<span><i class="bi bi-envelope me-1"></i>{{ kupec_customer.email }}</span>{% endif %}
+      </div>
+      <div class="small text-muted mt-1">Kontaktni podatki so določeni z vašim računom in jih ni mogoče spremeniti.</div>
+    </div>
+  </div>
+  {% if current_user.linked_customer_id %}
+  <input type="hidden" name="customer_id" id="customer-select" value="{{ current_user.linked_customer_id }}">
+  {% else %}
+  <input type="hidden" name="customer_id" id="customer-select" value="new">
+  <input type="hidden" name="new_customer_name" value="{{ current_user.full_name }}">
+  {% endif %}
+  {% else %}
+  <div class="mb-3">
+    <label class="form-label small fw-semibold">Izberi obstoječo stranko ali vpiši novo</label>
+    <div class="position-relative">
+      <input type="text" id="customer-search-inp" class="form-control"
+             placeholder="Začni pisati ime stranke ali vpiši novo…"
+             autocomplete="off"
+             value="{% if preselected_customer %}{% for c in customers %}{% if c.id|string == preselected_customer|string %}{{ c.name }}{% endif %}{% endfor %}{% endif %}">
+      <div id="customer-search-drop"
+           style="display:none; position:absolute; z-index:9999; width:100%;
+                  background:#fff; border:1px solid #c0ccda; border-radius:6px;
+                  max-height:280px; overflow-y:auto;
+                  box-shadow:0 6px 18px rgba(0,0,0,0.13);
+                  top:calc(100% + 2px); left:0;"></div>
+    </div>
+    <input type="hidden" name="customer_id" id="customer-select"
+           value="{{ preselected_customer or 'new' }}">
+    <div class="form-text">
+      <i class="bi bi-info-circle me-1"></i>Klikni za seznam strank · Tipkaj za iskanje · Pusti prazno ali vpiši novo = nova stranka
+    </div>
+    <!-- Telefon obstoječe stranke -->
+    <div id="existing-phone-wrap" style="display:none;" class="mt-2 p-2 rounded bg-light border">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <i class="bi bi-telephone text-muted small"></i>
+        <span class="small text-muted">Telefon stranke:</span>
+        <span id="phone-display" class="fw-semibold small text-dark"></span>
+        <input type="text" name="update_customer_phone" id="phone-edit-input"
+               class="form-control form-control-sm" style="max-width:220px; display:none;"
+               placeholder="Vpiši telefonsko številko…">
+        <input type="hidden" name="update_customer_id" id="update-customer-id">
+        <button type="button" id="phone-edit-btn" class="btn btn-sm btn-outline-warning py-0 px-2">
+          <i class="bi bi-pencil me-1"></i>Dodaj/uredi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nova stranka polja -->
+  <div id="new-customer-fields" class="row g-2"
+       style="{% if preselected_customer or current_user.role == 'kupec' %}display:none{% endif %}">
+    <div class="col-md-6">
+      <label class="form-label small">Ime in priimek / Podjetje *</label>
+      <input type="text" name="new_customer_name" class="form-control" placeholder="Janez Novak" value="{{ form_data.get('new_customer_name', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">Telefon</label>
+      <input type="text" name="new_customer_phone" class="form-control" placeholder="+386 …" value="{{ form_data.get('new_customer_phone', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">E-pošta</label>
+      <input type="email" name="new_customer_email" class="form-control" placeholder="…@…" value="{{ form_data.get('new_customer_email', '') }}">
+    </div>
+    <div class="col-12">
+      <label class="form-label small">Naslov</label>
+      <input type="text" name="new_customer_address" class="form-control" placeholder="Ulica, kraj" value="{{ form_data.get('new_customer_address', '') }}">
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── 2. VOZILO ──────────────────────────────────────────────────────────── -->
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-car-front"></i> Vozilo</div>
+
+  <!-- Hitri izbor že vpisanih vozil stranke -->
+  <div id="existing-vehicles" class="mb-3" style="display:none">
+    <label class="form-label small fw-semibold">Že vpisana vozila stranke (klikni za izbiro)</label>
+    <div id="ev-chips" class="d-flex gap-2 flex-wrap"></div>
+  </div>
+  <input type="hidden" name="existing_vehicle_id" id="existing_vehicle_id">
+  <div id="vehicle-loader" class="text-muted small mb-2" style="display:none">
+    <i class="bi bi-arrow-repeat spin"></i> Nalagam vozila…
+  </div>
+
+  <!-- VIN -->
+  <div class="form-section-title"><i class="bi bi-upc-scan"></i> Identifikacijska številka / VIN</div>
+  <div class="mb-2">
+    <div class="input-group">
+      <input type="text" name="new_vehicle_vin" id="nv_vin" class="form-control"
+             placeholder="npr. WVWZZZ1KZAW000001" maxlength="17"
+             style="font-family:monospace; letter-spacing:.06em; text-transform:uppercase">
+      <button type="button" class="btn btn-outline-primary" data-vs="decode">
+        <i class="bi bi-pencil me-1"></i>Uredi
+      </button>
+    </div>
+    <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
+      <button type="button" class="btn btn-primary btn-sm" id="nv_vin_cam_btn">
+        <i class="bi bi-camera me-1"></i>Fotografiraj identifikacijsko številko
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="nv_vin_up_btn">
+        <i class="bi bi-upload me-1"></i>Naloži sliko / printscreen
+      </button>
+      <input type="file" id="nv_vin_photo" accept="image/*" capture="environment" data-vs-skip style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <input type="file" id="nv_vin_photo_desk" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <input type="file" id="nv_vin_upload" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
+      <button type="button" class="btn btn-outline-info btn-sm" id="nv_vin_paste_btn">
+        <i class="bi bi-clipboard-image me-1"></i>Prilepi (Ctrl+V)
+      </button>
+    </div>
+    <!-- Predogled slike VIN (shrani se k naročilu) -->
+    <div id="nv_paste_preview" class="mt-2" style="display:none;">
+      <div class="d-inline-block position-relative">
+        <img id="nv_paste_img" style="max-height:120px; max-width:100%; border-radius:6px; border:1px solid #dee2e6;">
+        <button type="button" id="nv_photo_del" title="Izbriši sliko"
+                class="btn btn-danger btn-sm"
+                style="position:absolute; top:4px; right:4px; padding:2px 7px; line-height:1; border-radius:6px;">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+      <span class="small text-muted ms-2" id="nv_paste_name"></span>
+      <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>Slika bo shranjena k naročilu.</div>
+    </div>
+    <!-- Slika VIN se odda kot slika naročila (in se shrani) -->
+    <input type="file" id="vin_photo_store" name="order_images" multiple style="display:none">
+    <div id="nv_engine_warn" class="alert alert-danger small mt-2 mb-2" style="display:none"></div>
+    <div id="nv_status" class="small mt-2"></div>
+    <div class="form-text">Fotografiraj, naloži sliko ali <strong>prilepi printscreen</strong> (Ctrl+V) prometnega dovoljenja – aplikacija prebere šasijsko številko.</div>
+  </div>
+
+  <!-- Osnova -->
+  <div class="form-section-title mt-3"><i class="bi bi-car-front"></i> Osnova</div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Znamka *</label>
+      <input type="text" name="new_vehicle_brand" id="nv_brand" class="form-control"
+             placeholder="Začni tipkati…" autocomplete="off">
+      <datalist id="nv_brand_dl"></datalist>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Model *</label>
+      <input type="text" name="new_vehicle_model" id="nv_model" class="form-control"
+             placeholder="Začni tipkati…" autocomplete="off">
+      <datalist id="nv_model_dl"></datalist>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Letnik</label>
+      <select name="new_vehicle_year" id="nv_year" class="form-select">
+        <option value="">—</option>
+        {% for y in range(2027, 1979, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Pogon</label>
+      <select name="new_vehicle_fuel" id="nv_fuel" class="form-select">
+        <option value="">—</option>
+        <option>Bencin</option>
+        <option>Dizel</option>
+        <option>Električni</option>
+        <option>Hibridni</option>
+        <option>Plug-in hibrid</option>
+        <option>LPG / Plin</option>
+        <option>CNG</option>
+        <option>Vodik</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Motor -->
+  <div class="form-section-title mt-2"><i class="bi bi-gear"></i> Motor & menjalnik</div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Tip motorja</label>
+      <input type="text" name="new_vehicle_engine_type" id="nv_engine" class="form-control"
+             placeholder="npr. CAY, N47, CDI…" autocomplete="off" list="nv_engine_dl">
+      <datalist id="nv_engine_dl"></datalist>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Prostornina (l)</label>
+      <input type="text" name="new_vehicle_displacement" id="nv_displ" class="form-control" placeholder="2.0">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Moč (kW)</label>
+      <input type="text" name="new_vehicle_power" id="nv_power" class="form-control" placeholder="110">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Menjalnik</label>
+      <select name="new_vehicle_transmission" id="nv_transmission" class="form-select">
+        <option value="">—</option>
+        {% for tr in transmissions %}<option value="{{ tr }}">{{ tr|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3. PODROBNOSTI ─────────────────────────────────────────────────────── -->
+{% if current_user.role == 'kupec' %}
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-images"></i> Slike iskanega nadomestnega dela</div>
+  <p class="text-muted small mb-2">Lahko priložiš eno ali več slik (npr. star del, tablica vozila, koda).</p>
+  <input type="file" name="order_images" class="form-control" accept="image/*" multiple>
+  <input type="hidden" name="source" value="bartog">
+  <div class="mt-3">
+    <label class="form-label small fw-semibold">Opomba naročila</label>
+    <textarea name="notes" class="form-control" rows="3"
+              placeholder="Kaj potrebuješ / dodatne informacije…"></textarea>
+  </div>
+</div>
+{% else %}
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-info-circle"></i> Podrobnosti naročila</div>
+  <div class="row g-2">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Vir naročila <span class="text-danger">*</span></label>
+      <select name="source" class="form-select" required>
+        <option value="" disabled {% if not form_data.get('source') %}selected{% endif %}>— izberi vir —</option>
+        {% for s in sources %}
+        <option value="{{ s }}" {% if form_data.get('source') == s %}selected{% endif %}>{{ s|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-9">
+      <label class="form-label small fw-semibold">Opomba</label>
+      <input type="text" name="notes" class="form-control"
+             placeholder="Npr. stranka pokliče ko je pripravljeno…">
+    </div>
+  </div>
+  <div class="mt-3">
+    <label class="form-label small fw-semibold"><i class="bi bi-images me-1"></i>Slike iskanega nadomestnega dela</label>
+    <input type="file" name="order_images" class="form-control" accept="image/*" multiple>
+    <div class="form-text">Lahko priložiš eno ali več slik (npr. star del, tablica vozila, koda).</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── 4. POSTAVKE ───────────────────────────────────────────────────────── -->
+<div class="form-section">
+  {% if kind == 'povprasevanje' %}
+  <div class="form-section-title"><i class="bi bi-list-check"></i> Povpraševanje za nadomestne dele</div>
+  <p class="text-muted small mb-3">
+    Vpiši nadomestne dele, za katere povprašuješ. Pri vsaki vrstici lahko vpišeš tudi kataloško / IDENT in izvor.
+  </p>
+  {% else %}
+  <div class="form-section-title"><i class="bi bi-list-check"></i> Postavke naročila</div>
+  <p class="text-muted small mb-3">
+    {% if current_user.role == 'kupec' %}
+    Pokljukaj, kar potrebuješ. Neoznačeno se v naročilo ne shrani.
+    {% else %}
+    Pokljukaj, kar potrebuješ. Pri označeni postavki vpiši <strong>IDENT (Bartog)</strong> in <strong>izvor zaloge</strong> (npr. TQ, 5). Neoznačeno se v naročilo ne shrani.
+    {% endif %}
+  </p>
+  {% endif %}
+
+  {% if kind != 'povprasevanje' %}
+  {% if current_user.role != 'kupec' %}
+  <!-- Uvoz iz Bartog košarice (slika) -->
+  <div class="bi-importer mb-3">
+    <div class="form-section-title mb-2"><i class="bi bi-clipboard-data"></i> Uvoz iz slike (Bartog košarica)</div>
+    <div id="bi-drop" class="bi-drop">
+      <i class="bi bi-image fs-3 d-block mb-1"></i>
+      Klikni za nalaganje slike ali <strong>prilepi (Ctrl+V)</strong> print screen košarice.
+      <input type="file" id="bi-file" accept="image/*" hidden>
+    </div>
+    <div id="bi-status" class="small mt-2"></div>
+    <div id="bi-table" class="table-responsive mt-2"></div>
+    <button type="button" id="bi-apply" class="btn btn-success btn-sm" style="display:none">
+      <i class="bi bi-check-lg me-1"></i>Vpiši v naročilo
+    </button>
+  </div>
+  {% endif %}
+
+  {% for group in item_catalog %}
+  <div class="cat-block">
+    <div class="cat-head">{{ group.category }}</div>
+    <div class="cat-items">
+      {% for it in group['items'] %}
+      <div class="ci-row" data-key="{{ it.key }}">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="{{ it.key }}" class="form-check-input ci-cb">
+          <span class="ci-label">{{ it.label }}</span>
+        </label>
+        <div class="ci-inputs">
+          <input type="number" name="kol_{{ it.key }}" class="form-control form-control-sm"
+                 value="1" min="1" step="1" title="Količina" style="max-width:70px" autocomplete="off">
+          <input type="text" name="ident_{{ it.key }}" class="form-control form-control-sm"
+                 placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off">
+          {% if current_user.role != 'kupec' %}
+          <input type="text" name="izvor_{{ it.key }}" class="form-control form-control-sm"
+                 placeholder="Izvor (TQ, 5…)" autocomplete="off" style="max-width:140px">
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Pnevmatike -->
+  <datalist id="tb-car">{% for b in tire_brands %}<option value="{{ b }}">{% endfor %}</datalist>
+  <datalist id="tb-moto">{% for b in moto_brands %}<option value="{{ b }}">{% endfor %}</datalist>
+  <datalist id="tb-agro">{% for b in agro_brands %}<option value="{{ b }}">{% endfor %}</datalist>
+  <datalist id="tb-truck">{% for b in truck_brands %}<option value="{{ b }}">{% endfor %}</datalist>
+
+  <div class="cat-block">
+    <div class="cat-head">Pnevmatike</div>
+    <div class="cat-items">
+
+      <!-- Osebne -->
+      <div class="ci-row" data-key="PNEVMATIKE">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="PNEVMATIKE" class="form-check-input ci-cb">
+          <span class="ci-label">OSEBNE PNEVMATIKE</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <div class="tire-repeat" data-type="osebne" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <div class="tire-dims">
+                <select name="tire_width[]" class="form-select form-select-sm">
+                  <option value="">Š</option>
+                  {% for w in tire_widths %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+                </select>
+                <span class="tire-sep">/</span>
+                <select name="tire_aspect[]" class="form-select form-select-sm">
+                  <option value="">V</option>
+                  {% for a in tire_aspects %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+                </select>
+                <span class="tire-sep">R</span>
+                <select name="tire_diameter[]" class="form-select form-select-sm">
+                  <option value="">P</option>
+                  {% for d in tire_diameters %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                </select>
+              </div>
+              <select name="tire_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="tire_brand[]" class="form-control form-control-sm" list="tb-car"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_PNEVMATIKE[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_PNEVMATIKE[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Moto -->
+      <div class="ci-row" data-key="MOTO">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="MOTO" class="form-check-input ci-cb">
+          <span class="ci-label">MOTO PNEVMATIKE</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <div class="tire-repeat" data-type="moto" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="moto_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 120/70 ZR17)" autocomplete="off" style="max-width:200px">
+              <select name="moto_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="moto_brand[]" class="form-control form-control-sm" list="tb-moto"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_MOTO[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_MOTO[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agro -->
+      <div class="ci-row" data-key="AGRO">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="AGRO" class="form-check-input ci-cb">
+          <span class="ci-label">AGRO PNEVMATIKE</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <div class="tire-repeat" data-type="agro" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="agro_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 520/70 R38)" autocomplete="off" style="max-width:200px">
+              <select name="agro_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="agro_brand[]" class="form-control form-control-sm" list="tb-agro"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_AGRO[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_AGRO[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tovorne -->
+      <div class="ci-row" data-key="TOVORNE">
+        <label class="ci-check">
+          <input type="checkbox" name="items" value="TOVORNE" class="form-check-input ci-cb">
+          <span class="ci-label">TOVORNE PNEVMATIKE</span>
+        </label>
+        <div class="ci-inputs ci-inputs-wrap">
+          <div class="tire-repeat" data-type="tovorne" style="width:100%">
+            <div class="tire-line d-flex flex-wrap gap-2 mb-1 align-items-center">
+              <input type="text" name="tovorne_dim[]" class="form-control form-control-sm"
+                     placeholder="Dimenzija (npr. 315/80 R22.5)" autocomplete="off" style="max-width:200px">
+              <select name="tovorne_season[]" class="form-select form-select-sm" style="max-width:130px">
+                <option value="">Sezona</option>
+                {% for s in tire_seasons %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+              <input type="text" name="tovorne_brand[]" class="form-control form-control-sm" list="tb-truck"
+                     placeholder="Znamka" autocomplete="off" style="max-width:150px">
+              <input type="text" name="ident_TOVORNE[]" class="form-control form-control-sm"
+                     placeholder="{% if current_user.role == 'kupec' %}Opomba{% else %}Kataloška / IDENT{% endif %}" autocomplete="off" style="max-width:200px">
+              {% if current_user.role != 'kupec' %}<input type="text" name="izvor_TOVORNE[]" class="form-control form-control-sm"
+                     placeholder="Izvor" autocomplete="off" style="max-width:110px">{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Ostali material / Iskani nadomestni deli (povpraševanje) -->
+  <div class="cat-block">
+    <div class="cat-head">{% if kind == 'povprasevanje' %}Iskani nadomestni deli ali pnevmatike{% else %}Ostali material{% endif %}</div>
+    <div class="cat-items" id="ostali-list"></div>
+  </div>
+</div>
+
+<!-- ── Dostava ──────────────────────────────────────────────────────────────── -->
+{% if kind != 'povprasevanje' %}
+{% if current_user.role == 'kupec' %}
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-truck"></i> Kdaj potrebuješ nadomestne dele? *</div>
+  <p class="text-muted small mb-2">Izberi eno možnost (obvezno).</p>
+  <div class="urgency-options">
+    {% for key, label in delivery_urgency %}
+    <label class="urgency-opt">
+      <input type="radio" name="delivery_urgency" value="{{ key }}" required>
+      <span><i class="bi bi-check-circle me-1"></i>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="form-section">
+  <div class="form-section-title"><i class="bi bi-truck"></i> Urnik dostave</div>
+  <p class="text-muted small mb-2">Odhodi dostave iz Bartog Ajdovščine (pon–pet):</p>
+  <div class="d-flex flex-wrap gap-2">
+    {% for t in ['7.00','9.00','10.00','11.00','13.00','14.30'] %}
+    <span class="delivery-time-chip">
+      <i class="bi bi-clock me-1"></i>{{ t }}
+    </span>
+    {% endfor %}
+  </div>
+  <div class="form-text mt-2">Informativno – okvirni časi odhodov razvoza.</div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ── Submit ────────────────────────────────────────────────────────────── -->
+<div class="d-flex gap-2">
+  <button type="submit" class="btn btn-primary px-4">
+    <i class="bi bi-check-lg me-1"></i>{{ (kind == 'povprasevanje') and 'Ustvari povpraševanje' or 'Ustvari naročilo' }}
+  </button>
+  <a href="{{ cancel_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary">Prekliči</a>
+</div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{% include '_vehicle_smart_assets.html' %}
+{% if kind != 'povprasevanje' %}
+<script>
+  window.CATALOG_LABELS = {
+    {% for group in item_catalog %}{% for it in group['items'] %}"{{ it.key }}": "{{ group.category }} – {{ it.label }}",
+    {% endfor %}{% endfor %}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/bartog_import.js') }}"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ if (window.BartogImport) BartogImport.init(); });</script>
+{% endif %}
+<script>
+  VehicleSmart.apiModels = "{{ url_for('vehicles.api_models', make='__MAKE__') }}";
+  VehicleSmart.apiVin    = "{{ url_for('vehicles.api_decode_vin', vin='__VIN__') }}";
+  VehicleSmart.init({
+    make: 'nv_brand', model: 'nv_model', year: 'nv_year', vin: 'nv_vin',
+    engineType: 'nv_engine', displacement: 'nv_displ', power: 'nv_power',
+    transmission: 'nv_transmission', status: 'nv_status'
+  });
+</script>
+
+<script>
+/* ── VIN iz slike: KAMERA / prilepi (Ctrl+V) / naloži ───────────────────
+   Branje teče skozi VehicleSmart (static/js/vehicle_smart.js), da je stroj
+   povsod isti: črtna koda → odstranjevanje odsevov → Google Vision z
+   glasovanjem po več posnetkih → Tesseract kot rezerva. */
+(function() {
+  var statusEl   = document.getElementById('nv_status');
+  var vinInp     = document.getElementById('nv_vin');
+  var preview    = document.getElementById('nv_paste_preview');
+  var previewImg = document.getElementById('nv_paste_img');
+  var previewName= document.getElementById('nv_paste_name');
+
+  var KIND = { primary:'#2563eb', success:'#16a34a', warning:'#b45309',
+               danger:'#dc2626', muted:'#64748b' };
+
+  function setStatus(msg, color) {
+    if (statusEl) { statusEl.innerHTML = msg; statusEl.style.color = color || '#666'; }
+  }
+  // Vmesnik med stroječimi sporočili skenerja in barvami na tej strani
+  function engineStatus(msg, kind) { setStatus(msg, KIND[kind] || KIND.primary); }
+
+  // Slika se shrani k naročilu in pokaže v predogledu
+  function keepImage(file) {
+    if (!file) return;
+    if (preview && previewImg) {
+      previewImg.src = URL.createObjectURL(file);
+      preview.style.display = '';
+      if (previewName) previewName.textContent = file.name || 'slika';
+    }
+    var store = document.getElementById('vin_photo_store');
+    if (store) {
+      try {
+        var dt = new DataTransfer();
+        dt.items.add(prometnoIme(file));
+        store.files = dt.files;
+      } catch (e) {}
+    }
+  }
+
+  /* Sliki prometnega dovoljenja damo prepoznavno ime, da jo naročilo pozneje
+     zna poimenovati („Prometno dovoljenje / VIN") in je ne pomeša s slikami
+     nadomestnega dela. Če preimenovanje ne uspe, vrnemo izvirno datoteko –
+     slika se v vsakem primeru shrani. */
+  function prometnoIme(file) {
+    try {
+      var ext = (file.name || '').split('.').pop().toLowerCase();
+      if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) {
+        ext = (file.type === 'image/png') ? 'png' : 'jpg';
+      }
+      var ime = 'prometno-vin-' + Date.now() + '.' + ext;
+      return new File([file], ime, { type: file.type || 'image/jpeg',
+                                     lastModified: file.lastModified || Date.now() });
+    } catch (e) {
+      return file;
+    }
+  }
+
+  function showResult(res) {
+    if (!res || !res.vin) return false;
+    if (vinInp) {
+      vinInp.value = res.vin.toUpperCase();
+      vinInp.dispatchEvent(new Event('input'));
+    }
+    var v = '<strong>' + res.vin + '</strong>';
+    if (res.source === 'koda') {
+      setStatus('<i class="bi bi-upc-scan text-success me-1"></i>Šasijska prebrana s <strong>črtne kode</strong>: '
+                + v + ' — točno.', KIND.success);
+    } else if (res.valid) {
+      setStatus('<i class="bi bi-patch-check-fill text-success me-1"></i>Prebrana in <strong>preverjena</strong> '
+                + 'šasijska: ' + v + ' (kontrolna številka se ujema).', KIND.success);
+    } else if (res.votes && res.votes > 1) {
+      setStatus('<i class="bi bi-check-circle text-success me-1"></i>Prebrana šasijska: ' + v
+                + ' — enako prebrano na ' + res.votes + ' posnetkih.', KIND.success);
+    } else {
+      setStatus('<i class="bi bi-check-circle me-1"></i>Prebrana šasijska: ' + v
+                + ' — vpisana <strong>točno tako, kot je prebrana</strong>. '
+                + '(Kontrolna številka se ni ujela, kar je pri evropskih vozilih običajno.)', KIND.warning);
+    }
+    return true;
+  }
+
+  function failMsg(res) {
+    var why = res && res.unavailable;
+    if (why === 'no_key') {
+      setStatus('<i class="bi bi-x-octagon-fill text-danger me-1"></i><strong>Branje šasijske ni nastavljeno '
+        + 'na strežniku.</strong> Manjka ključ (GEMINI_API_KEY ali GOOGLE_VISION_API_KEY) med spremenljivkami '
+        + 'okolja na Renderju. Dokler ga ni, slike ni mogoče prebrati – vpiši ročno.', KIND.danger);
+      return;
+    }
+    if (why === 'daily_limit') {
+      setStatus('<i class="bi bi-hourglass-split me-1"></i>Dnevna meja branja je dosežena. '
+        + 'Dvigni VISION_DAILY_LIMIT na Renderju ali vpiši ročno.', KIND.warning);
+      return;
+    }
+    if (res && res.badImage) {
+      setStatus('<i class="bi bi-image me-1"></i>Te slike ni bilo mogoče odpreti. Poskusi z drugo.', KIND.warning);
+      return;
+    }
+    setStatus('<i class="bi bi-exclamation-triangle text-warning me-1"></i>Šasijske nisem prepoznal. '
+      + 'Najbolje deluje <strong>printscreen</strong> (Ctrl+V) ali fotografija <strong>samega dokumenta</strong> – '
+      + 'fotografiranje telefonskega zaslona je skoraj vedno preslabo. Lahko vpišeš tudi ročno.', KIND.warning);
+  }
+
+  function readFile(file) {
+    if (!file) return;
+    keepImage(file);
+    if (!window.VehicleSmart || !VehicleSmart.readImageFile) {
+      setStatus('Branje ni na voljo. Vpiši šasijsko ročno.', KIND.danger);
+      return;
+    }
+    VehicleSmart.readImageFile(file, engineStatus).then(function(res) {
+      if (!showResult(res)) failMsg(res);
+    }).catch(function() {
+      setStatus('<i class="bi bi-x-circle text-danger me-1"></i>Napaka pri branju slike.', KIND.danger);
+    });
+  }
+
+  // Ob odprtju strani preverimo, ali je na strežniku sploh kakšen bralnik.
+  // Brez tega bi delavec slikal in slikal, pa ne bi vedel, zakaj ne gre.
+  function checkEngine() {
+    var warn = document.getElementById('nv_engine_warn');
+    if (!warn) return;
+    fetch('/vehicles/api/vin-status').then(function(r) { return r.json(); }).then(function(d) {
+      if (d && d.engine === 'none') {
+        warn.style.display = '';
+        warn.innerHTML = '<i class="bi bi-x-octagon-fill me-1"></i>'
+          + '<strong>Branje šasijske številke ni nastavljeno.</strong><br>'
+          + 'Na Renderju manjka ključ <code>GEMINI_API_KEY</code> (ali <code>GOOGLE_VISION_API_KEY</code>) '
+          + 'med spremenljivkami okolja. Fotografiranje in nalaganje slik zato ne bo prebralo številke – '
+          + 'vpiši jo ročno. Podrobnosti: <a href="/vehicles/vin-test" class="alert-link">preizkus branja VIN</a>.';
+      }
+    }).catch(function() {});
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    checkEngine();
+    var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    var photoMob  = document.getElementById('nv_vin_photo');       // z capture (mobitel)
+    var photoDesk = document.getElementById('nv_vin_photo_desk');  // brez capture (računalnik)
+    var up        = document.getElementById('nv_vin_upload');
+
+    if (photoMob)  photoMob.addEventListener('change',  function() { if (this.files[0]) readFile(this.files[0]); });
+    if (photoDesk) photoDesk.addEventListener('change', function() { if (this.files[0]) readFile(this.files[0]); });
+    if (up)        up.addEventListener('change',        function() { if (this.files[0]) readFile(this.files[0]); });
+
+    // IZBRIŠI sliko VIN (če je slaba) → počisti shranjeno sliko in predogled
+    var photoDel = document.getElementById('nv_photo_del');
+    if (photoDel) {
+      photoDel.addEventListener('click', function() {
+        var store = document.getElementById('vin_photo_store');
+        if (store) { try { store.files = new DataTransfer().files; } catch (e) {} }
+        if (preview) preview.style.display = 'none';
+        if (previewImg) previewImg.src = '';
+        setStatus('<i class="bi bi-info-circle me-1"></i>Slika odstranjena. Lahko ponovno slikaš ali naložiš.', KIND.muted);
+      });
+    }
+
+    /* FOTOGRAFIRAJ gumb.
+
+       TELEFON: odpremo kamero naprave. Tak posnetek je najboljši – polna
+       ločljivost, prava izostritev, bliskavica.
+
+       RAČUNALNIK: `capture="environment"` tu ne naredi nič, brskalnik odpre
+       samo izbiro datoteke. Zato odpremo spletno kamero kot navaden
+       fotoaparat: živa slika, en gumb „Posnemi", nič branja v živo.
+       Če kamere ni ali je uporabnik ne dovoli, pademo na izbiro datoteke. */
+    var camBtn = document.getElementById('nv_vin_cam_btn');
+    if (camBtn) {
+      camBtn.addEventListener('click', function() {
+        /* Tudi na telefonu gremo najprej v kamero v brskalniku. Android si
+           zapomni, katero aplikacijo je uporabnik enkrat izbral za
+           `<input type="file">`, in če je to upravitelj datotek, se odpre
+           ta namesto kamere. Fotoaparat naprave je gumb v oknu. */
+        if (window.VehicleSmart && VehicleSmart.photoCamera) {
+          VehicleSmart.photoCamera(
+            function (f) { readFile(f); },                     // posneto (readFile sliko shrani)
+            function ()  { if (photoDesk) photoDesk.click(); } // ni kamere
+          );
+          return;
+        }
+
+        /* Sem pridemo samo, če je brskalnik naložil STARO skripto iz
+           predpomnilnika. Prej smo v tem primeru tiho odprli izbiro
+           datoteke in izgledalo je, kot da popravek ne dela. Zdaj
+           povemo, kaj je narobe. */
+        setStatus('<i class="bi bi-exclamation-triangle-fill me-1"></i>' +
+                  '<b>Brskalnik uporablja staro shranjeno različico strani.</b><br>' +
+                  'Pritisni <b>Ctrl+Shift+R</b> (na Macu <b>Cmd+Shift+R</b>). ' +
+                  'Če tudi to ne pomaga, odpri stran v oknu brez beleženja ' +
+                  'zgodovine (Ctrl+Shift+N) – tam bo kamera delala.', KIND.danger);
+        if (photoDesk) photoDesk.click();
+      });
+    }
+
+    // NALOŽI gumb
+    var upBtn = document.getElementById('nv_vin_up_btn');
+    if (upBtn && up) {
+      upBtn.addEventListener('click', function() { up.click(); });
+    }
+
+    // Prilepi gumb
+    var pb = document.getElementById('nv_vin_paste_btn');
+    if (pb) {
+      pb.addEventListener('click', function() {
+        setStatus('<i class="bi bi-clipboard me-1"></i>Pritisni <b>Ctrl+V</b> za prilepi sliko…', KIND.primary);
+      });
+    }
+
+    // Globalni Ctrl+V
+    document.addEventListener('paste', function(e) {
+      var active = document.activeElement;
+      var isText = active && (active.tagName === 'TEXTAREA' ||
+                  (active.tagName === 'INPUT' && active.type === 'text' && active.id !== 'nv_vin'));
+      if (isText) return;
+      var items = (e.clipboardData || {}).items || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image') === 0) {
+          e.preventDefault();
+          readFile(items[i].getAsFile());
+          if (vinInp) vinInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          break;
+        }
+      }
+    });
+  });
+})();
+</script>
+<script>
+const VEHICLE_API  = "{{ url_for('orders.get_customer_vehicles', customer_id=0) }}".replace('/0', '');
+const PRESEL_CUST  = "{{ preselected_customer or '' }}";
+const PRESEL_VEH   = "{{ preselected_vehicle or '' }}";
+window.IS_KUPEC = {{ 'true' if current_user.role == 'kupec' else 'false' }};
+
+// ── Postavke: prikaži polja samo za označene ──────────────────────────────
+document.querySelectorAll('.ci-cb').forEach(cb => {
+  cb.addEventListener('change', function () {
+    const row = this.closest('.ci-row');
+    row.classList.toggle('active', this.checked);
+    if (this.checked) {
+      const first = row.querySelector('.ci-inputs input, .ci-inputs select');
+      if (first) first.focus();
+    }
+  });
+});
+
+// ── Ostali material: samodejno dodajanje vrstic ───────────────────────────
+const ostaliList = document.getElementById('ostali-list');
+function makeOstaliRow() {
+  const div = document.createElement('div');
+  div.className = 'om-row';
+  const isKupec = window.IS_KUPEC === true;
+  const identPh = isKupec ? 'Opomba' : 'Kataloška / IDENT';
+  const izvorInput = isKupec ? '' :
+    '<input type="text" name="ostali_izvor[]" class="form-control form-control-sm" placeholder="Izvor" autocomplete="off" style="max-width:120px">';
+  div.innerHTML =
+    '<input type="text" name="ostali_opis[]" class="form-control form-control-sm" placeholder="Kaj je (opis)" autocomplete="off" style="flex:1; min-width:160px">' +
+    '<input type="text" name="ostali_ident[]" class="form-control form-control-sm" placeholder="' + identPh + '" autocomplete="off" style="flex:0 0 220px; max-width:220px">' +
+    izvorInput +
+    '<button type="button" class="om-del" title="Odstrani">&times;</button>';
+  return div;
+}
+function ensureTrailingEmpty() {
+  const rows = [...ostaliList.children];
+  const last = rows[rows.length - 1];
+  const hasContent = last && [...last.querySelectorAll('input')].some(i => i.value.trim() !== '');
+  if (hasContent) ostaliList.appendChild(makeOstaliRow());
+}
+if (ostaliList) {
+  ostaliList.addEventListener('input', ensureTrailingEmpty);
+  ostaliList.addEventListener('click', (e) => {
+    const del = e.target.closest('.om-del');
+    if (del) {
+      if (ostaliList.children.length > 1) del.closest('.om-row').remove();
+      else del.closest('.om-row').querySelectorAll('input').forEach(i => i.value = '');
+      ensureTrailingEmpty();
+    }
+  });
+  ostaliList.appendChild(makeOstaliRow());
+}
+
+// ── Customer → existing vehicles (chips) ──────────────────────────────────
+const custSel  = document.getElementById('customer-select');
+const newCustF = document.getElementById('new-customer-fields');
+const vehLoader= document.getElementById('vehicle-loader');
+const evWrap   = document.getElementById('existing-vehicles');
+const evChips  = document.getElementById('ev-chips');
+const exIdEl   = document.getElementById('existing_vehicle_id');
+
+const NV = {
+  vin: 'nv_vin', brand: 'nv_brand', model: 'nv_model', year: 'nv_year',
+  reg: 'new_vehicle_registration', engine: 'nv_engine'
+};
+
+function setF(id, val) { const el = document.getElementById(id); if (el) el.value = val || ''; }
+function setFName(name, val) { const el = document.querySelector(`[name="${name}"]`); if (el) el.value = val || ''; }
+
+function clearVehicleForm() {
+  exIdEl.value = '';
+  setF('nv_vin',''); setF('nv_brand',''); setF('nv_model','');
+  setFName('new_vehicle_registration',''); setF('nv_displ',''); setF('nv_power','');
+  const y=document.getElementById('nv_year'); if(y) y.value='';
+  const e=document.getElementById('nv_engine'); if(e) e.value='';
+  const t=document.getElementById('nv_transmission'); if(t) t.value='';
+  [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+}
+
+function selectExisting(v, chip) {
+  exIdEl.value = v.id;
+  setF('nv_brand', v.brand); setF('nv_model', v.model);
+  setF('nv_vin', v.vin);
+  const y=document.getElementById('nv_year'); if(y && v.year) y.value=String(v.year);
+  setFName('new_vehicle_registration', v.registration);
+  const e=document.getElementById('nv_engine'); if(e && v.engine_type) e.value=v.engine_type;
+  [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+  if (chip) chip.classList.add('active');
+}
+
+async function loadVehicles(customerId, preselId='') {
+  evChips.innerHTML = '';
+  evWrap.style.display = 'none';
+  exIdEl.value = '';
+  if (!customerId) return;
+  vehLoader.style.display = 'block';
+  try {
+    const resp = await fetch(`${VEHICLE_API}/${customerId}/vehicles`);
+    const data = await resp.json();
+    if (data.length) {
+      data.forEach(v => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ev-chip';
+        chip.textContent = v.name;
+        chip.addEventListener('click', () => selectExisting(v, chip));
+        evChips.appendChild(chip);
+        if (preselId && String(v.id) === String(preselId)) selectExisting(v, chip);
+      });
+      const novo = document.createElement('button');
+      novo.type = 'button';
+      novo.className = 'ev-chip ev-chip-new';
+      novo.innerHTML = '<i class="bi bi-plus-lg"></i> Novo vozilo';
+      novo.addEventListener('click', clearVehicleForm);
+      evChips.appendChild(novo);
+      evWrap.style.display = '';
+    }
+  } catch(e) { console.error(e); }
+  finally { vehLoader.style.display = 'none'; }
+}
+
+// če delavec ročno spremeni znamko/model, odvežemo izbrano obstoječe vozilo
+['nv_brand','nv_model','nv_vin'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => {
+    if (exIdEl.value) {
+      exIdEl.value = '';
+      [...evChips.querySelectorAll('.ev-chip')].forEach(c => c.classList.remove('active'));
+    }
+  });
+});
+
+// ── Stranka: searchable dropdown + ročni vnos ────────────────────────────
+var CUST_LIST = [
+  {% for c in customers %}
+  {id: "{{c.id}}", name: {{c.name|tojson}}, phone: {{(c.phone or '')|tojson}}},
+  {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+  var searchInp  = document.getElementById('customer-search-inp');
+  var searchDrop = document.getElementById('customer-search-drop');
+  if (!searchInp || !searchDrop || !custSel) return;
+
+  function renderDrop(list) {
+    searchDrop.innerHTML = '';
+    var addNew = document.createElement('div');
+    addNew.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:2px solid #e5eaf2;font-size:0.91rem;color:#2563eb;font-weight:600;';
+    addNew.innerHTML = '&#10010; Dodaj novo stranko (ročni vnos)';
+    addNew.addEventListener('mouseover', function(){ this.style.background='#eff6ff'; });
+    addNew.addEventListener('mouseout',  function(){ this.style.background=''; });
+    addNew.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      custSel.value = 'new';
+      searchDrop.style.display = 'none';
+      searchInp.value = '';
+      custSel.dispatchEvent(new Event('change'));
+    });
+    searchDrop.appendChild(addNew);
+    list.slice(0, 40).forEach(function(c) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:1px solid #f2f4f8;font-size:0.91rem;';
+      div.innerHTML = '<b>' + c.name + '</b>' + (c.phone ? ' <span style="color:#888;font-size:0.82rem;">· ' + c.phone + '</span>' : '');
+      div.addEventListener('mouseover', function(){ this.style.background='#eef2ff'; });
+      div.addEventListener('mouseout',  function(){ this.style.background=''; });
+      div.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        searchInp.value = c.name;
+        custSel.value   = c.id;
+        searchDrop.style.display = 'none';
+        custSel.dispatchEvent(new Event('change'));
+      });
+      searchDrop.appendChild(div);
+    });
+    searchDrop.style.display = 'block';
+  }
+
+  function openDrop() {
+    var q = searchInp.value.toLowerCase().trim();
+    var res = q ? CUST_LIST.filter(function(c){
+      return c.name.toLowerCase().indexOf(q) >= 0 || (c.phone && c.phone.indexOf(q) >= 0);
+    }) : CUST_LIST;
+    renderDrop(res);
+  }
+
+  searchInp.addEventListener('click', openDrop);
+  searchInp.addEventListener('focus', openDrop);
+  searchInp.addEventListener('input', function(){
+    custSel.value = 'new';
+    openDrop();
+  });
+  searchInp.addEventListener('blur', function(){
+    setTimeout(function(){
+      searchDrop.style.display = 'none';
+      if (custSel.value === 'new') {
+        if (searchInp.value.trim() && newCustF) {
+          var nameEl = newCustF.querySelector('[name="new_customer_name"]');
+          if (nameEl && !nameEl.value) nameEl.value = searchInp.value.trim();
+        }
+        if (newCustF) newCustF.style.display = '';
+      }
+    }, 220);
+  });
+
+  document.addEventListener('mousedown', function(e){
+    if (e.target !== searchInp && !searchDrop.contains(e.target)){
+      searchDrop.style.display = 'none';
+    }
+  });
+});
+
+// Listener za change na custSel (hidden input)
+custSel && custSel.addEventListener('change', function() {
+  var val = custSel.value;
+  if (val === 'new') {
+    if (newCustF) newCustF.style.display = '';
+    evWrap.style.display = 'none';
+    evChips.innerHTML = '';
+    if (exIdEl) exIdEl.value = '';
+    // Skrij telefon sekcijo
+    var pw = document.getElementById('existing-phone-wrap');
+    if (pw) pw.style.display = 'none';
+  } else {
+    if (newCustF) newCustF.style.display = 'none';
+    loadVehicles(val);
+    // Pokaži telefon stranke
+    _showCustomerPhone(val);
+  }
+});
+
+function _showCustomerPhone(custId) {
+  var pw = document.getElementById('existing-phone-wrap');
+  var pd = document.getElementById('phone-display');
+  var pi = document.getElementById('phone-edit-input');
+  var uc = document.getElementById('update-customer-id');
+  var btn = document.getElementById('phone-edit-btn');
+  if (!pw || !pd) return;
+  // Poišči stranko v CUST_LIST
+  var cust = null;
+  if (typeof CUST_LIST !== 'undefined') {
+    for (var i = 0; i < CUST_LIST.length; i++) {
+      if (String(CUST_LIST[i].id) === String(custId)) { cust = CUST_LIST[i]; break; }
+    }
+  }
+  if (!cust) return;
+  if (uc) uc.value = custId;
+  pw.style.display = '';
+  if (cust.phone) {
+    pd.textContent = cust.phone;
+    pi.value = cust.phone;
+    pi.style.display = 'none';
+    pd.style.display = '';
+  } else {
+    pd.textContent = '— ni telefona —';
+    pi.value = '';
+    pi.style.display = '';  // Takoj pokaži input
+    pd.style.display = '';
+    pd.style.color = '#aaa';
+  }
+  // Gumb za urejanje
+  if (btn) {
+    btn.onclick = function() {
+      if (pi.style.display === 'none') {
+        pi.style.display = '';
+        pi.focus();
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Shrani';
+      } else {
+        pi.style.display = 'none';
+        if (pi.value) pd.textContent = pi.value;
+        btn.innerHTML = '<i class="bi bi-pencil me-1"></i>Dodaj/uredi';
+      }
+    };
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  if (!custSel) return;
+  if (PRESEL_CUST && custSel.value !== 'new') {
+    if (newCustF) newCustF.style.display = 'none';
+    loadVehicles(PRESEL_CUST, PRESEL_VEH);
+  } else {
+    if (newCustF) newCustF.style.display = '';
+  }
+});
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display:inline-block; animation: spin .8s linear infinite; }
+
+.cat-block { border:1px solid var(--border,#e5eaf2); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.cat-head {
+  background:#151c2c; color:#fff; font-weight:700;
+  padding:9px 14px; font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
+}
+.cat-items { padding:2px 0; }
+.ci-row {
+  display:flex; align-items:center; gap:12px;
+  padding:7px 14px; border-bottom:1px solid #f0f4f9; flex-wrap:wrap;
+  transition:background .12s;
+}
+.ci-row:last-child { border-bottom:none; }
+.ci-row.active { background:#eff6ff; }
+.ci-check { display:flex; align-items:center; gap:10px; min-width:210px; margin:0; cursor:pointer; }
+.ci-cb { width:18px; height:18px; cursor:pointer; flex-shrink:0; }
+.ci-label { font-family:monospace; font-weight:700; font-size:.86rem; color:#334155; }
+.ci-row.active .ci-label { color:#1d4ed8; }
+.ci-inputs { display:none; gap:8px; flex:1; align-items:center; flex-wrap:wrap; min-width:240px; }
+.ci-row.active .ci-inputs { display:flex; }
+.ci-inputs .form-control { max-width:200px; }
+.tire-dims { display:flex; align-items:center; gap:4px; }
+.tire-dims .form-select { width:auto; min-width:64px; }
+.tire-sep { font-weight:700; color:#64748b; }
+
+.ev-chip {
+  border:1px solid #cbd5e1; background:#fff; color:#334155;
+  border-radius:20px; padding:5px 14px; font-size:.84rem; cursor:pointer;
+  transition:all .12s;
+}
+.ev-chip:hover { border-color:#3b82f6; color:#1d4ed8; }
+.ev-chip.active { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+.ev-chip-new { border-style:dashed; color:#64748b; }
+
+.om-row { display:flex; gap:8px; align-items:center; padding:7px 14px; border-bottom:1px solid #f0f4f9; flex-wrap:wrap; }
+.om-row:last-child { border-bottom:none; }
+.om-del { border:none; background:none; color:#cbd5e1; font-size:1.4rem; line-height:1; cursor:pointer; padding:0 6px; }
+.om-del:hover { color:#ef4444; }
+</style>
+
+<script>
+var VD={"Volkswagen":{m:["Golf","Polo","Passat","Tiguan","Touareg","T-Roc","T-Cross","Arteon","Sharan","Touran","Caddy","Transporter","Crafter","Amarok","Up!","ID.3","ID.4","ID.5","Scirocco","Jetta"],e:["AAZ","ABF","AEH","AEJ","AEX","AFN","AGN","AGU","AHF","AHU","AHW","AJM","AKL","AKQ","AKR","ALH","ALZ","AQA","AQM","AQY","AXD","AXE","AXR","BAD","BAG","BCA","BHW","BKC","BKD","BKG","BKP","BLF","BLG","BLS","BME","BMN","BNM","BWA","BXE","BXF","BXN","CAA","CAB","CAD","CAE","CAF","CAG","CAH","CAJ","CAK","CAL","CAM","CAN","CAP","CAR","CAS","CAT","CAU","CAW","CAX","CAY","CAZ","CBF","CBZ","CDA","CDB","CDH","CFHC","CJAA","CJBA","CLCA","CNSA","CPKA","CRCA","CREA","CRKB","CZCA","CZDA","CZDB"]},
+"Audi":{m:["A1","A2","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","R8","e-tron","Q4 e-tron","RS3","RS4","RS5","RS6","RS7","S3","S4","S5","S6","S7","S8","SQ5","SQ7","SQ8"],e:["AAH","ABB","ABH","ABZ","ACK","ADR","AEB","AEW","AFB","AFN","AGN","AHC","AHH","AJL","AJM","AJQ","AKA","AKE","AKN","AKQ","AKR","AKT","ALF","ALT","ANB","ANF","APR","AQA","AQL","AQT","ARE","ARJ","ASN","ATQ","ATT","AUK","AUM","AUQ","AUX","AVF","BAG","BAR","BGB","BKF","BKG","BVA","BWE","BWW","CAB","CAE","CAF","CAH","CAK","CAL","CAN","CAP","CAR","CAS","CAX","CAY","CDHA","CDNC","CDUC","CJKA","CLAA","CMUA","CRBC","CREA","CRVA","CSUA","CUAA","CZSA"]},
+"BMW":{m:["Serija 1","Serija 2","Serija 3","Serija 4","Serija 5","Serija 6","Serija 7","Serija 8","X1","X2","X3","X4","X5","X6","X7","Z3","Z4","M2","M3","M4","M5","M8","i3","i4","i5","i7","i8","iX","iX1","iX3"],e:["M10","M20","M21","M30","M40","M41","M42","M43","M44","M47","M50","M51","M52","M54","M57","M60","M62","N13","N14","N18","N20","N26","N43","N45","N46","N47","N52","N53","N54","N55","N57","N62","N63","N74","S14","S38","S54","S58","S63","S65","B16","B38","B46","B47","B48","B57","B58","B68"]},
+"Mercedes-Benz":{m:["A-Class","B-Class","C-Class","E-Class","S-Class","CLA","CLS","GLA","GLB","GLC","GLE","GLS","G-Class","SL","SLC","AMG GT","V-Class","Sprinter","Vito","EQA","EQB","EQC","EQE","EQS"],e:["OM601","OM602","OM603","OM604","OM605","OM606","OM611","OM612","OM613","OM616","OM617","OM626","OM640","OM642","OM646","OM647","OM648","OM651","OM654","OM656","M102","M103","M104","M111","M112","M113","M116","M117","M119","M120","M133","M156","M157","M177","M271","M272","M273","M274","M276","M278","M282","M285"]},
+"Toyota":{m:["Yaris","Corolla","Camry","Avensis","Auris","Prius","RAV4","Land Cruiser","Hilux","Supra","GR86","C-HR","Aygo","Proace","bZ4X"],e:["1A","2A","3A","4A","5A","1B","2B","3B","1C","2C","3C","2E","5E","1FZ","2GR","3GR","1GD","2GD","1HD","1HZ","2JZ","1KD","2KD","1KR","1NR","2NR","1NZ","2NZ","1TR","2TR","1UR","2UR","1VD","1ZZ","2ZZ","3ZZ","M15A","M20A","A25A"]},
+"Honda":{m:["Civic","Accord","CR-V","HR-V","Jazz","Insight","Legend","Fit","City","e"],e:["B16A","B18C","B20B","D13B","D14A","D15B","D16A","D16Y","D17A","F20B","F22A","H22A","H23A","J30A","J35A","K20A","K20Z","K24A","K24Z","L12B","L13Z","L15A","L15B","N22A","N22B","R18A","R20A"]},
+"Ford":{m:["Fiesta","Focus","Mondeo","Kuga","Puma","EcoSport","Galaxy","S-Max","Mustang","Mustang Mach-E","Transit","Transit Custom","Transit Connect","Ranger"],e:["DURATEC","DURATORQ","ECOBLUE","ECOBOOST","SIGMA","ZETEC","PUMA","TI-VCT","TDCI","TDDI","CYCLONE","MODULAR","COYOTE","POWERSTROKE"]},
+"Renault":{m:["Clio","Megane","Laguna","Scenic","Espace","Kadjar","Captur","Koleos","Zoe","Kangoo","Master","Trafic","Twingo","Arkana","Austral"],e:["E7J","F3R","F4R","F7R","F8Q","F9Q","G8T","G9T","H4Bt","HR16","K4M","K7M","K9K","M4R","M5M","M9R","R9M","TCe90","TCe100","TCe130","TCe150","dCi90","dCi110","dCi130","dCi150"]},
+"Peugeot":{m:["108","206","207","208","307","308","407","508","2008","3008","5008","Partner","Rifter","Boxer","Expert","e-208","e-2008"],e:["TU1","TU3","TU5","EW7","EW10","EW12","EP6","EP3","HM01","DW8","DW10","DW12","DT17","EC5","RFJ","RFN","XU5","XU7","XU9"]},
+"Opel":{m:["Corsa","Astra","Vectra","Zafira","Insignia","Mokka","Crossland","Grandland","Meriva","Antara","Vivaro","Movano","Combo","Agila","Cascada"],e:["X10XE","X12XE","X14XE","X14NE","X16XEL","X18XE","X20XER","Z10XE","Z12XE","Z12XEP","Z14XEP","Z16XER","Z16XE","Z18XER","Z20NET","Z20LER","Z20LEH","A12XER","A14NEL","A16LET","A16XER","A20DTH","A20NFT","B14NEL","B16DTH","D16DTH"]},
+"Skoda":{m:["Fabia","Octavia","Superb","Rapid","Kamiq","Karoq","Kodiaq","Scala","Enyaq","Citigo","Yeti","Felicia"],e:["AEE","AGN","AGP","AGR","AHL","AHW","AKL","AKQ","ALP","AQM","ASG","ATD","AUA","AUB","AWY","AXR","AYD","AZQ","BAD","BAG","BCA","BKB","BKC","BKY","BME","BMN","BNM","BWA","BXE","BXF","BXN","CAY","CBZ","CHHB","CHPA","CJAA","CLCA","CMBA","CNNB","CRKB","CZDA","CZDB","DADA"]},
+"Seat":{m:["Ibiza","Leon","Toledo","Arona","Ateca","Tarraco","Alhambra","Mii","Altea","Cordoba"],e:["AEH","AEJ","AER","AFT","AGN","AHL","AHW","AKL","AKQ","AKR","AQM","AUA","AUB","AVC","AWY","AXR","AYD","BAD","BCA","BKC","BKY","BXE","CAY","CBZ","CFJB","CHHB","CHPA","CJAA","CLCA","CRKB","CZDA"]},
+"Fiat":{m:["500","Punto","Bravo","Tipo","Stilo","Doblo","Fiorino","Scudo","Ducato","Panda","500X","500L","Croma"],e:["169A1","169A4","176B2","188A2","188A3","188A5","188A8","188B2","192A1","192A5","937A1","937A2","937A3","937A5","939A1","939A2","939A3","939A4","939A5","940A1","940B1","940C1","199A2","199A3","199A4","199B2","312A2","330A1"]},
+"Nissan":{m:["Micra","Note","Leaf","Juke","Qashqai","X-Trail","Pathfinder","Navara","GT-R","370Z","Almera","Primera","Ariya"],e:["GA14DE","GA15DE","GA16DE","HR12DE","HR15DE","HR16DE","MR16DDT","MR20DE","MR20DD","QG15DE","QG18DE","QR20DE","QR25DE","SR18DE","SR20DE","VQ20DE","VQ25DE","VQ35DE","VQ40DE","YD22DD","ZD30DD","K9K","M9R"]},
+"Mazda":{m:["Mazda2","Mazda3","Mazda6","CX-3","CX-30","CX-5","CX-9","CX-60","MX-5","MX-30","RX-8"],e:["B3","B5","B6","BP","GY","J5","KF","L3","L5","L8","LF","PE","PY","RF","SH","WL","ZJ","ZL","ZY"]},
+"Hyundai":{m:["i10","i20","i30","i40","Accent","Elantra","Sonata","Tucson","Santa Fe","Kona","Ioniq","Ioniq 5","Ioniq 6","Nexo","Staria"],e:["D4BA","D4BB","D4BF","D4CB","D4EB","D4EA","D4HA","G4BA","G4EC","G4ED","G4EE","G4FA","G4FC","G4FD","G4FG","G4GC","G4KC","G4KD","G4KE","G4KH","G4NA","G4NB","G4ND","G6BA","G6DB","G6DC","G6DH","G6EA"]},
+"Kia":{m:["Picanto","Rio","Ceed","ProCeed","Stinger","Sportage","Sorento","Niro","EV6","EV9","Soul","Stonic","XCeed"],e:["D4BB","D4CB","D4EA","D4FA","D4FB","D4HA","G4BA","G4ED","G4EE","G4FA","G4FC","G4FD","G4FG","G4GC","G4KC","G4KD","G4KE","G4KH","G4NA","G4NB","G4ND","G6BA","G6BV","G6CU","G6DB","G6DC","G6DH","G6EA"]},
+"Subaru":{m:["Impreza","Legacy","Outback","Forester","XV","Crosstrek","WRX","BRZ","Levorg"],e:["EJ15","EJ16","EJ18","EJ20","EJ22","EJ25","EJ251","EJ253","EJ255","EJ257","EE20","FA20","FA24","FB16","FB20","FB25"]},
+"Mitsubishi":{m:["Colt","Carisma","Lancer","Galant","Eclipse","Eclipse Cross","Outlander","ASX","Pajero","L200","Space Star"],e:["4A90","4A91","4B10","4B11","4B12","4D56","4G13","4G18","4G19","4G63","4G64","4G69","4G93","4G94","4M40","4M41","4N13","4N14","6B31","6G72","6G74","6G75"]},
+"Suzuki":{m:["Swift","Splash","SX4","Vitara","Grand Vitara","Jimny","Alto","Baleno","Ignis","Across","Swace"],e:["G10","G13","G13BB","H10A","J18A","J20A","K12B","K15B","M13A","M15A","M16A","N13A","R28A","Z13DTJ"]},
+"Citroen":{m:["C1","C2","C3","C4","C5","C8","DS3","DS4","DS5","C3 Aircross","C5 Aircross","Berlingo","Dispatch","Jumper","Spacetourer"],e:["TU1","TU3","TU5","EW7","EW10","EW12","EP6","EP3","HM01","DW8","DW10","DW12","DT17","BHX","BHZ","KFW","NFU","NFS","NFV"]},
+"Volvo":{m:["S40","S60","S70","S80","S90","V40","V50","V60","V70","V90","XC40","XC60","XC70","XC90","C30","C70","EX30","EX90"],e:["B4164S","B4184S","B4194T","B4204S","B4204T","B5234T","B5244S","B5244T","B5254T","B5284T","B6284T","D3","D4","D5","D5244T","T4","T5","T6","T8"]},
+"Dacia":{m:["Logan","Sandero","Duster","Lodgy","Dokker","Spring","Jogger"],e:["K9K","H4Bt","F4R","F8Q","F9Q","TCe90","TCe100","TCe130","dCi90","dCi110","EAC","EH1"]},
+"Alfa Romeo":{m:["Giulia","Stelvio","147","156","159","166","GT","GTV","Spider","Mito","Giulietta","Brera","Tonale"],e:["AR32310","AR32302","AR67601","AR37101","939A5","940A1","940B1","960A1","960A3","1750TBi"]},
+"Jeep":{m:["Renegade","Compass","Cherokee","Grand Cherokee","Wrangler","Gladiator","Avenger"],e:["EAD","EAG","EAH","EAJ","EAK","Pentastar","Hurricane","PowerTech","CRD","MultiJet"]},
+"Land Rover":{m:["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Sport","Range Rover Velar","Range Rover Evoque"],e:["204DTA","204DTD","204PTD","224DT","276DT","276DTA","306DT","306PS","508PN","508PS"]},
+"Porsche":{m:["911","Cayenne","Macan","Panamera","Taycan","Boxster","Cayman","718"],e:["M44","M64","M96","M97","M48","MA1","MDG","MEA","MEB"]}};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var bInp=document.getElementById('nv_brand');
+  var mDl=document.getElementById('nv_model_dl');
+  var eDl=document.getElementById('nv_engine_dl');
+  var bDl=document.getElementById('nv_brand_dl');
+  if (!bInp) return;
+  Object.keys(VD).sort().forEach(function(b){var o=document.createElement('option');o.value=b;bDl.appendChild(o);});
+  function upd(brand) {
+    var key=Object.keys(VD).find(function(k){return k.toLowerCase()===brand.toLowerCase();});
+    var d=key?VD[key]:null; if(!d) return;
+    mDl.innerHTML=''; d.m.forEach(function(v){var o=document.createElement('option');o.value=v;mDl.appendChild(o);});
+    eDl.innerHTML=''; d.e.forEach(function(v){var o=document.createElement('option');o.value=v;eDl.appendChild(o);});
+  }
+  bInp.addEventListener('input',function(){upd(this.value);});
+  bInp.addEventListener('change',function(){upd(this.value);});
+  if(bInp.value) upd(bInp.value);
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('order-form');
+  if (!form) return;
+
+  var imeInp   = document.getElementById('kupec_ime');
+  var telInp   = document.getElementById('kupec_tel');
+  var emailInp = document.getElementById('kupec_email');
+  if (!imeInp) return; // Ni kupec, nič ne delamo
+
+  form.addEventListener('submit', function(e) {
+    var ime   = imeInp.value.trim();
+    var tel   = telInp.value.trim();
+    var email = emailInp.value.trim();
+
+    if (!ime || !tel) {
+      e.preventDefault();
+      alert('Prosim izpolni Ime in priimek ter Telefon kontaktne osebe.');
+      return false;
+    }
+
+    // Za kupce: server vedno zahteva new_customer_name + new_customer_phone
+    // (is_kupec vedno ustvari novo stranko, ne glede na linked_customer_id)
+    var phoneHid = form.querySelector('input[name="new_customer_phone"]');
+    if (!phoneHid) {
+      phoneHid = document.createElement('input');
+      phoneHid.type = 'hidden';
+      phoneHid.name = 'new_customer_phone';
+      form.appendChild(phoneHid);
+    }
+    phoneHid.value = tel;
+
+    var nameHid = form.querySelector('input[name="new_customer_name"]');
+    if (!nameHid) {
+      nameHid = document.createElement('input');
+      nameHid.type = 'hidden';
+      nameHid.name = 'new_customer_name';
+      form.appendChild(nameHid);
+    }
+    nameHid.value = ime;
+
+    // Vstavi kontaktne podatke v notes polje
+    var notesFields = form.querySelectorAll('textarea[name="notes"], input[name="notes"]');
+    var kontaktInfo = '▶ Kontakt: ' + ime + ' | ' + tel + (email ? ' | ' + email : '') + '\n';
+    notesFields.forEach(function(f) {
+      f.value = kontaktInfo + (f.value ? '\n' + f.value : '');
+    });
+  });
+
+  // Vizualna validacija v realnem času
+  [imeInp, telInp, emailInp].forEach(function(inp) {
+    if (!inp) return;
+    inp.addEventListener('blur', function() {
+      this.style.borderColor = this.value.trim() ? '#22c55e' : '#ef4444';
+    });
+  });
+});
+</script>
+
+
+<script>
+// ── Samodejno shranjevanje obrazca (osnutek) v sessionStorage ──────────────
+// Shrani VSA imenovana polja (tudi označene artikle in izbire) ob vsaki
+// spremembi in jih obnovi ob ponovnem izrisu obrazca (npr. ko strežnik
+// zavrne oddajo zaradi manjkajočega polja). Osnutek se počisti šele na
+// strani podrobnosti naročila (ob uspešno ustvarjenem naročilu).
+(function () {
+  var SAVE_KEY = "rmoto_new_order_draft";
+  var form = document.getElementById("order-form");
+  if (!form) return;
+
+  // Katere kontrole shranjujemo (datotek in gumbov ne moremo/ne želimo).
+  function fields() {
+    return Array.prototype.slice.call(
+      form.querySelectorAll("input[name], select[name], textarea[name]")
+    ).filter(function (el) {
+      var t = (el.type || "").toLowerCase();
+      return t !== "file" && t !== "button" && t !== "submit" && t !== "password";
+    });
+  }
+
+  function saveForm() {
+    var scalars = {};   // name -> value (text/select/textarea/hidden/number)
+    var checked = {};   // name -> [values] (checkbox/radio)
+    var multi = {};     // name (konča z []) -> [values]
+    fields().forEach(function (el) {
+      var t = (el.type || "").toLowerCase();
+      var name = el.name;
+      if (t === "checkbox" || t === "radio") {
+        if (el.checked) { (checked[name] = checked[name] || []).push(el.value); }
+        else if (!(name in checked)) { checked[name] = checked[name] || []; }
+      } else if (name.slice(-2) === "[]") {
+        (multi[name] = multi[name] || []).push(el.value);
+      } else {
+        scalars[name] = el.value;
+      }
+    });
+    try {
+      sessionStorage.setItem(SAVE_KEY, JSON.stringify(
+        { scalars: scalars, checked: checked, multi: multi }));
+    } catch (e) {}
+  }
+
+  function restoreForm() {
+    var raw;
+    try { raw = sessionStorage.getItem(SAVE_KEY); } catch (e) {}
+    if (!raw) return;
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { return; }
+    if (!data) return;
+    var scalars = data.scalars || {};
+    var checked = data.checked || {};
+    var multi = data.multi || {};
+    var restoredSomething = false;
+
+    // Skalarna polja
+    Object.keys(scalars).forEach(function (name) {
+      var el = form.querySelector("[name=\"" + name + "\"]");
+      if (el && scalars[name] !== undefined && scalars[name] !== "") {
+        el.value = scalars[name];
+        restoredSomething = true;
+        if (name === "new_vehicle_brand" || el.id === "nv_brand") {
+          el.dispatchEvent(new Event("input"));
+          el.dispatchEvent(new Event("change"));
+        }
+      }
+    });
+
+    // Checkbox / radio
+    Object.keys(checked).forEach(function (name) {
+      var vals = checked[name] || [];
+      form.querySelectorAll("[name=\"" + name + "\"]").forEach(function (el) {
+        var want = vals.indexOf(el.value) !== -1;
+        if (el.checked !== want) {
+          el.checked = want;
+          el.dispatchEvent(new Event("change"));
+          if (want) restoredSomething = true;
+        }
+      });
+    });
+
+    // Večvrstična polja (name konča z []): dodaj manjkajoče vrstice
+    Object.keys(multi).forEach(function (name) {
+      var vals = multi[name] || [];
+      var els = form.querySelectorAll("[name=\"" + name + "\"]");
+      for (var i = 0; i < vals.length; i++) {
+        if (els[i]) { els[i].value = vals[i]; if (vals[i]) restoredSomething = true; }
+      }
+    });
+
+    if (restoredSomething) {
+      setTimeout(function () {
+        if (document.getElementById("rmoto-restored-note")) return;
+        var info = document.createElement("div");
+        info.id = "rmoto-restored-note";
+        info.className = "alert alert-info alert-dismissible fade show";
+        info.innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i>' +
+          '<strong>Podatki obnovljeni</strong> — obrazec smo obnovili iz vašega ' +
+          'prejšnjega vnosa, da vam ni treba pisati znova.' +
+          '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+        form.insertBefore(info, form.firstChild);
+      }, 300);
+    }
+  }
+
+  // Shrani ob vsaki spremembi (osnutek se NE briše ob oddaji – to počne
+  // stran s podrobnostmi naročila, ko je naročilo uspešno ustvarjeno).
+  form.addEventListener("input", saveForm);
+  form.addEventListener("change", saveForm);
+
+  // Obnovi ob nalaganju (malce zakasni, da se najprej inicializira ostali JS)
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(restoreForm, 200);
+  });
+})();
+</script>
+
+<script>
+// ── Pnevmatike: samodejno dodaj novo prazno vrstico iste vrste ─────────────────
+(function () {
+  var form = document.getElementById('order-form');
+  if (!form) return;
+
+  function lineHasValue(line) {
+    return Array.prototype.some.call(
+      line.querySelectorAll('input, select'),
+      function (el) { return el.value && String(el.value).trim() !== ''; });
+  }
+  function lastLine(rep) {
+    var ls = rep.querySelectorAll('.tire-line');
+    return ls[ls.length - 1];
+  }
+  function maybeAdd(rep, line) {
+    if (!line || line !== lastLine(rep)) return;
+    if (!lineHasValue(line)) return;
+    var clone = line.cloneNode(true);
+    clone.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    clone.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+    rep.appendChild(clone);
+  }
+
+  form.querySelectorAll('.tire-repeat').forEach(function (rep) {
+    function handler(e) {
+      var line = e.target.closest ? e.target.closest('.tire-line') : null;
+      maybeAdd(rep, line);
+    }
+    rep.addEventListener('input', handler);
+    rep.addEventListener('change', handler);
+  });
+})();
+</script>
+
+{% endblock %}
