@@ -1,0 +1,95 @@
+BRANJE ŠASIJSKE ŠTEVILKE (VIN) – POPRAVEK
+
+══════════════════════════════════════════════════════════════════════
+1) DATOTEKE – kopiraj v mapo projekta (prepiši stare)
+══════════════════════════════════════════════════════════════════════
+
+  routes/vehicles.py              ← prepiši
+  static/js/vehicle_smart.js      ← prepiši
+  templates/orders/new.html       ← prepiši
+  .env.example                    ← samo vzorec, ni obvezno
+
+  GitHub Desktop: Commit → Push. Render se posodobi sam.
+  Po objavi v brskalniku osveži s Ctrl+F5 (da dobi novi vehicle_smart.js).
+
+══════════════════════════════════════════════════════════════════════
+2) KAJ JE BILO NAROBE
+══════════════════════════════════════════════════════════════════════
+
+  A) GLAVNI VZROK – odgovor modela je bil PRAZEN
+     Pri Gemini 2.5 in novejših je „razmišljanje" privzeto vklopljeno,
+     ti tokeni pa se štejejo v isto mejo kot odgovor. Meja je bila
+     nastavljena na 256, zato je model vse porabil za razmišljanje in
+     vrnil prazen odgovor. V aplikaciji je bilo to videti, kot da
+     šasijske številke ni prepoznal.
+     Ker Google modele sčasoma menja, se je to kazalo vedno pogosteje –
+     zato je na začetku delalo, pozneje pa ne več.
+     POPRAVLJENO: razmišljanje izklopljeno, meja dvignjena na 2048.
+
+  B) IZBIRAL JE PREIZKUSNE (preview) MODELE
+     Izbira je gledala najprej številko različice, zato je preizkusni
+     model s višjo številko premagal preverjeni stabilni.
+     POPRAVLJENO: najprej stabilnost, šele nato številka različice.
+
+  C) SLIKA SE ZA VIZUALNI MODEL SPLOH NI BISTRILA
+     Bistrenje je teklo samo za klasični OCR. Zamegljena ali bleščeča
+     fotografija je bila poslana taka, kot je prišla iz fotoaparata.
+     POPRAVLJENO: zdaj se bistri VEDNO, za vsak bralnik.
+
+  D) NAPAKA V BISTRENJU – premajhno okno
+     Okno za oceno osvetlitve ozadja se je računalo iz KRAJŠE stranice
+     slike. Pri tesnem posnetku vrstice VIN (npr. 420×90 pik) je bilo
+     okno veliko samo 11 pik – manjše od samih črk. Povprečje je zato
+     vsebovalo črko in deljenje jo je zabrisalo: na osvetljenem delu
+     slike se je kontrast CELO ZNIŽAL.
+     POPRAVLJENO: okno se računa iz daljše stranice.
+     Izmerjeno na preizkusnih slikah: najslabše viden znak je zdaj
+     za 46 % razločnejši (prej je bistrenje dalo samo 17 %).
+
+══════════════════════════════════════════════════════════════════════
+3) KAKO ZDAJ POTEKA BRANJE
+══════════════════════════════════════════════════════════════════════
+
+  1. Črtna koda na sliki (če je) – ta je vedno točna, brez ugibanja.
+  2. Bistrenje: izravnava osvetlitve (odstrani odseve luči in sonca),
+     razteg kontrasta, izostritev robov črk.
+     Majhna slika (printscreen) se pred tem POVEČA, ker drobnega
+     besedila noben bralnik ne prebere zanesljivo.
+  3. Prvi krog: modelu gresta zbistrena IN naravna slika, da vsak
+     znak potrdi na dveh različicah.
+  4. Če ne uspe: drugi krog z močnejšim bistrenjem.
+  5. Če še vedno ne uspe: vpraša močnejši model (pro), če je na voljo.
+  6. Čisto na koncu: lokalno branje v brskalniku (Tesseract).
+
+  Prebrana številka se NE popravlja. Kontrolni popravek znakov je
+  ostal odstranjen, kot si zahteval. Model mora vrniti točno 17
+  znakov v pravi obliki, sicer se odgovor zavrne – nič se ne ugiba.
+
+══════════════════════════════════════════════════════════════════════
+4) ČE ŠE VEDNO NE BERE – TU SE VIDI VZROK
+══════════════════════════════════════════════════════════════════════
+
+  Odpri stran:   /vehicles/vin-test
+  Naloži isto sliko, ki ne gre, in poglej izpis. Zdaj pokaže:
+    • katera modela sta izbrana (hitri in močni)
+    • vsak poskus posebej: kateri model, kako se je končal
+      („zaključek: STOP" je v redu, „MAX_TOKENS" pomeni prekinjen odgovor)
+    • surov odgovor modela
+    • pri Cloud Vision: celotno prebrano besedilo in kandidate
+
+  To mi pošlji (lahko kot sliko zaslona) in točno se bo videlo,
+  kje se ustavi.
+
+══════════════════════════════════════════════════════════════════════
+5) NASTAVITVE (Render → Environment) – NEOBVEZNO
+══════════════════════════════════════════════════════════════════════
+
+  GEMINI_API_KEY         ključ (brez njega pravega bralnika ni)
+  GEMINI_MODEL           vsili hitri model (npr. gemini-3.8-flash)
+  GEMINI_MODEL_STRONG    vsili močni model za drugi poskus
+  GOOGLE_VISION_API_KEY  rezervni klasični OCR
+  VISION_DAILY_LIMIT     dnevna meja klicev na Vision (privzeto 200)
+
+  Brez GEMINI_MODEL in GEMINI_MODEL_STRONG si modela izbere aplikacija
+  sama iz Googlovega seznama – zdaj pravilno, torej stabilne pred
+  preizkusnimi.
