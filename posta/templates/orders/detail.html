@@ -1,0 +1,1158 @@
+{% extends 'base.html' %}
+{% block title %}{{ order.order_number }}{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0 small">
+  <li class="breadcrumb-item"><a href="{{ list_url|default(url_for('orders.list_orders')) }}">{{ page_title|default('Naročila') }}</a></li>
+  <li class="breadcrumb-item active">{{ order.order_number }}</li>
+</ol>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.print-header { display: none; }
+.no-print { }
+@media print {
+  @page { margin: 12mm 14mm; size: A4; }
+  .sidebar, .topbar, .no-print,
+  .alert, nav[aria-label="breadcrumb"],
+  .col-lg-4, #pt_img_zone,
+  .img-upload-zone, .image-upload-area { display: none !important; }
+  body { background: #fff !important; font-size: 9pt; }
+  .main-wrap { margin: 0 !important; }
+  .container-fluid { padding: 0 !important; }
+  .col-lg-8 { width: 100% !important; flex: 0 0 100% !important; max-width: 100% !important; padding: 0 !important; }
+  .print-header { display: flex !important; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 12px; }
+  .card-plain { border: 1px solid #ccc !important; border-radius: 5px !important; padding: 8px 10px !important; margin-bottom: 8px !important; break-inside: avoid; }
+  .form-section-title { font-size: 8pt !important; font-weight: 700 !important; color: #2563eb !important; margin-bottom: 4px !important; text-transform: uppercase; }
+  .info-row { padding: 2px 0 !important; font-size: 8.5pt !important; }
+  .tbl-card { border: 1px solid #ccc !important; border-radius: 5px !important; break-inside: avoid; box-shadow: none !important; }
+  .tbl-header { padding: 6px 10px !important; border-bottom: 1px solid #ccc !important; }
+  .tbl-header button { display: none !important; }
+  .table { font-size: 8.5pt !important; }
+  .table th { background: #f8fafc !important; font-size: 7.5pt !important; padding: 3px 6px !important; }
+  .table td { padding: 3px 6px !important; }
+  .table td:last-child, .table th:last-child { display: none !important; }
+  .table .form-control, .table .form-select, .table input, .table select { border: none !important; background: transparent !important; padding: 0 !important; font-size: 8.5pt !important; box-shadow: none !important; }
+  .p-3.border-top { display: none !important; }
+  .badge { border: 1px solid #aaa !important; background: #f0f0f0 !important; color: #333 !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Print header -->
+<div class="print-header">
+  <div>
+    <div style="font-size:14pt;font-weight:900;color:#1e293b;">Bartog Ajdovščina</div>
+    <div style="font-size:8pt;color:#555;">R-MotoShop · www.r-motoshop.si</div>
+  </div>
+  <div style="text-align:right;font-size:8pt;color:#666;">
+    {{ order.order_number }}<br>
+    <span class="badge bg-{{ order.status_info.color }}">{{ order.status_info.label }}</span>
+  </div>
+</div>
+
+<div class="page-hdr">
+  <div>
+    <h1>
+      <span class="order-num">{{ order.order_number }}</span>
+      <span class="badge bg-{{ order.status_info.color }} ms-2 fs-6">{{ order.status_info.label }}</span>
+    </h1>
+    <div class="text-muted small">
+      Ustvaril: {{ order.employee.full_name }} · {{ order.created_at|sl_datetime }}
+      <span class="chip-source ms-2">{{ order.source }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    {% if kind == 'povprasevanje' and current_user.role != 'kupec' %}
+    <button type="button" onclick="odpriPosto()" class="btn btn-success btn-sm">
+      <i class="bi bi-envelope-arrow-up me-1"></i>Pošlji po mailu
+    </button>
+    {% endif %}
+    <a href="{{ list_url|default(url_for('orders.list_orders')) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Nazaj
+    </a>
+    <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-printer me-1"></i>Natisni
+    </button>
+    {% if current_user.is_admin %}
+    <form method="POST" action="{{ url_for('orders.delete_order', order_id=order.id) }}"
+          onsubmit="return confirm('Res izbrisati {{ order.order_number }}?')">
+      <button class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash me-1"></i>Izbriši
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Left column ──────────────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+
+{%- if order.notes and '\u25b6 Kontakt:' in order.notes %}
+{%- set _kline = order.notes.split('\n')[0].replace('\u25b6 Kontakt: ', '') %}
+{%- set _kparts = _kline.split(' | ') %}
+<div class="alert mb-3 d-flex align-items-center gap-3"
+     style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:12px 16px;">
+  <i class="bi bi-person-badge fs-4 text-primary flex-shrink-0"></i>
+  <div>
+    <div class="small fw-bold text-primary mb-1" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">
+      <i class="bi bi-shop me-1"></i>Kontaktna oseba (bartog stranka)
+    </div>
+    <div class="fw-bold fs-6">{{ _kparts[0] if _kparts|length > 0 else '' }}</div>
+    <div class="small mt-1">
+      {%- if _kparts|length > 1 %}
+      <a href="tel:{{ _kparts[1]|trim }}" class="text-decoration-none text-dark me-3">
+        <i class="bi bi-telephone-fill me-1 text-success"></i>{{ _kparts[1]|trim }}
+      </a>
+      {%- endif %}
+      {%- if _kparts|length > 2 %}
+      <a href="mailto:{{ _kparts[2]|trim }}" class="text-decoration-none text-dark">
+        <i class="bi bi-envelope-fill me-1 text-primary"></i>{{ _kparts[2]|trim }}
+      </a>
+      {%- endif %}
+    </div>
+  </div>
+</div>
+{%- endif %}
+
+    <!-- Ponudba za stranko (povpraševanja) -->
+    {% if kind == 'povprasevanje' and (order.offer_price or order.offer_delivery or order.offer_note) %}
+    <div class="card border-0 shadow-sm mb-3" style="border-left:4px solid #f59e0b !important; background:#fffbeb;">
+      <div class="p-3">
+        <div class="fw-bold text-warning mb-2"><i class="bi bi-tag-fill me-2"></i>Ponudba{% if current_user.role == 'kupec' %} za vas{% endif %}</div>
+        <div class="row g-3">
+          {% if order.offer_price %}
+          <div class="col-sm-4">
+            <div class="small text-muted">Cena</div>
+            <div class="fs-5 fw-bold text-dark">{{ order.offer_price }}</div>
+          </div>
+          {% endif %}
+          {% if order.offer_delivery %}
+          <div class="col-sm-4">
+            <div class="small text-muted">Dobavni rok</div>
+            <div class="fw-semibold">{{ order.offer_delivery }}</div>
+          </div>
+          {% endif %}
+        </div>
+        {% if order.offer_note %}
+        <div class="mt-2">
+          <div class="small text-muted">Opomba</div>
+          <div style="white-space:pre-wrap">{{ order.offer_note }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Stranka + Vozilo -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="card-plain h-100">
+          <div class="form-section-title"><i class="bi bi-person"></i> Stranka</div>
+          <div class="info-grid">
+            {% if order.employee and order.employee.role == 'kupec' %}
+            <div class="info-row">
+              <label>Končni kupec</label>
+              <span class="text-info fw-semibold"><i class="bi bi-shop me-1"></i>{{ order.employee.full_name }}</span>
+            </div>
+            {% endif %}
+            <div class="info-row">
+              <label>Ime</label>
+              <span>
+                {% if current_user.role == 'kupec' %}
+                <span class="text-dark fw-semibold">{{ order.customer.name }}</span>
+                {% else %}
+                <a href="{{ url_for('customers.customer_detail', customer_id=order.customer_id) }}"
+                   class="text-decoration-none text-dark fw-semibold">
+                  {{ order.customer.name }}
+                </a>
+                {% endif %}
+              </span>
+            </div>
+            <div class="info-row">
+              <label>Telefon</label>
+              <span>
+                {% if order.customer.phone %}
+                <a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>
+                {% else %}–{% endif %}
+              </span>
+            </div>
+            <div class="info-row">
+              <label>E-pošta</label>
+              <span>{{ order.customer.email or '–' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Naslov</label>
+              <span>{{ order.customer.address or '–' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card-plain h-100">
+          <div class="form-section-title"><i class="bi bi-car-front"></i> Vozilo</div>
+          {% set v = order.vehicle %}
+
+          <!-- ── Prikaz podatkov ──────────────────────────────────────────── -->
+          <div id="veh-view">
+            <div class="info-grid">
+              <div class="info-row">
+                <label>Vozilo</label>
+                <span class="fw-semibold">
+                  {% if v %}{{ v.brand }} {{ v.model }}{% else %}–{% endif %}
+                </span>
+              </div>
+              <div class="info-row">
+                <label>Letnik</label>
+                <span>{{ (v.year if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Registrska</label>
+                <span>{{ (v.registration if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Tip motorja</label>
+                <span>{{ (v.engine_type if v else None) or '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Prostornina</label>
+                <span>{{ (v.engine_displacement + ' l') if (v and v.engine_displacement) else '–' }}</span>
+              </div>
+              <div class="info-row">
+                <label>Moč</label>
+                <span>{{ (v.engine_power_kw + ' kW') if (v and v.engine_power_kw) else '–' }}</span>
+              </div>
+              <div class="info-row" style="grid-column:1/-1">
+                <label>VIN / šasijska št.</label>
+                <span style="font-family:monospace; word-break:break-all; font-weight:600;">
+                  {{ order.vin_display or '–' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {# Slike pri vozilu: najprej prometno dovoljenje / VIN, potem ostale.
+             Sliko prometnega prepoznamo po imenu datoteke, ki ga da skener. #}
+          {% if order.images %}
+          {% set ns = namespace(prometne=[], ostale=[]) %}
+          {% for img in order.images %}
+            {% if 'prometno-vin' in (img.filename or '')|lower %}
+              {% set ns.prometne = ns.prometne + [img] %}
+            {% else %}
+              {% set ns.ostale = ns.ostale + [img] %}
+            {% endif %}
+          {% endfor %}
+          {% set prometne = ns.prometne %}
+          {% set ostale   = ns.ostale %}
+          <div class="veh-slike mt-3" id="veh-slike">
+            {% if prometne %}
+            <div class="small fw-semibold text-success mb-1">
+              <i class="bi bi-card-text me-1"></i>Prometno dovoljenje / VIN ({{ prometne|length }})
+            </div>
+            <div class="d-flex gap-2 flex-wrap mb-2">
+              {% for img in prometne %}
+              <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank"
+                 title="Odpri v novem oknu – sliko lahko povečaš">
+                <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+                     alt="prometno dovoljenje"
+                     style="height:112px; width:auto; border-radius:8px; border:2px solid #16a34a;">
+              </a>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if ostale %}
+            <div class="small text-muted mb-1">
+              <i class="bi bi-paperclip me-1"></i>{% if prometne %}Druge priložene slike{% else %}Priložene slike{% endif %} ({{ ostale|length }})
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              {% for img in ostale %}
+              <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank"
+                 title="Odpri v novem oknu">
+                <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+                     alt="priloga"
+                     style="height:78px; width:auto; border-radius:8px; border:1px solid #dee2e6;">
+              </a>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {% if current_user.role != 'kupec' or order.employee_id == current_user.id %}
+          <div class="mt-2 no-print" id="veh-view-btns">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="vehEdit(true)">
+              <i class="bi bi-pencil me-1"></i>{% if v %}Uredi vozilo{% else %}Dodaj vozilo{% endif %}
+            </button>
+            {% if v %}
+            <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}"
+               class="btn btn-sm btn-link text-muted">Kartica vozila</a>
+            {% endif %}
+          </div>
+
+          <!-- ── Urejanje (vedno na voljo, tudi po oddaji naročila) ───────── -->
+          <form id="veh-edit" method="POST" style="display:none;"
+                action="{{ url_for('orders.save_order_vehicle', order_id=order.id) }}">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">Znamka</label>
+                <input type="text" name="brand" class="form-control form-control-sm"
+                       list="veh-makes" value="{{ (v.brand if v else '') }}">
+                <datalist id="veh-makes">
+                  {% for m in car_makes %}<option value="{{ m }}">{% endfor %}
+                </datalist>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Model</label>
+                <input type="text" name="model" class="form-control form-control-sm"
+                       value="{{ (v.model if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Letnik</label>
+                <input type="number" name="year" class="form-control form-control-sm"
+                       min="1950" max="2100" value="{{ (v.year if (v and v.year) else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Registrska</label>
+                <input type="text" name="registration" class="form-control form-control-sm"
+                       value="{{ (v.registration if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Tip motorja</label>
+                <select name="engine_type" class="form-select form-select-sm">
+                  <option value="">–</option>
+                  {% for t in engine_types %}
+                  <option value="{{ t }}" {% if v and v.engine_type == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Menjalnik</label>
+                <select name="transmission" class="form-select form-select-sm">
+                  <option value="">–</option>
+                  {% for t in transmissions %}
+                  <option value="{{ t }}" {% if v and v.transmission == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Prostornina (l)</label>
+                <input type="text" name="engine_displacement" class="form-control form-control-sm"
+                       value="{{ (v.engine_displacement if v else '') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Moč (kW)</label>
+                <input type="text" name="engine_power_kw" class="form-control form-control-sm"
+                       value="{{ (v.engine_power_kw if v else '') }}">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small mb-1">VIN / šasijska številka</label>
+                <div class="input-group input-group-sm">
+                  <input type="text" name="vin" id="veh-vin" class="form-control"
+                         maxlength="17" style="font-family:monospace; text-transform:uppercase;"
+                         value="{{ order.vin_display or '' }}">
+                  <button type="button" class="btn btn-outline-primary" onclick="vinPick()">
+                    <i class="bi bi-camera"></i>
+                  </button>
+                </div>
+                <input type="file" id="veh-vin-file" accept="image/*" capture="environment"
+                       style="display:none" onchange="vinScan(this)">
+                <div id="veh-vin-msg" class="small mt-1"></div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small mb-1">Opomba o vozilu</label>
+                <textarea name="notes" rows="2" class="form-control form-control-sm">{{ (v.notes if v else '') }}</textarea>
+              </div>
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Shrani v naročilo
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="vehEdit(false)">
+                Prekliči
+              </button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Uvoz slike (delavci) -->
+    {% if current_user.role != 'kupec' %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-image"></i> Dodaj sliko naročila</div>
+      <div id="staff-drop-zone"
+           style="border:2px dashed #b0c4de; border-radius:10px; padding:24px; text-align:center; cursor:pointer; background:#f8fafc;"
+           onclick="document.getElementById('staff-img-input').click()"
+           ondragover="event.preventDefault()"
+           ondrop="handleStaffDrop(event)">
+        <i class="bi bi-image" style="font-size:2rem; color:#aab8cc;"></i>
+        <p class="mb-0 mt-2 text-muted small">Klikni za nalaganje slike ali <strong>prilepi (Ctrl+V)</strong></p>
+      </div>
+      <input type="file" id="staff-img-input" accept="image/*" style="display:none" multiple onchange="uploadStaffImages(this.files)">
+      {% if order.images %}
+      <div class="d-flex flex-wrap gap-2 mt-3" id="staff-images-list">
+        {% for img in order.images %}
+        <div class="position-relative" id="img-wrap-{{ img.id }}">
+          <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank">
+            <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+                 style="height:100px; width:auto; border-radius:8px; border:1px solid #e5eaf2; object-fit:cover;">
+          </a>
+          <button type="button" onclick="deleteStaffImage({{ img.id }})"
+                  style="position:absolute;top:-8px;right:-8px;border-radius:50%;width:22px;height:22px;padding:0;font-size:12px;line-height:1;"
+                  class="btn btn-danger btn-sm">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="d-flex flex-wrap gap-2 mt-3" id="staff-images-list"></div>
+      {% endif %}
+    </div>
+    <script>
+    // Paste (Ctrl+V)
+    document.addEventListener('paste', function(e) {
+      var items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      var files = [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) files.push(items[i].getAsFile());
+      }
+      if (files.length) uploadStaffImages(files);
+    });
+    // Drag & drop
+    function handleStaffDrop(e) {
+      e.preventDefault();
+      uploadStaffImages(e.dataTransfer.files);
+    }
+    // Upload
+    function uploadStaffImages(files) {
+      var fd = new FormData();
+      for (var i = 0; i < files.length; i++) fd.append('images', files[i]);
+      fetch('{{ url_for("orders.add_images", order_id=order.id) }}', {method:'POST', body:fd})
+        .then(r => r.json())
+        .then(data => {
+          var list = document.getElementById('staff-images-list');
+          data.images.forEach(function(img) {
+            var div = document.createElement('div');
+            div.className = 'position-relative';
+            div.id = 'img-wrap-' + img.id;
+            div.innerHTML = '<a href="' + img.url + '" target="_blank"><img src="' + img.url + '" style="height:100px;width:auto;border-radius:8px;border:1px solid #e5eaf2;object-fit:cover;"></a>' +
+              '<button type="button" onclick="deleteStaffImage(' + img.id + ')" style="position:absolute;top:-8px;right:-8px;border-radius:50%;width:22px;height:22px;padding:0;font-size:12px;line-height:1;" class="btn btn-danger btn-sm">&times;</button>';
+            list.appendChild(div);
+          });
+        });
+    }
+    // Delete
+    function deleteStaffImage(imgId) {
+      if (!confirm('Izbriši sliko?')) return;
+      fetch('{{ url_for("orders.delete_image", image_id=0) }}'.replace('0', imgId), {method:'POST'})
+        .then(r => r.json())
+        .then(data => { if (data.ok) document.getElementById('img-wrap-' + imgId).remove(); });
+    }
+    </script>
+    {% endif %}
+
+    <!-- Nujnost dostave (kupec) -->
+    {% if order.delivery_urgency %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Želja kupca glede dostave</div>
+      <p class="mb-0 fw-semibold text-primary">
+        <i class="bi bi-clock-history me-1"></i>{{ delivery_urgency_label }}
+      </p>
+    </div>
+    {% endif %}
+
+    <!-- Opomba -->
+    {% if order.notes %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-chat-text"></i> Opomba</div>
+      <p class="mb-0">{{ order.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Naložene slike -->
+    {% if order.images %}
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-images"></i> Slike iskanega dela ({{ order.images|length }})</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for img in order.images %}
+        <a href="{{ url_for('orders.order_image', image_id=img.id) }}" target="_blank">
+          <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+               style="height:120px; width:auto; border-radius:8px; border:1px solid #e5eaf2; object-fit:cover;">
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Postavke (urejanje) -->
+    <form method="POST" action="{{ url_for('orders.save_items', order_id=order.id) }}">
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <h6 class="tbl-header-title"><i class="bi bi-list-check me-2"></i>Postavke ({{ order.items|length }})</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addItemRow()">
+          <i class="bi bi-plus-lg me-1"></i>Dodaj postavko
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Artikel / Delo</th>
+              <th style="width:130px">IDENT</th>
+              <th style="width:150px">Kol.</th>
+              {% if current_user.role != 'kupec' %}<th style="width:110px">Izvor</th>{% endif %}
+              <th style="width:130px">Status</th>
+              <th>Opomba</th>
+              <th style="width:46px" class="text-center">Briši</th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            {% for item in order.items %}
+            <tr>
+              <td class="fw-semibold">
+                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                {{ item.description }}
+              </td>
+              <td>
+                <input type="text" name="bartog_id[]" class="form-control form-control-sm"
+                       value="{{ item.bartog_id or '' }}" placeholder="IDENT">
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <input type="text" name="quantity[]" class="form-control form-control-sm" style="width:56px"
+                         value="{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }}">
+                  <select name="unit[]" class="form-select form-select-sm" style="width:auto">
+                    {% for u in item_units %}<option value="{{ u }}" {% if item.unit == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+                  </select>
+                </div>
+              </td>
+              {% if current_user.role != 'kupec' %}
+              <td>
+                <input type="text" name="supplier[]" class="form-control form-control-sm"
+                       value="{{ item.supplier or '' }}" placeholder="Izvor">
+              </td>
+              {% endif %}
+              <td>
+                <select name="status[]" class="form-select form-select-sm">
+                  {% for key, lbl, col in item_statuses %}
+                  <option value="{{ key }}" {% if item.status == key %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="text" name="notes[]" class="form-control form-control-sm"
+                       value="{{ item.notes or '' }}" placeholder="Opomba">
+              </td>
+              <td class="text-center">
+                <input type="checkbox" name="delete[]" value="{{ item.id }}" class="form-check-input" title="Označi za brisanje">
+              </td>
+            </tr>
+            {% else %}
+            <tr id="no-items"><td colspan="7" class="text-center text-muted py-3">Ni postavk.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="p-3 border-top d-flex gap-2 align-items-center flex-wrap">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Shrani spremembe</button>
+        <span class="text-muted small">Označene v stolpcu „Briši“ se ob shranjevanju izbrišejo.</span>
+      </div>
+    </div>
+    </form>
+
+  </div><!-- /col-lg-8 -->
+
+  <!-- ── Right column ─────────────────────────────────────────────────────── -->
+  <div class="col-lg-4">
+
+    <!-- Status update -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-arrow-repeat"></i> Status</div>
+      {% if current_user.role == 'kupec' %}
+      <!-- Kupec: samo pogled statusa -->
+      <div class="text-center p-3">
+        {% if order.status == 'naroceno' %}
+        <div class="mb-2"><i class="bi bi-check-circle-fill text-success" style="font-size:2.4rem;"></i></div>
+        {% endif %}
+        <span class="badge bg-{{ order.status_info.color }}" style="font-size:1rem;">{{ order.status_info.label }}</span>
+        {% if order.status == 'naroceno' %}
+        <div class="text-success small mt-2">Vaše naročilo je naročeno.</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}">
+        <div class="mb-2">
+          <select name="status" id="status-select" class="form-select">
+            {% for key, lbl, col in statuses %}
+            <option value="{{ key }}" {% if order.status == key %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-2" id="delivery-field" style="display:none;">
+          <label class="form-label small fw-semibold text-danger mb-1">
+            <i class="bi bi-truck me-1"></i>Rok dobave – čez koliko dni *
+          </label>
+          {% set cur = order.delivery_days_left if (order.status == 'narocena_caka' and order.delivery_days_left is not none and order.delivery_days_left >= 0) else none %}
+          <select id="delivery-select" class="form-select">
+            <option value="">— izberi —</option>
+            {% for d in range(1, 41) %}
+            <option value="{{ d }}" {% if cur == d %}selected{% endif %}>{{ d }} {% if d == 1 %}dan{% elif d == 2 %}dni{% elif d in [3, 4] %}dni{% else %}dni{% endif %}</option>
+            {% endfor %}
+            <option value="manual" {% if cur is not none and cur > 40 %}selected{% endif %}>Ročni vnos…</option>
+          </select>
+          <input type="number" name="delivery_days" id="delivery-days" min="0"
+                 class="form-control mt-2" placeholder="Vpiši število dni"
+                 value="{% if cur is not none %}{{ cur }}{% endif %}"
+                 style="{% if cur is none or cur <= 40 %}display:none;{% endif %}">
+          <div class="form-text">Obvezno. Dan pred dobavo se prikaže opozorilo.</div>
+        </div>
+        <div class="mb-2">
+          <input type="text" name="status_note" class="form-control form-control-sm"
+                 placeholder="Opomba k spremembi (neobvezno)">
+        </div>
+
+        <!-- Izbira SMS besedila (samo pri statusu „Naročeno") -->
+        <div class="mb-2" id="sms-field" style="display:none;">
+          <label class="form-label small fw-semibold text-primary mb-1">
+            <i class="bi bi-chat-dots me-1"></i>SMS stranki – izberi besedilo
+          </label>
+          <div class="d-flex flex-column gap-1">
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="1" class="form-check-input mt-1" checked>
+              <span><strong>Deli na zalogi</strong><br>
+                <span class="text-muted">Naročeni deli so vsi na zalogi v poslovalnici.</span></span>
+            </label>
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="2" class="form-check-input mt-1">
+              <span><strong>Danes po 13.00</strong><br>
+                <span class="text-muted">Deli pridejo danes po 13.00 v poslovalnico.</span></span>
+            </label>
+            <label class="border rounded p-2 small d-flex gap-2 align-items-start" style="cursor:pointer;">
+              <input type="radio" name="sms_variant" value="3" class="form-check-input mt-1">
+              <span><strong>Naslednji delovni dan</strong><br>
+                <span class="text-muted">Deli pridejo naslednji delovni dan.</span></span>
+            </label>
+          </div>
+          <div class="form-text">Izbrani SMS se pošlje stranki ob potrditvi statusa.</div>
+        </div>
+
+        <!-- Ponudba za stranko (samo pri statusu „Ponudba poslana stranki") -->
+        <div class="mb-2" id="offer-field" style="display:none;">
+          <label class="form-label small fw-semibold text-primary mb-1">
+            <i class="bi bi-tag me-1"></i>Ponudba za stranko (vidno mehaniku na portalu)
+          </label>
+          <input type="text" name="offer_price" class="form-control form-control-sm mb-1"
+                 placeholder="Cena (npr. 42,50 €)" value="{{ order.offer_price or '' }}">
+          <input type="text" name="offer_delivery" class="form-control form-control-sm mb-1"
+                 placeholder="Dobavni rok (npr. 2–3 delovni dnevi)" value="{{ order.offer_delivery or '' }}">
+          <textarea name="offer_note" class="form-control form-control-sm" rows="2"
+                    placeholder="Opomba (npr. original / nadomestni del, dobavitelj…)">{{ order.offer_note or '' }}</textarea>
+          <div class="form-text">Stranka to vidi na svojem povpraševanju in dobi obvestilo.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-check-lg me-1"></i>Posodobi status
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if kind == 'povprasevanje' and order.status == 'narocena_caka' and order.delivery_date %}
+    <!-- Odštevanje do dobave -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-truck"></i> Dobava materiala</div>
+      {% set dl = order.delivery_days_left %}
+      <div class="p-2 rounded text-center
+                  {% if dl is not none and dl <= 0 %}bg-danger text-white
+                  {% elif dl == 1 %}bg-warning{% else %}bg-light{% endif %}">
+        <div class="fw-bold fs-5">
+          {% if dl is none %}–
+          {% elif dl < 0 %}Zamuda {{ -dl }} dni!
+          {% elif dl == 0 %}Dobava je danes!
+          {% elif dl == 1 %}Dobava jutri!
+          {% else %}Še {{ dl }} dni{% endif %}
+        </div>
+        <div class="small">Predviden prihod: {{ order.delivery_date.strftime('%d.%m.%Y') }}</div>
+      </div>
+      <div class="form-text">Rok spremeniš prek „Posodobi status" zgoraj.</div>
+    </div>
+    {% endif %}
+
+    <!-- Timestamps -->
+    <div class="card-plain mb-3">
+      <div class="form-section-title"><i class="bi bi-calendar3"></i> Časi</div>
+      <div class="info-grid" style="grid-template-columns:1fr">
+        <div class="info-row">
+          <label>Ustvarjeno</label>
+          <span>{{ order.created_at|sl_datetime }}</span>
+        </div>
+        <div class="info-row">
+          <label>Posodobljeno</label>
+          <span>{{ order.updated_at|sl_datetime }}</span>
+        </div>
+        {% if order.ordered_at %}
+        <div class="info-row">
+          <label>Naročeno</label>
+          <span>{{ order.ordered_at|sl_datetime }}</span>
+        </div>
+        {% endif %}
+        {% if order.completed_at %}
+        <div class="info-row">
+          <label>Zaključeno</label>
+          <span>{{ order.completed_at|sl_datetime }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Status history -->
+    {% if order.status_logs %}
+    <div class="card-plain">
+      <div class="form-section-title"><i class="bi bi-clock-history"></i> Zgodovina statusov</div>
+      <div class="timeline">
+        {% for log in order.status_logs|sort(attribute='created_at', reverse=True) %}
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-text">
+            {% if log.old_status_info %}
+            <span class="badge bg-{{ log.old_status_info.color }} badge-sm">{{ log.old_status_info.label }}</span>
+            <i class="bi bi-arrow-right mx-1"></i>
+            {% endif %}
+            <span class="badge bg-{{ log.new_status_info.color }}">{{ log.new_status_info.label }}</span>
+            {% if log.notes %}<div class="mt-1 text-muted fst-italic small">{{ log.notes }}</div>{% endif %}
+          </div>
+          <div class="tl-meta">
+            {{ log.created_at|sl_datetime }}
+            {% if log.changed_by %} · {{ log.changed_by.full_name }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /col-lg-4 -->
+</div><!-- /row -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Naročilo je uspešno ustvarjeno (prišli smo na podrobnosti) → počisti osnutek
+// novega naročila, da se pri naslednjem "Novo naročilo" ne obnovijo stari podatki.
+try { sessionStorage.removeItem("rmoto_new_order_draft"); } catch (e) {}
+</script>
+
+<script>
+// ── Urejanje vozila na naročilu ───────────────────────────────────────────────
+function vehEdit(on) {
+  var view = document.getElementById('veh-view');
+  var btns = document.getElementById('veh-view-btns');
+  var form = document.getElementById('veh-edit');
+  if (!form) return;
+  form.style.display = on ? '' : 'none';
+  if (view) view.style.display = on ? 'none' : '';
+  if (btns) btns.style.display = on ? 'none' : '';
+}
+
+function vinPick() {
+  var f = document.getElementById('veh-vin-file');
+  if (f) f.click();
+}
+
+function vinScan(input) {
+  var file = input.files && input.files[0];
+  var msg = document.getElementById('veh-vin-msg');
+  if (!file) return;
+  msg.className = 'small mt-1 text-muted';
+  msg.textContent = 'Berem VIN s slike…';
+
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    fetch('{{ url_for("vehicles.api_vin_ocr") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: e.target.result })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok && d.vin) {
+        document.getElementById('veh-vin').value = d.vin;
+        msg.className = 'small mt-1 text-success';
+        msg.innerHTML = '<i class="bi bi-check-circle me-1"></i>Prebrano: <strong>' + d.vin +
+          '</strong>' + (d.valid ? ' (kontrolna številka se ujema)' : ' – preveri, kontrolna številka se ne ujema') +
+          '. Ne pozabi klikniti <strong>Shrani v naročilo</strong>.';
+      } else {
+        msg.className = 'small mt-1 text-danger';
+        msg.textContent = 'VIN-a ni bilo mogoče prebrati. Poskusi znova ali vpiši ročno.';
+      }
+    })
+    .catch(function () {
+      msg.className = 'small mt-1 text-danger';
+      msg.textContent = 'Napaka pri branju slike. Vpiši VIN ročno.';
+    });
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Če je obrazec vrnil napako, ostane vozilo odprto za popravek
+document.addEventListener('DOMContentLoaded', function () {
+  var vin = document.getElementById('veh-vin');
+  if (vin) {
+    vin.addEventListener('input', function () {
+      this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+  }
+});
+</script>
+
+{% if kind == 'povprasevanje' and current_user.role != 'kupec' %}
+<!-- Okno: pošiljanje povpraševanja dobavitelju -->
+<div class="modal fade" id="mailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-envelope-arrow-up me-2"></i>Pošlji povpraševanje dobavitelju</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Za (e-naslov dobavitelja)</label>
+          <input type="text" id="mail-za" class="form-control"
+                 placeholder="dobavitelj@primer.si  ·  več naslovov loči z vejico" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Zadeva</label>
+          <input type="text" id="mail-zadeva" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Sporočilo</label>
+          <textarea id="mail-besedilo" class="form-control" rows="14"
+                    style="font-family:ui-monospace,monospace; font-size:.86rem"></textarea>
+          <div class="form-text">Besedilo lahko pred pošiljanjem popraviš. Podatki o stranki niso vključeni.</div>
+        </div>
+
+        {% if order.images %}
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">
+            Priloge – označi, kaj naj gre zraven ({{ order.images|length }})
+          </label>
+          <div id="mail-slike" class="d-flex gap-3 flex-wrap">
+            {% for img in order.images %}
+            {% set je_prometno = 'prometno-vin' in (img.filename or '')|lower %}
+            <label class="text-center" style="cursor:pointer; max-width:150px">
+              <img src="{{ url_for('orders.order_image', image_id=img.id) }}"
+                   alt="priloga" style="height:88px; width:auto; border-radius:8px; display:block;
+                                        border:{% if je_prometno %}2px solid #16a34a{% else %}1px solid #dee2e6{% endif %};">
+              <span class="d-block small {% if je_prometno %}text-success fw-semibold{% else %}text-muted{% endif %}"
+                    style="font-size:.74rem; line-height:1.15">
+                {% if je_prometno %}Prometno / VIN{% else %}Slika dela{% endif %}
+              </span>
+              <input type="checkbox" value="{{ img.id }}" checked class="mt-1">
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="small text-muted mb-3">
+          <i class="bi bi-info-circle me-1"></i>K temu povpraševanju ni priloženih slik.
+        </div>
+        {% endif %}
+
+        <div id="mail-stanje" class="small text-muted mb-0"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="mail-poslji" class="btn btn-success" onclick="posljiPosto()">
+          <i class="bi bi-send-fill me-1"></i>Pošlji
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Prekliči</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Pošlji povpraševanje po e-pošti (odpre e-poštni program) ──────────────────
+// Vključi SAMO podatke o vozilu, VIN/šasijo in kataloške postavke.
+// NE vključi nobenih podatkov o stranki (ime, telefon, e-pošta, naslov).
+window.INQUIRY_MAIL = {
+  stevilka: {{ order.order_number | tojson }},
+  vozilo: {
+    znamka:      {{ (order.vehicle.brand if order.vehicle else '') | tojson }},
+    model:       {{ (order.vehicle.model if order.vehicle else '') | tojson }},
+    letnik:      {{ (order.vehicle.year if (order.vehicle and order.vehicle.year) else '') | tojson }},
+    motor:       {{ (order.vehicle.engine_type if order.vehicle else '') | tojson }},
+    prostornina: {{ (order.vehicle.engine_displacement if order.vehicle else '') | tojson }},
+    moc:         {{ (order.vehicle.engine_power_kw if order.vehicle else '') | tojson }},
+    menjalnik:   {{ (order.vehicle.transmission if order.vehicle else '') | tojson }},
+    vin:         {{ (order.vin_display or '') | tojson }}
+  },
+  postavke: [
+    {% for item in order.items %}
+    {
+      naziv:    {{ item.description | tojson }},
+      ident:    {{ (item.bartog_id or '') | tojson }},
+      kolicina: {{ (item.quantity|int if item.quantity == item.quantity|int else item.quantity) | tojson }},
+      enota:    {{ (item.unit or '') | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  stSlik: {{ (order.images|length) if order.images else 0 }}
+};
+
+/* Sestavi besedilo povpraševanja. Enako kot prej – brez podatkov o stranki. */
+function sestaviPosto() {
+  var d = window.INQUIRY_MAIL;
+  var L = [];
+  L.push('Pozdravljeni,');
+  L.push('');
+  L.push('Prosim za ponudbo oz. preverbo razpoložljivosti spodnjih delov za to vozilo:');
+  L.push('');
+  L.push('VOZILO');
+  if (d.vozilo.znamka || d.vozilo.model)
+    L.push('- Vozilo: ' + [d.vozilo.znamka, d.vozilo.model].filter(Boolean).join(' '));
+  if (d.vozilo.letnik)      L.push('- Letnik: ' + d.vozilo.letnik);
+  if (d.vozilo.motor)       L.push('- Tip motorja: ' + d.vozilo.motor);
+  if (d.vozilo.prostornina) L.push('- Prostornina: ' + d.vozilo.prostornina + ' l');
+  if (d.vozilo.moc)         L.push('- Moč: ' + d.vozilo.moc + ' kW');
+  if (d.vozilo.menjalnik)   L.push('- Menjalnik: ' + d.vozilo.menjalnik);
+  if (d.vozilo.vin)         L.push('- VIN / šasijska št.: ' + d.vozilo.vin);
+  if (!(d.vozilo.znamka || d.vozilo.model || d.vozilo.vin)) L.push('- (podatki o vozilu niso vpisani)');
+  L.push('');
+  L.push('DELI / KATALOŠKE ŠTEVILKE');
+  if (d.postavke.length) {
+    d.postavke.forEach(function (p, i) {
+      var v = (i + 1) + '. ' + p.naziv;
+      if (p.ident)    v += '  |  kat. št.: ' + p.ident;
+      if (p.kolicina) v += '  |  kol.: ' + p.kolicina + (p.enota ? ' ' + p.enota : '');
+      L.push(v);
+    });
+  } else {
+    L.push('(ni vpisanih postavk)');
+  }
+  L.push('');
+  L.push('Hvala in lep pozdrav,');
+  L.push({{ (current_user.full_name or '') | tojson }});
+  L.push('Bartog Ajdovščina');
+  return L.join('\n');
+}
+
+function zadevaPoste() {
+  var d = window.INQUIRY_MAIL;
+  return 'Povpraševanje ' + d.stevilka +
+    ((d.vozilo.znamka || d.vozilo.model)
+      ? ' – ' + [d.vozilo.znamka, d.vozilo.model].filter(Boolean).join(' ') : '');
+}
+
+/* Rezerva: če poštni strežnik ni nastavljen, odpremo poštni program kot prej.
+   Priloge je treba takrat pripeti ročno – brskalnik jih prek mailto ne zna. */
+function posljiPrekProgram() {
+  var d = window.INQUIRY_MAIL;
+  var t = sestaviPosto();
+  if (d.stSlik > 0) {
+    t += '\n\nOpomba: priložite še ' + d.stSlik + ' slik(o) iz naročila (ročno).';
+  }
+  window.location.href = 'mailto:?subject=' + encodeURIComponent(zadevaPoste()) +
+                         '&body=' + encodeURIComponent(t);
+}
+
+function odpriPosto() {
+  var okno = new bootstrap.Modal(document.getElementById('mailModal'));
+  document.getElementById('mail-zadeva').value = zadevaPoste();
+  document.getElementById('mail-besedilo').value = sestaviPosto();
+  var stanje = document.getElementById('mail-stanje');
+  var gumb = document.getElementById('mail-poslji');
+
+  stanje.innerHTML = '';
+  gumb.disabled = true;
+  okno.show();
+
+  fetch('{{ url_for("mail.stanje") }}').then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.nastavljeno) {
+      stanje.className = 'alert alert-warning small mb-0';
+      stanje.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>'
+        + '<b>Poštni strežnik še ni nastavljen</b>, zato aplikacija ne more poslati pošte s prilogami. '
+        + 'Na Renderju dodaj SMTP_HOST, SMTP_USER in SMTP_PASS. '
+        + '<a href="#" onclick="posljiPrekProgram();return false;" class="alert-link">'
+        + 'Odpri poštni program (brez prilog)</a>.';
+      return;
+    }
+    gumb.disabled = false;
+    if (d.privzeti && !document.getElementById('mail-za').value) {
+      document.getElementById('mail-za').value = d.privzeti;
+    }
+    stanje.className = 'small text-muted mb-0';
+    stanje.innerHTML = '<i class="bi bi-send me-1"></i>Pošilja se z naslova <b>'
+                     + d.posiljatelj + '</b>; odgovor dobavitelja pride na <b>'
+                     + (d.odgovor || d.posiljatelj) + '</b>.';
+  }).catch(function () {
+    stanje.className = 'alert alert-danger small mb-0';
+    stanje.textContent = 'Stanja poštnega strežnika ni bilo mogoče preveriti.';
+  });
+}
+
+function posljiPosto() {
+  var gumb = document.getElementById('mail-poslji');
+  var stanje = document.getElementById('mail-stanje');
+  var za = document.getElementById('mail-za').value.trim();
+  if (!za) {
+    stanje.className = 'alert alert-warning small mb-0';
+    stanje.textContent = 'Vpiši e-naslov dobavitelja.';
+    return;
+  }
+  var slike = [];
+  document.querySelectorAll('#mail-slike input[type=checkbox]:checked')
+    .forEach(function (c) { slike.push(parseInt(c.value, 10)); });
+
+  gumb.disabled = true;
+  gumb.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Pošiljam…';
+  stanje.className = 'small text-muted mb-0';
+  stanje.textContent = 'Pošiljam …';
+
+  fetch('{{ url_for("mail.poslji_povprasevanje", order_id=order.id) }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      za: za,
+      zadeva: document.getElementById('mail-zadeva').value,
+      besedilo: document.getElementById('mail-besedilo').value,
+      slike: slike
+    })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    gumb.disabled = false;
+    gumb.innerHTML = '<i class="bi bi-send-fill me-1"></i>Pošlji';
+    if (d.ok) {
+      stanje.className = 'alert alert-success small mb-0';
+      stanje.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Poslano na <b>'
+        + d.prejemniki.join(', ') + '</b>'
+        + (d.prilog ? ' s <b>' + d.prilog + '</b> prilogami.' : ' (brez prilog).')
+        + (d.prevelike && d.prevelike.length
+            ? '<br>Preveliko za priloge: ' + d.prevelike.length + ' slik(a).' : '');
+      setTimeout(function () {
+        bootstrap.Modal.getInstance(document.getElementById('mailModal')).hide();
+      }, 2500);
+    } else if (d.napaka === 'no_smtp') {
+      stanje.className = 'alert alert-warning small mb-0';
+      stanje.innerHTML = 'Poštni strežnik ni nastavljen. '
+        + '<a href="#" onclick="posljiPrekProgram();return false;" class="alert-link">'
+        + 'Odpri poštni program (brez prilog)</a>.';
+    } else {
+      stanje.className = 'alert alert-danger small mb-0';
+      stanje.textContent = d.napaka || 'Pošte ni bilo mogoče poslati.';
+    }
+  }).catch(function () {
+    gumb.disabled = false;
+    gumb.innerHTML = '<i class="bi bi-send-fill me-1"></i>Pošlji';
+    stanje.className = 'alert alert-danger small mb-0';
+    stanje.textContent = 'Napaka pri povezavi s strežnikom.';
+  });
+}
+</script>
+{% endif %}
+
+<script>
+const UNIT_OPTIONS = `{% for u in item_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}`;
+
+function addItemRow() {
+  const tbody = document.getElementById('items-body');
+  const noItems = document.getElementById('no-items');
+  if (noItems) noItems.remove();
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><input type="text" name="new_description[]" class="form-control form-control-sm" placeholder="Naziv artikla / dela"></td>' +
+    '<td><input type="text" name="new_bartog[]" class="form-control form-control-sm" placeholder="IDENT"></td>' +
+    '<td><div class="d-flex gap-1"><input type="text" name="new_quantity[]" value="1" class="form-control form-control-sm" style="width:56px"><select name="new_unit[]" class="form-select form-select-sm" style="width:auto">' + UNIT_OPTIONS + '</select></div></td>' +
+    {% if current_user.role != 'kupec' %}'<td><input type="text" name="new_supplier[]" class="form-control form-control-sm" placeholder="Izvor"></td>' +{% endif %}
+    '<td><span class="badge bg-light text-dark border">novo</span></td>' +
+    '<td><input type="text" name="new_notes[]" class="form-control form-control-sm" placeholder="Opomba"></td>' +
+    '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" title="Odstrani" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x-lg"></i></button></td>';
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+}
+
+// Pokaži obvezno polje za rok dobave, ko je status „Naročena – čakamo dobavo"
+(function () {
+  const sel = document.getElementById('status-select');
+  const field = document.getElementById('delivery-field');
+  const daySel = document.getElementById('delivery-select');
+  const days = document.getElementById('delivery-days');
+  const smsField = document.getElementById('sms-field');
+  const offerField = document.getElementById('offer-field');
+  if (!sel) return;
+
+  function toggle() {
+    if (field) {
+      const show = sel.value === 'narocena_caka';
+      field.style.display = show ? '' : 'none';
+      if (daySel) daySel.required = show;
+    }
+    // Izbira SMS besedila samo pri statusu „Naročeno"
+    if (smsField) {
+      smsField.style.display = (sel.value === 'naroceno') ? '' : 'none';
+    }
+    // Polja ponudbe samo pri statusu „Ponudba poslana stranki"
+    if (offerField) {
+      offerField.style.display = (sel.value === 'ponudba') ? '' : 'none';
+    }
+  }
+  sel.addEventListener('change', toggle);
+  toggle();
+
+  // Spustni meni dni → napolni skrito polje; „Ročni vnos" odpre vnos
+  if (daySel && days) {
+    daySel.addEventListener('change', function () {
+      if (daySel.value === 'manual') {
+        days.style.display = '';
+        days.value = '';
+        days.focus();
+      } else {
+        days.style.display = 'none';
+        days.value = daySel.value;   // npr. "4"
+      }
+    });
+  }
+})();
+</script>
+
+<script>
+// Pred tiskanjem skrij prazne vrstice (ki kažejo samo "–")
+window.addEventListener('beforeprint', function() {
+  document.querySelectorAll('.info-row, .info-grid .info-row').forEach(function(row) {
+    var vals = row.querySelectorAll('span:not(.lbl), div:not(.lbl), a');
+    var isEmpty = true;
+    vals.forEach(function(el) {
+      var t = el.textContent.trim();
+      if (t && t !== '–' && t !== '-' && t !== '') isEmpty = false;
+    });
+    if (isEmpty) row.setAttribute('data-print-hidden', '1');
+    if (isEmpty) row.style.display = 'none';
+  });
+  // Skrij tudi prazne kartice vozila če je samo "/ /" ali podobno
+  document.querySelectorAll('.card-plain').forEach(function(card) {
+    var visible = 0;
+    card.querySelectorAll('.info-row').forEach(function(r) {
+      if (!r.getAttribute('data-print-hidden')) visible++;
+    });
+    if (visible === 0) card.setAttribute('data-card-hidden', '1');
+  });
+});
+window.addEventListener('afterprint', function() {
+  document.querySelectorAll('[data-print-hidden]').forEach(function(el) {
+    el.style.display = '';
+    el.removeAttribute('data-print-hidden');
+  });
+  document.querySelectorAll('[data-card-hidden]').forEach(function(el) {
+    el.removeAttribute('data-card-hidden');
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,99 @@
+POŠILJANJE POVPRAŠEVANJ PO E-POŠTI – S PRILOGAMI
++ slika prometnega dovoljenja / VIN pri ogledu naročila
+
+══════════════════════════════════════════════════════════════════════
+1) DATOTEKE – kopiraj jih v mapo projekta (prepiši stare)
+══════════════════════════════════════════════════════════════════════
+
+  routes/mail.py                  ← NOVA datoteka
+  app.py                          ← prepiši (registrira routes/mail.py)
+  templates/orders/detail.html    ← prepiši (slika prometnega + okno za pošto)
+  templates/orders/new.html       ← prepiši (slika VIN dobi prepoznavno ime)
+  .env.example                    ← prepiši (samo za vzorec, ni obvezno)
+
+  Nato v GitHub Desktop: Commit → Push. Render se posodobi sam.
+
+══════════════════════════════════════════════════════════════════════
+2) NASTAVITVE NA RENDERJU  (Dashboard → tvoja storitev → Environment)
+══════════════════════════════════════════════════════════════════════
+
+  Dodaj te spremenljivke in shrani (Save, Changes → storitev se zažene znova):
+
+  SMTP_HOST       smtp.gmail.com
+  SMTP_PORT       587
+  SMTP_USER       tvoj.naslov@gmail.com
+  SMTP_PASS       geslo-za-aplikacije   ← NE navadno geslo! (glej spodaj)
+  SMTP_SECURITY   starttls
+
+  Neobvezno:
+  SMTP_FROM       drug naslov pošiljatelja (brez tega = SMTP_USER)
+  MAIL_DEFAULT_TO naslov dobavitelja, ki naj se vpiše sam
+  MAIL_REPLY_TO   kam naj dobavitelj odgovori (brez tega = SMTP_FROM)
+
+  ── GESLO ZA APLIKACIJE (Gmail) ────────────────────────────────────
+  Gmail navadnega gesla prek SMTP ne sprejme. Narediš takole:
+    1. Google račun → Varnost
+    2. vklopi „Prijava v dveh korakih" (če še ni)
+    3. Varnost → Gesla za aplikacije → ustvari novo
+    4. 16-mestno geslo prilepi v SMTP_PASS (presledki niso pomembni)
+
+  Če imaš pošto pri drugem ponudniku, so podatki pri njem:
+    • vrata 587  → SMTP_SECURITY=starttls
+    • vrata 465  → SMTP_SECURITY=ssl
+
+══════════════════════════════════════════════════════════════════════
+3) KAJ SE SPREMENI V APLIKACIJI
+══════════════════════════════════════════════════════════════════════
+
+  OGLED NAROČILA / POVPRAŠEVANJA
+  • V okvirčku „Vozilo" se zdaj pokaže slika prometnega dovoljenja
+    (z zeleno obrobo, večja), če je bila ob vnosu poslikana ali naložena.
+  • Druge slike (nadomestni del) so pod njo, ločeno in manjše.
+  • Klik na sliko jo odpre v novem oknu, da jo lahko povečaš.
+
+  POŠLJI PO MAILU (pri povpraševanjih)
+  • Odpre se okno, kjer vpišeš naslov dobavitelja, popraviš zadevo in
+    besedilo ter odkljukaš, katere slike naj gredo zraven.
+  • Pošto pošlje aplikacija sama, zato gredo slike zraven kot PRAVE
+    PRILOGE – prometno dovoljenje in slike dela.
+  • V besedilu ni nobenih podatkov o stranki (ime, telefon, naslov) –
+    samo vozilo, VIN in kataloške številke, kot prej.
+  • Podpiše se s tvojim imenom in „Bartog Ajdovščina".
+
+  ČE SMTP ŠE NI NASTAVLJEN
+  • Okno to jasno pove in ponudi povezavo „Odpri poštni program",
+    ki dela kot prej (brez prilog). Nič se ne pokvari.
+
+  KDO SME POŠILJATI
+  • Samo zaposleni in admin. Mehaniki (kupci) gumba ne vidijo in tudi
+    prek naslova ne morejo poslati pošte.
+
+══════════════════════════════════════════════════════════════════════
+4) MEJE
+══════════════════════════════════════════════════════════════════════
+
+  • Skupaj do 20 MB prilog na sporočilo. Če je kakšna slika prevelika,
+    jo preskoči in to po pošiljanju izpiše.
+  • Gmail dovoli približno 500 poslanih sporočil na dan.
+
+══════════════════════════════════════════════════════════════════════
+5) ČE RAJE NE PREPIŠEŠ app.py  (ročna različica – samo 2 vrstici)
+══════════════════════════════════════════════════════════════════════
+
+  V app.py poišči vrstico:
+      from routes.push import push_bp
+  in pod njo dodaj:
+      from routes.mail import mail_bp
+
+  Nato poišči vrstico:
+      app.register_blueprint(push_bp)
+  in pod njo dodaj:
+      app.register_blueprint(mail_bp)
+
+  To je vse, kar je v app.py spremenjeno.
+
+  Enako velja za templates/orders/new.html: edina sprememba je, da slika
+  prometnega dovoljenja dobi ime „prometno-vin-<čas>.jpg", po katerem jo
+  naročilo pozneje prepozna in poimenuje. Če te datoteke ne prepišeš,
+  vse dela naprej — slika se pokaže, le brez zelene oznake
+  „Prometno dovoljenje / VIN" (pokaže se med drugimi slikami).
