@@ -1,0 +1,15 @@
+<!-- Skupni viri za pametna polja vozila. Vključi pred init.
+
+     Okna z živo kamero ni več: gumb za slikanje odpre kar fotoaparat naprave.
+     Posnetek iz kamere je bistveno boljši od video sličice v brskalniku
+     (polna ločljivost, prava izostritev, brez stiskanja in zamegljenosti od
+     premika), zato je branje šasijske številke z njim precej zanesljivejše. -->
+
+<script>window.CAR_MAKES = {{ car_makes | tojson }};</script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+{# Oznaka različice v naslovu. Brez nje brskalnik (in service worker, ki
+   skrbi za namestitev aplikacije na telefon) postreže staro shranjeno
+   datoteko tudi po objavi nove – popravek je na strežniku, a se ne pozna.
+   Ob vsaki spremembi vehicle_smart.js se ta številka poveča. #}
+<script src="{{ url_for('static', filename='js/vehicle_smart.js') }}?v=2026-10-08-kamera"></script>

@@ -1,0 +1,77 @@
+KAMERA SE NE ODPRE – DRUGI POSKUS
+
+══════════════════════════════════════════════════════════════════════
+NAJPREJ 20-SEKUNDNI PREIZKUS (preden karkoli nalagaš)
+══════════════════════════════════════════════════════════════════════
+
+  Odpri r-parts.si v oknu BREZ BELEŽENJA ZGODOVINE:
+      Ctrl + Shift + N   (Chrome / Edge)
+      Ctrl + Shift + P   (Firefox)
+
+  Prijavi se in klikni „Fotografiraj identifikacijsko številko".
+
+  • ČE SE KAMERA TAM ODPRE → koda je v redu, tvoj brskalnik ti je
+    stregel staro shranjeno različico. Datoteke iz tega zipa to
+    dokončno rešijo.
+
+  • ČE SE TUDI TAM NE ODPRE → napiši mi to. Takrat ni predpomnilnik
+    in bom iskal naprej.
+
+══════════════════════════════════════════════════════════════════════
+1) DATOTEKE – kopiraj v mapo projekta (prepiši stare)
+══════════════════════════════════════════════════════════════════════
+
+  static/js/vehicle_smart.js                ← prepiši
+  templates/_vehicle_smart_assets.html      ← prepiši  (NOVO v tem zipu)
+  templates/orders/new.html                 ← prepiši
+  routes/vehicles.py                        ← prepiši
+
+  GitHub Desktop: Commit → Push.
+
+══════════════════════════════════════════════════════════════════════
+2) KAJ SEM SPREGLEDAL
+══════════════════════════════════════════════════════════════════════
+
+  a) GUMB SEM POPRAVIL SAMO NA ENI STRANI
+     Popravil sem „Novo naročilo". Enaki gumbi na drugih straneh
+     (kartica vozila, urejanje vozila pri naročilu, povpraševanje)
+     so šli po stari poti in so na računalniku še vedno odpirali
+     samo izbiro datoteke.
+     ZDAJ: popravek je v skupni kodi, zato velja povsod.
+
+  b) BRSKALNIK JE STREGEL STARO SKRIPTO
+     Tvoja aplikacija je nameščena kot aplikacija na napravi in ima
+     service worker, ki shranjuje datoteke. Ta prestreže zahtevo še
+     preden gre na splet – zato tudi Ctrl+F5 ne pomaga vedno.
+     Popravek je bil na strežniku, brskalnik pa je vrtel staro kodo.
+     ZDAJ: skripta ima v naslovu oznako različice
+     (vehicle_smart.js?v=2026-10-08-kamera). Star shranjen naslov se
+     ne ujema več, zato brskalnik MORA potegniti novo.
+
+  c) ČE SE TO VSEENO ZGODI, BOŠ ZDAJ VIDEL
+     Prej se je ob stari skripti tiho odprla izbira datoteke in
+     izgledalo je, kot da popravek ne dela. Zdaj se izpiše rdeče
+     opozorilo „Brskalnik uporablja staro shranjeno različico
+     strani" skupaj s tipkami, ki to odpravijo.
+
+══════════════════════════════════════════════════════════════════════
+3) ČE SE PO OBJAVI ŠE VEDNO NE ODPRE
+══════════════════════════════════════════════════════════════════════
+
+  Napiši mi, KATERO od tega vidiš – vsako pomeni nekaj drugega:
+
+   1. Odpre se okno za izbiro datoteke (brskaš po mapah)
+      → še vedno teče stara skripta
+
+   2. Izpiše se rdeče opozorilo o stari različici
+      → stara skripta, a jo zdaj sam javi
+
+   3. Ne zgodi se popolnoma nič
+      → napaka v kodi; takrat mi pošlji še, kaj piše v konzoli
+        (tipka F12 → zavihek Console → slika zaslona)
+
+   4. Brskalnik vpraša za dovoljenje in nato nič
+      → dovoljenje je zavrnjeno; klikni ikono ob naslovu strani
+        → Kamera → Dovoli → osveži
+
+  Povej mi tudi, ali si na računalniku ali na telefonu.
