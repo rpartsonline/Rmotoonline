@@ -12,6 +12,10 @@
   "use strict";
 
   const VS = {
+    // Oznaka različice. Pokaže se v obrazcu, če brskalnik postreže staro
+    // datoteko iz predpomnilnika – takrat je takoj jasno, da ne gre za
+    // napako v kodi, ampak za star shranjen js.
+    VERZIJA: "2026-10-08-kamera3",
     makes: (window.CAR_MAKES || []),
     apiModels: "",
     apiVin: "",
@@ -291,8 +295,8 @@
      binariziramo – Google Vision iz sivinske slike odčita bistveno več. */
   function enhance(f) {
     if (f.prepared) return f.prepared;
-    const radius = Math.max(8, Math.round(f.h / 6));
-    let g = flattenIllumination(f.gray, f.w, f.h, radius);
+    // Isti radij kot pri bistriGray – glej razlago pri flattenRadius().
+    let g = flattenIllumination(f.gray, f.w, f.h, flattenRadius(f.w, f.h));
     g = stretchContrast(g);
     g = sharpen(g, f.w, f.h, 0.6);
     f.prepared = g;
@@ -467,7 +471,303 @@
     return inp;
   }
 
-  function openScanner() { nativeCamera().click(); }
+  /* Skupni vhod za vse gumbe „fotografiraj" na vseh straneh.
+
+     Prej je vedno odprl `<input type="file" capture>`. Na telefonu to odpre
+     kamero, na RAČUNALNIKU pa samo izbiro datoteke – zato se kamera ni
+     odprla. Zdaj na računalniku odpremo spletno kamero.                   */
+  function openScanner() {
+    /* Vedno najprej kamera v brskalniku – tudi na telefonu.
+
+       Prej smo na telefonu odprli `<input type="file" capture>`. Android
+       to prepusti sistemu, sistem pa si zapomni, katero aplikacijo je
+       uporabnik enkrat izbral. Če je kdaj izbral upravitelja datotek
+       (pri Samsungu „Moje datoteke") in potrdil „Vedno", se odslej ob
+       vsakem kliku odpre TA, ne kamera – in tega iz strani ni mogoče
+       preglasiti. Kamera v brskalniku se temu povsem izogne.
+
+       Fotoaparat naprave ostane na voljo kot gumb v oknu, ker da na
+       telefonu boljšo sliko.                                            */
+    VS.photoCamera(
+      function (f) {
+        shraniVNarocilo(f);                       // slika gre tudi k naročilu
+        const cfg = VS._cfg;
+        const say = VS._status || function () {};
+        if (cfg) readVinFromPhoto(f, cfg, say, VS._decode);
+      },
+      function () { nativeCamera().click(); }     // uporabnik je izbral datoteko
+    );
+  }
+
+  /* Posneto sliko pripnemo k naročilu in pokažemo v predogledu.
+
+     Obrazec novega naročila ima skrito polje `vin_photo_store` z imenom
+     `order_images` – kar je v njem, se odda skupaj z naročilom. Prej je to
+     delala koda v predlogi; tu jo opravimo sami, da zadošča zamenjati
+     samo to datoteko.                                                    */
+  function shraniVNarocilo(file) {
+    const store = el("vin_photo_store");
+    if (store) {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        store.files = dt.files;
+      } catch (e) { /* starejši brskalnik – slika se pač ne pripne */ }
+    }
+    const predogled = el("nv_paste_preview");
+    const slika = el("nv_paste_img");
+    const ime = el("nv_paste_name");
+    if (predogled && slika) {
+      try {
+        slika.src = URL.createObjectURL(file);
+        predogled.style.display = "";
+        if (ime) ime.textContent = file.name || "slika";
+      } catch (e) {}
+    }
+  }
+
+  /* ── Navaden fotoaparat za RAČUNALNIK ────────────────────────────────────
+
+     Na telefonu `capture="environment"` odpre kamero naprave in to je
+     najboljše, kar lahko dobimo – polna ločljivost, samodejna izostritev.
+     Na računalniku pa ta nastavitev ne naredi nič: brskalnik odpre samo
+     izbiro datoteke. Zato tu odpremo spletno kamero.
+
+     To NI stari skener: ni branja v živo, ni ozkega okvirja, ni nenehnega
+     prepoznavanja. Je samo fotoaparat – slika se posname šele, ko klikneš
+     „Posnemi", in gre nato po isti poti kot vsaka druga fotografija.      */
+
+  const NASVET = "Prometno dovoljenje naj zapolni čim večji del okvirja. " +
+                 "Drži pri miru in počakaj, da se slika izostri, nato klikni Posnemi.";
+
+  let _tok = null;                       // trenutni tok iz kamere
+
+  function ustaviKamero() {
+    if (_tok) {
+      try { _tok.getTracks().forEach((t) => t.stop()); } catch (e) {}
+      _tok = null;
+    }
+  }
+
+  function imaKamero() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
+
+  function zapriOkno() {
+    ustaviKamero();
+    const o = el("vs-cam-okno");
+    if (o) o.remove();
+    document.removeEventListener("keydown", _escHandler);
+  }
+
+  function _escHandler(e) { if (e.key === "Escape") zapriOkno(); }
+
+  function narediOkno() {
+    const o = document.createElement("div");
+    o.id = "vs-cam-okno";
+    o.style.cssText =
+      "position:fixed;inset:0;z-index:20000;background:#000;" +
+      "display:flex;flex-direction:column;align-items:center;justify-content:center";
+    o.innerHTML =
+      '<video id="vs-cam-video" autoplay playsinline muted ' +
+      'style="max-width:100%;max-height:calc(100% - 132px);background:#000"></video>' +
+      '<div id="vs-cam-sporocilo" style="color:#fff;font:14px system-ui,sans-serif;' +
+      'padding:10px 16px;text-align:center;max-width:620px"></div>' +
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;' +
+      'justify-content:center;padding:12px 16px 20px">' +
+      '  <select id="vs-cam-izbira" style="display:none;padding:9px 12px;border-radius:8px;' +
+      'border:0;font:14px system-ui,sans-serif;max-width:240px"></select>' +
+      '  <button type="button" id="vs-cam-snemi" style="display:none;padding:14px 30px;border:0;' +
+      'border-radius:10px;background:#0d6efd;color:#fff;font:600 17px system-ui,sans-serif;' +
+      'cursor:pointer">Posnemi</button>' +
+      '  <button type="button" id="vs-cam-znova" style="display:none;padding:14px 24px;border:0;' +
+      'border-radius:10px;background:#0d6efd;color:#fff;font:600 16px system-ui,sans-serif;' +
+      'cursor:pointer">Poskusi znova</button>' +
+      '  <button type="button" id="vs-cam-naprava" style="padding:14px 20px;border:0;' +
+      'border-radius:10px;background:#495057;color:#fff;font:15px system-ui,sans-serif;' +
+      'cursor:pointer">Fotoaparat naprave</button>' +
+      '  <button type="button" id="vs-cam-datoteka" style="padding:14px 20px;border:0;' +
+      'border-radius:10px;background:#495057;color:#fff;font:15px system-ui,sans-serif;' +
+      'cursor:pointer">Naloži sliko</button>' +
+      '  <button type="button" id="vs-cam-prekini" style="padding:14px 20px;border:0;' +
+      'border-radius:10px;background:#343a40;color:#fff;font:15px system-ui,sans-serif;' +
+      'cursor:pointer">Prekliči</button>' +
+      "</div>";
+    document.body.appendChild(o);
+    document.addEventListener("keydown", _escHandler);
+    return o;
+  }
+
+  async function zazeniKamero(deviceId) {
+    ustaviKamero();
+    // Zahtevamo čim višjo ločljivost – drobna šasijska številka potrebuje pike.
+    const zelje = {
+      audio: false,
+      video: deviceId
+        ? { deviceId: { exact: deviceId },
+            width: { ideal: 3840 }, height: { ideal: 2160 } }
+        : { facingMode: { ideal: "environment" },
+            width: { ideal: 3840 }, height: { ideal: 2160 } },
+    };
+    try {
+      _tok = await navigator.mediaDevices.getUserMedia(zelje);
+    } catch (e) {
+      // Brez zadnje kamere (navaden računalnik) vzamemo katerokoli.
+      if (e && (e.name === "OverconstrainedError" || e.name === "NotFoundError") && !deviceId) {
+        _tok = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      } else {
+        throw e;
+      }
+    }
+    const v = el("vs-cam-video");
+    if (v) { v.srcObject = _tok; try { await v.play(); } catch (e) {} }
+    return _tok;
+  }
+
+  async function napolniSeznamKamer(izbira) {
+    try {
+      const naprave = await navigator.mediaDevices.enumerateDevices();
+      const kamere = naprave.filter((d) => d.kind === "videoinput");
+      if (kamere.length < 2) return;
+      izbira.innerHTML = "";
+      kamere.forEach((k, i) => {
+        const opt = document.createElement("option");
+        opt.value = k.deviceId;
+        opt.textContent = k.label || "Kamera " + (i + 1);
+        izbira.appendChild(opt);
+      });
+      const aktivna = _tok && _tok.getVideoTracks()[0];
+      const nast = aktivna && aktivna.getSettings ? aktivna.getSettings() : null;
+      if (nast && nast.deviceId) izbira.value = nast.deviceId;
+      izbira.style.display = "";
+    } catch (e) { /* seznam ni nujen */ }
+  }
+
+  function videoVDatoteko(video) {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return null;
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    c.getContext("2d").drawImage(video, 0, 0, w, h);
+    const dataUrl = c.toDataURL("image/jpeg", 0.95);
+    const bin = atob(dataUrl.split(",")[1]);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    // Ime je tako, da naročilo sliko pozneje prepozna kot prometno/VIN.
+    return new File([buf], "prometno-vin-" + Date.now() + ".jpg",
+                    { type: "image/jpeg" });
+  }
+
+  /* Pojasnilo, zakaj se kamera ni odprla – v človeškem jeziku. */
+  function razlogNapake(e) {
+    const ime = (e && e.name) || "";
+    if (ime === "NotAllowedError" || ime === "SecurityError")
+      return { kaj: "Brskalnik nima dovoljenja za kamero.",
+               kako: "Klikni ikono levo od naslova strani (ključavnica ali drsnika) → " +
+                     "Kamera → Dovoli, nato klikni „Poskusi znova“." };
+    if (ime === "NotFoundError" || ime === "OverconstrainedError")
+      return { kaj: "Na tej napravi ni najdene nobene kamere.",
+               kako: "Na računalniku brez kamere slikaj s telefonom in sliko naloži, " +
+                     "ali priključi USB kamero." };
+    if (ime === "NotReadableError")
+      return { kaj: "Kamero uporablja drug program.",
+               kako: "Zapri Teams, Zoom, Skype ali aplikacijo Kamera in klikni „Poskusi znova“." };
+    return { kaj: "Kamere ni bilo mogoče odpreti." + (ime ? " (" + ime + ")" : ""),
+             kako: "Poskusi znova ali naloži sliko." };
+  }
+
+  /* Odpre fotoaparat.
+       onFile(datoteka)  – posneta slika
+       onNiKamere()      – uporabnik se je ODLOČIL za izbiro datoteke
+
+     Pomembno: ob napaki se okno NE zapre tiho. Prej se je v tem primeru
+     odprla izbira datotek in izgledalo je, kot da gumb ne dela oziroma da
+     odpira napačno stvar. Zdaj okno ostane in jasno pove, kaj je narobe. */
+  VS.photoCamera = async function (onFile, onNiKamere) {
+    naredoOknoVarno();
+    const sporocilo = el("vs-cam-sporocilo");
+    const izbira  = el("vs-cam-izbira");
+    const snemi   = el("vs-cam-snemi");
+    const znova   = el("vs-cam-znova");
+    const naprava = el("vs-cam-naprava");
+
+    const naDatoteko = () => { zapriOkno(); if (onNiKamere) onNiKamere(); };
+
+    el("vs-cam-prekini").addEventListener("click", zapriOkno);
+    el("vs-cam-datoteka").addEventListener("click", naDatoteko);
+
+    // Fotoaparat naprave (na telefonu polna kakovost) – vedno na voljo.
+    naprava.addEventListener("click", function () {
+      zapriOkno();
+      nativeCamera().click();
+    });
+
+    izbira.addEventListener("change", function () {
+      sporocilo.textContent = "Preklapljam …";
+      zazeniKamero(this.value)
+        .then(() => pokaziZivo())
+        .catch((e) => pokaziNapako(e));
+    });
+
+    snemi.addEventListener("click", function () {
+      const f = videoVDatoteko(el("vs-cam-video"));
+      if (!f) { sporocilo.textContent = "Slike ni bilo mogoče posneti. Poskusi znova."; return; }
+      zapriOkno();
+      if (onFile) onFile(f);
+    });
+
+    znova.addEventListener("click", function () { zacni(); });
+
+    function pokaziZivo() {
+      sporocilo.innerHTML = NASVET;
+      sporocilo.style.color = "#fff";
+      snemi.style.display = "";
+      znova.style.display = "none";
+    }
+
+    function pokaziNapako(e) {
+      const r = razlogNapake(e);
+      sporocilo.innerHTML = "<b>" + r.kaj + "</b><br>" + r.kako;
+      sporocilo.style.color = "#ffd4d4";
+      snemi.style.display = "none";
+      znova.style.display = "";
+    }
+
+    async function zacni() {
+      snemi.style.display = "none";
+      znova.style.display = "none";
+      sporocilo.style.color = "#fff";
+      sporocilo.textContent = "Odpiram kamero …";
+
+      if (!imaKamero()) {
+        pokaziNapako({ name: "NotFoundError" });
+        return;
+      }
+      if (!window.isSecureContext && location.hostname !== "localhost") {
+        sporocilo.innerHTML = "<b>Kamera deluje samo prek varne povezave (https).</b><br>" +
+                              "Odpri stran na naslovu, ki se začne s https://";
+        sporocilo.style.color = "#ffd4d4";
+        znova.style.display = "none";
+        return;
+      }
+      try {
+        await zazeniKamero(null);
+        pokaziZivo();
+        await napolniSeznamKamer(izbira);
+      } catch (e) {
+        pokaziNapako(e);
+      }
+    }
+
+    zacni();
+  };
+
+  // Staro okno (če je po napaki ostalo) odstranimo, da jih ni več naenkrat.
+  function naredoOknoVarno() {
+    const star = el("vs-cam-okno");
+    if (star) star.remove();
+    return narediOkno();
+  }
 
   // Ostanki starega skenerja – da se starejše predloge, ki jih še kličejo,
   // ne sesujejo. Ne delajo ničesar.
@@ -491,6 +791,49 @@
     return out;
   }
 
+  /* Sivinsko sliko nariše na svoj platno in vrne JPEG. Vsaka različica dobi
+     svoje platno, da si različice med sabo ne pobrišejo. */
+  function grayToJpeg(g, w, h, quality) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    putGray(ctx, g, w, h);
+    return c.toDataURL("image/jpeg", quality || 0.95);
+  }
+
+  /* BISTRENJE – najpomembnejši korak pri fotografiji s telefona.
+
+     1) Poravnava osvetlitve: vsako piko delimo z lokalnim povprečjem okolice.
+        S tem izginejo odsevi luči in sonca ter sence.
+     2) Raztegnjen kontrast med 2. in 98. percentilom.
+     3) Unsharp mask – robovi črk se izostrijo.
+
+     Namenoma NE binariziramo: tako vizualni model kot Google Vision iz
+     sivinske slike odčitata bistveno več kot iz črno-bele.                   */
+  /* Radij okna za oceno osvetlitve ozadja.
+
+     Okno mora biti BISTVENO večje od črk – le tako lokalno povprečje oceni
+     svetlost podlage in ne črk samih. Če je okno premajhno, povprečje vsebuje
+     predvsem črko in deljenje jo izbriše: kontrast se na osvetljenem delu
+     celo zniža. Prej se je radij računal iz KRAJŠE stranice, zato je tesen
+     izrez vrstice VIN (npr. 420×90) dobil radij 11 – najslabšo možno
+     vrednost. Zato merimo po DALJŠI stranici.
+     Izmerjeno na preizkusnih slikah: najslabši znak je pri /6 opazno
+     razločnejši kot pri /8 ali manj.                                        */
+  function flattenRadius(w, h) {
+    const r = Math.round(Math.max(w, h) / 6);
+    return Math.max(24, Math.min(400, r));
+  }
+
+  function bistriGray(gray, w, h, moc) {
+    const radius = flattenRadius(w, h);
+    let g = denoise(gray, w, h);
+    g = flattenIllumination(g, w, h, radius);
+    g = stretchContrast(g);
+    g = sharpen(g, w, h, moc == null ? 0.9 : moc);
+    return g;
+  }
+
   /* Prebere VIN iz datoteke (fotografija, printscreen, prilepljena slika).
      Vrne objekt rezultata ali null. onStatus(html, vrsta) sproti obvešča.
      To je javni vmesnik – uporabljajo ga tudi druge strani. */
@@ -502,48 +845,68 @@
     try { bmp = await createImageBitmap(file); }
     catch (e) { return { vin: null, badImage: true }; }
 
-    // Daljšo stranico omejimo na 3200 px – dovolj, da VIN vrstica obdrži
-    // podrobnosti tudi na posnetku celotnega prometnega dovoljenja.
-    const maxSide = 3200;
-    const sc = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
-    const w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc);
+    /* Velikost: daljšo stranico omejimo na 2800 px (dovolj podrobnosti, a
+       zahteva ostane dovolj majhna). Majhno sliko – npr. printscreen ali
+       posnetek z manjšo ločljivostjo – nasprotno POVEČAMO, ker drobnega
+       besedila noben bralnik ne prebere zanesljivo. */
+    const MAX_SIDE = 2800, MIN_SIDE = 1500;
+    const dolga = Math.max(bmp.width, bmp.height);
+    let sc = 1;
+    if (dolga > MAX_SIDE)      sc = MAX_SIDE / dolga;
+    else if (dolga < MIN_SIDE) sc = Math.min(2.5, MIN_SIDE / dolga);
+
+    const w = Math.max(1, Math.round(bmp.width * sc));
+    const h = Math.max(1, Math.round(bmp.height * sc));
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
     const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(bmp, 0, 0, w, h);
 
-    // 1) Črtna koda na sliki – če je, je rezultat točen
+    // 1) Črtna koda na sliki – če je, je rezultat točen, brez ugibanja črk
     try {
       const vin = await detectBarcode(c);
       if (vin) return { vin, source: "koda", valid: vinChecksumValid(vin) };
     } catch (e) {}
 
     const rawJpeg = c.toDataURL("image/jpeg", 0.92);
-
     const gray = toGray(ctx, w, h);
-    // prepared pustimo prazno – obdelavo izračunamo šele, če jo kdo potrebuje
-    const frame = { canvas: c, ctx, w, h, gray, prepared: null, score: 1, jpeg: null };
 
-    // 2) Pošljemo v branje. Vizualni model se z odsevi spopade sam, zato dobi
-    //    naravno sliko; klasičnemu OCR pošljemo še obdelano in o njiju glasuje.
-    const ai2 = (await engineKind()) === "ai";
-    let images = [rawJpeg];
-    if (!ai2) {
-      const radius = Math.max(12, Math.round(Math.min(w, h) / 8));
-      let g = denoise(gray, w, h);
-      g = flattenIllumination(g, w, h, radius);
-      g = stretchContrast(g);
-      g = sharpen(g, w, h, 0.5);
-      frame.prepared = g;
-      putGray(ctx, g, w, h);
-      images = [c.toDataURL("image/jpeg", 0.92), rawJpeg];
-    }
+    // 2) Zbistrimo. To zdaj delamo za VSAK bralnik, tudi za vizualni model:
+    //    zamegljena ali bleščeča slika je težka tudi zanj.
+    say('<i class="bi bi-magic"></i> Bistrim sliko …');
+    await sleep(0);                     // pusti brskalniku izrisati sporočilo
+    let bistro = null, bistroJpeg = null;
+    try {
+      bistro = bistriGray(gray, w, h, 0.9);
+      bistroJpeg = grayToJpeg(bistro, w, h, 0.95);
+    } catch (e) { /* ob pomanjkanju pomnilnika beremo naravno sliko */ }
 
-    const j = await visionRead(images, null, "document");
+    const frame = { canvas: c, ctx, w, h, gray, prepared: bistro, score: 1, jpeg: null };
+
+    // 3) Prvi krog: zbistrena + naravna slika. Model ju primerja med sabo in
+    //    tako potrdi vsak znak.
+    say('<i class="bi bi-arrow-repeat"></i> Berem šasijsko številko …');
+    const prviKrog = bistroJpeg ? [bistroJpeg, rawJpeg] : [rawJpeg];
+    let j = await visionRead(prviKrog, null, "document");
     if (j.ok && j.vin) return j;
 
-    // 3) Rezerva: Tesseract v brskalniku
+    // 4) Drugi krog: močnejše bistrenje. Pomaga pri zelo zamegljenih
+    //    posnetkih in pri vtisnjenih (reliefnih) številkah na karoseriji.
+    if (!j.ok && (j.error === "no_vin" || j.error === "network") && bistro) {
+      say('<i class="bi bi-magic"></i> Ni šlo – poskušam z močnejšim bistrenjem …',
+          "warning");
+      await sleep(0);
+      try {
+        const mocno = grayToJpeg(sharpen(stretchContrast(bistro), w, h, 1.6), w, h, 0.95);
+        const j2 = await visionRead([mocno, bistroJpeg], null, "plate");
+        if (j2.ok && j2.vin) return j2;
+        if (j2.error && j2.error !== "no_vin") j = j2;
+      } catch (e) { /* gremo naprej na lokalno branje */ }
+    }
+
+    // 5) Rezerva: Tesseract v brskalniku
     say(j.error === "daily_limit"
       ? "Dnevna meja branja je dosežena – berem lokalno …"
       : '<i class="bi bi-arrow-repeat"></i> Poskušam še lokalno branje …', "warning");
@@ -551,8 +914,10 @@
     if (t) return { vin: t, source: "lokalno", valid: vinChecksumValid(t) };
 
     // Nič – a je razlog pomemben: brez ključa na strežniku ni pravega bralnika
-    return { vin: null, unavailable: (j.error === "no_key" || j.error === "daily_limit")
-                                     ? j.error : null };
+    return { vin: null,
+             unavailable: (j.error === "no_key" || j.error === "daily_limit")
+                          ? j.error : null,
+             diag: j.diag || null };
   };
 
   async function readVinFromPhoto(file, cfg, status, decode) {
@@ -701,4 +1066,34 @@
   VS.cleanVin    = cleanVin;
   VS.checksumOk  = vinChecksumValid;
   window.VehicleSmart = VS;
+
+  /* ── Prevzem gumbov „Fotografiraj" ─────────────────────────────────────
+
+     Poslušamo na ravni dokumenta v FAZI ZAJEMA (tretji argument true).
+     Tak poslušalec se sproži, PREDEN dogodek doseže gumb, zato lahko
+     ustavimo staro kodo na strani in odpremo kamero sami.
+
+     Zakaj tako: s tem zadošča zamenjati SAMO to datoteko. Predlog strani
+     (new.html) lahko ostane star – njegov gumb bo vseeno odprl kamero in
+     ne izbire datotek. Tako popravek ni odvisen od tega, ali so vse
+     datoteke prišle na strežnik.                                        */
+  const GUMBI_ZA_SLIKANJE =
+    '#nv_vin_cam_btn,[data-vs="scan-ocr"],[data-vs="scan-barcode"],[data-vs="photo"]';
+
+  document.addEventListener("click", function (e) {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    const gumb = t.closest(GUMBI_ZA_SLIKANJE);
+    if (!gumb) return;
+
+    // Ustavimo staro ravnanje gumba (odpiranje izbire datotek)
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+    openScanner();
+  }, true);
+
+  // V konzoli (F12) se takoj vidi, katera različica teče.
+  try { console.log("vehicle_smart.js – različica " + VS.VERZIJA); } catch (e) {}
 })();
