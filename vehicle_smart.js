@@ -15,7 +15,7 @@
     // Oznaka različice. Pokaže se v obrazcu, če brskalnik postreže staro
     // datoteko iz predpomnilnika – takrat je takoj jasno, da ne gre za
     // napako v kodi, ampak za star shranjen js.
-    VERZIJA: "2026-10-08-kamera3",
+    VERZIJA: "2026-10-16-osnutek",
     makes: (window.CAR_MAKES || []),
     apiModels: "",
     apiVin: "",
@@ -505,8 +505,33 @@
      `order_images` – kar je v njem, se odda skupaj z naročilom. Prej je to
      delala koda v predlogi; tu jo opravimo sami, da zadošča zamenjati
      samo to datoteko.                                                    */
+  /* Najde obrazec naročila, tudi če nima pričakovanega id-ja. */
+  function obrazecNarocila() {
+    return el("order-form")
+        || (el("nv_vin") && el("nv_vin").closest("form"))
+        || document.querySelector('form[enctype="multipart/form-data"]');
+  }
+
+  /* Skrito polje, s katerim gre slika v naročilo. Če ga predloga še nima,
+     ga ustvarimo sami – tako slika pristane v naročilu tudi na starejših
+     straneh, brez posega v predlogo. */
+  function poljeZaSliko() {
+    let store = el("vin_photo_store");
+    if (store) return store;
+    const f = obrazecNarocila();
+    if (!f) return null;
+    store = document.createElement("input");
+    store.type = "file";
+    store.id = "vin_photo_store";
+    store.name = "order_images";
+    store.multiple = true;
+    store.style.display = "none";
+    f.appendChild(store);
+    return store;
+  }
+
   function shraniVNarocilo(file) {
-    const store = el("vin_photo_store");
+    const store = poljeZaSliko();
     if (store) {
       try {
         const dt = new DataTransfer();
@@ -841,6 +866,10 @@
     const say = (m, k) => { if (onStatus) onStatus(m, k || "primary"); };
     say('<i class="bi bi-arrow-repeat"></i> Berem sliko …');
 
+    // Sliko takoj spravimo v osnutek – če oddaja naročila pozneje ne uspe,
+    // je ni treba znova fotografirati. (Na straneh brez osnutka ne naredi nič.)
+    try { if (VS._poSliki) VS._poSliki(file); } catch (e) {}
+
     let bmp;
     try { bmp = await createImageBitmap(file); }
     catch (e) { return { vin: null, badImage: true }; }
@@ -1066,6 +1095,265 @@
   VS.cleanVin    = cleanVin;
   VS.checksumOk  = vinChecksumValid;
   window.VehicleSmart = VS;
+
+  /* ══ OSNUTEK NAROČILA ══════════════════════════════════════════════════
+
+     Če mehanik naročila ne odda do konca – pozabi vozilo, zapre stran,
+     mu zmanjka signala – se je doslej izgubilo vse, tudi poslikano
+     prometno dovoljenje. Tu vneseno sproti shranjujemo v brskalnik:
+
+       • besedilna polja  → localStorage
+       • slika šasije     → IndexedDB (slike so prevelike za localStorage)
+
+     Vrne se na dva načina:
+       1. Če obrazec pride nazaj z vpisano šasijsko, slike pa ni (to se
+          zgodi po neuspešni oddaji – brskalnik datoteke ne more vrniti),
+          sliko vrnemo SAMI in to tiho sporočimo.
+       2. Sicer, če je obrazec prazen, ponudimo vrstico „Obnovi osnutek".
+
+     Osnutek je vezan na naslov strani, zato se naročilo in povpraševanje
+     ne mešata. Po 12 urah se sam zavrže.                                  */
+
+  const OSNUTEK_KLJUC = "bartog_osnutek:" + location.pathname;
+  const OSNUTEK_VELJA = 12 * 60 * 60 * 1000;
+
+  // ── IndexedDB za sliko ──────────────────────────────────────────────────
+  function odpriBazo() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) return rej(new Error("ni indexedDB"));
+      const z = indexedDB.open("bartog_osnutki", 1);
+      z.onupgradeneeded = function () {
+        const d = z.result;
+        if (!d.objectStoreNames.contains("slike")) d.createObjectStore("slike");
+      };
+      z.onsuccess = function () { res(z.result); };
+      z.onerror = function () { rej(z.error); };
+    });
+  }
+
+  function slikoVBazo(file) {
+    return odpriBazo().then(function (d) {
+      return new Promise(function (res, rej) {
+        const t = d.transaction("slike", "readwrite");
+        t.objectStore("slike").put({ ime: file.name, tip: file.type, blob: file },
+                                   OSNUTEK_KLJUC);
+        t.oncomplete = function () { d.close(); res(); };
+        t.onerror = function () { d.close(); rej(t.error); };
+      });
+    }).catch(function () {});
+  }
+
+  function slikoIzBaze() {
+    return odpriBazo().then(function (d) {
+      return new Promise(function (res) {
+        const z = d.transaction("slike", "readonly").objectStore("slike").get(OSNUTEK_KLJUC);
+        z.onsuccess = function () { d.close(); res(z.result || null); };
+        z.onerror = function () { d.close(); res(null); };
+      });
+    }).catch(function () { return null; });
+  }
+
+  function brisiSlikoIzBaze() {
+    return odpriBazo().then(function (d) {
+      return new Promise(function (res) {
+        const t = d.transaction("slike", "readwrite");
+        t.objectStore("slike").delete(OSNUTEK_KLJUC);
+        t.oncomplete = function () { d.close(); res(); };
+        t.onerror = function () { d.close(); res(); };
+      });
+    }).catch(function () {});
+  }
+
+  // ── Besedilna polja ─────────────────────────────────────────────────────
+  function poljaObrazca(f) {
+    return Array.prototype.filter.call(
+      f.querySelectorAll("input[name], select[name], textarea[name]"),
+      function (e) {
+        if (e.type === "file" || e.type === "password" || e.type === "hidden") return false;
+        if (e.type === "submit" || e.type === "button") return false;
+        if (/csrf|search|iskanje/i.test(e.name)) return false;
+        return true;
+      });
+  }
+
+  function zajemiOsnutek(f) {
+    const p = {};
+    poljaObrazca(f).forEach(function (e) {
+      if (e.type === "checkbox" || e.type === "radio") {
+        if (e.checked) { (p[e.name] = p[e.name] || []).push(e.value); }
+      } else if ((e.value || "").trim() !== "") {
+        p[e.name] = e.value;
+      }
+    });
+    return p;
+  }
+
+  function jeKajVpisano(p) {
+    return Object.keys(p).some(function (k) {
+      const v = p[k];
+      return Array.isArray(v) ? v.length : String(v).trim() !== "";
+    });
+  }
+
+  function vrniOsnutek(f, p) {
+    poljaObrazca(f).forEach(function (e) {
+      if (!(e.name in p)) return;
+      const v = p[e.name];
+      if (e.type === "checkbox" || e.type === "radio") {
+        e.checked = Array.isArray(v) && v.indexOf(e.value) !== -1;
+      } else {
+        e.value = v;
+      }
+      e.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  function beriOsnutek() {
+    try {
+      const s = localStorage.getItem(OSNUTEK_KLJUC);
+      if (!s) return null;
+      const o = JSON.parse(s);
+      if (!o || !o.kdaj || Date.now() - o.kdaj > OSNUTEK_VELJA) { zavrziOsnutek(); return null; }
+      return o;
+    } catch (e) { return null; }
+  }
+
+  function zapisiOsnutek(p) {
+    try {
+      localStorage.setItem(OSNUTEK_KLJUC,
+        JSON.stringify({ kdaj: Date.now(), polja: p }));
+    } catch (e) { /* poln pomnilnik – osnutka pač ni */ }
+  }
+
+  function zavrziOsnutek() {
+    try { localStorage.removeItem(OSNUTEK_KLJUC); } catch (e) {}
+    brisiSlikoIzBaze();
+  }
+  VS.zavrziOsnutek = zavrziOsnutek;
+
+  // ── Obvestilna vrstica ──────────────────────────────────────────────────
+  function obvestilo(html, barva) {
+    let v = el("vs-osnutek-vrstica");
+    if (!v) {
+      v = document.createElement("div");
+      v.id = "vs-osnutek-vrstica";
+      v.className = "alert small d-flex align-items-center gap-2 flex-wrap";
+      v.style.cssText = "margin:10px 0;padding:10px 14px;border-radius:8px";
+      const f = obrazecNarocila();
+      if (!f) return null;
+      f.insertBefore(v, f.firstChild);
+    }
+    v.style.background = barva === "zelena" ? "#d1e7dd" : "#fff3cd";
+    v.style.border = "1px solid " + (barva === "zelena" ? "#a3cfbb" : "#ffe69c");
+    v.style.color = barva === "zelena" ? "#0a3622" : "#664d03";
+    v.innerHTML = html;
+    return v;
+  }
+
+  function kdajNapis(kdaj) {
+    const min = Math.round((Date.now() - kdaj) / 60000);
+    if (min < 1) return "pravkar";
+    if (min < 60) return "pred " + min + " min";
+    const ur = Math.round(min / 60);
+    return "pred " + ur + (ur === 1 ? " uro" : (ur === 2 ? " urama" : " urami"));
+  }
+
+  // ── Zagon ───────────────────────────────────────────────────────────────
+  function zazeniOsnutek() {
+    const f = obrazecNarocila();
+    if (!f) return;
+    // Samo obrazci za vnos naročila – ne iskalniki in podobno
+    if (!el("nv_vin") && !f.querySelector('[name="new_vehicle_brand"]')) return;
+
+    let casovnik = null;
+    function shrani() {
+      if (casovnik) clearTimeout(casovnik);
+      casovnik = setTimeout(function () {
+        const p = zajemiOsnutek(f);
+        if (jeKajVpisano(p)) zapisiOsnutek(p);
+      }, 700);
+    }
+    f.addEventListener("input", shrani);
+    f.addEventListener("change", shrani);
+
+    // Posneto/naloženo sliko shranimo takoj
+    VS._poSliki = function (file) { if (file) slikoVBazo(file); shrani(); };
+
+    // Ko uporabnik sliko odstrani, jo umaknemo tudi iz osnutka
+    const brisi = el("nv_photo_del");
+    if (brisi) brisi.addEventListener("click", function () { brisiSlikoIzBaze(); });
+
+    const o = beriOsnutek();
+    const vinEl = el("nv_vin");
+    const store = el("vin_photo_store");
+    const imaSliko = store && store.files && store.files.length;
+
+    slikoIzBazeVarno().then(function (zapis) {
+      const vinVpisan = vinEl && (vinEl.value || "").trim() !== "";
+
+      // 1) Obrazec se je vrnil z vpisanimi podatki, slike pa ni → vrnemo jo
+      if (zapis && vinVpisan && !imaSliko) {
+        if (polozi(zapis)) {
+          obvestilo('<i class="bi bi-check-circle-fill"></i>' +
+                    '<span>Slika prometnega dovoljenja je <b>ohranjena</b> – ' +
+                    'ni je treba znova fotografirati.</span>', "zelena");
+        }
+        return;
+      }
+
+      // 2) Prazen obrazec + shranjen osnutek → ponudimo obnovitev
+      const prazen = !vinVpisan && !jeKajVpisano(zajemiOsnutek(f));
+      if (o && prazen && (jeKajVpisano(o.polja) || zapis)) {
+        const v = obvestilo(
+          '<i class="bi bi-clock-history"></i>' +
+          '<span>Imaš <b>neoddan osnutek</b> (' + kdajNapis(o.kdaj) + ')' +
+          (zapis ? " s sliko šasije" : "") + '.</span>' +
+          '<button type="button" class="btn btn-sm btn-success" data-obnovi>Obnovi</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-secondary" data-zavrzi>Zavrzi</button>',
+          "rumena");
+        if (!v) return;
+        v.addEventListener("click", function (e) {
+          if (e.target.closest("[data-zavrzi]")) { zavrziOsnutek(); v.remove(); return; }
+          if (e.target.closest("[data-obnovi]")) {
+            vrniOsnutek(f, o.polja);
+            const ok = zapis ? polozi(zapis) : false;
+            obvestilo('<i class="bi bi-check-circle-fill"></i><span>Osnutek je obnovljen' +
+                      (ok ? ", skupaj s sliko šasije" : "") + '.</span>', "zelena");
+          }
+        });
+      }
+    });
+
+    function polozi(zapis) {
+      try {
+        const file = new File([zapis.blob], zapis.ime || "prometno-vin.jpg",
+                              { type: zapis.tip || "image/jpeg" });
+        const s = poljeZaSliko();
+        if (!s) return false;
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        s.files = dt.files;
+        const predogled = el("nv_paste_preview"), slika = el("nv_paste_img");
+        if (predogled && slika) {
+          slika.src = URL.createObjectURL(file);
+          predogled.style.display = "";
+          const ime = el("nv_paste_name");
+          if (ime) ime.textContent = file.name;
+        }
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function slikoIzBazeVarno() {
+      try { return slikoIzBaze(); } catch (e) { return Promise.resolve(null); }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", zazeniOsnutek);
+  } else {
+    zazeniOsnutek();
+  }
 
   /* ── Prevzem gumbov „Fotografiraj" ─────────────────────────────────────
 
