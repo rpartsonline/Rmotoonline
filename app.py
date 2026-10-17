@@ -391,6 +391,20 @@ def _seed_racunovodja(db, User):
         print("✅  Računovodja 'marjana' ustvarjena (geslo: bartog111 – zamenjaj!).")
 
 
+def _preimenuj_nejc(db, User):
+    """Enkratni popravek: račun 'nejc' je bil vpisan kot Nejc Tominec.
+
+    Teče ob vsakem zagonu, a naredi nekaj samo prvič – pozneje se ime že
+    ujema in funkcija ne spremeni ničesar. Lahko ostane v kodi.
+    """
+    u = User.query.filter_by(username="nejc").first()
+    if u and u.full_name != "Nejc Kete":
+        staro = u.full_name
+        u.full_name = "Nejc Kete"
+        db.session.commit()
+        print(f"✅  Uporabnik 'nejc' preimenovan: {staro} → Nejc Kete.")
+
+
 def _seed_staff(db, User):
     """Ustvari prijave za sodelavce, če še ne obstajajo. Začetno geslo: Bartog123!"""
     staff = [
@@ -467,17 +481,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-def _preimenuj_nejc(db, User):
-    """Enkratni popravek: račun 'nejc' je bil vpisan kot Nejc Tominec.
-
-    Teče ob vsakem zagonu, a naredi nekaj samo prvič – pozneje se ime že
-    ujema in funkcija ne spremeni ničesar. Lahko ostane v kodi.
-    """
-    u = User.query.filter_by(username="nejc").first()
-    if u and u.full_name != "Nejc Kete":
-        staro = u.full_name
-        u.full_name = "Nejc Kete"
-        db.session.commit()
-        print(f"✅  Uporabnik 'nejc' preimenovan: {staro} → Nejc Kete.")
