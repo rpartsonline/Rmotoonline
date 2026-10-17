@@ -244,6 +244,7 @@ def create_app():
         _ensure_schema(db)
         _seed_admin(db, User)
         _seed_staff(db, User)
+        _preimenuj_nejc(db, User)
         _seed_kupec(db, User)
         _seed_racunovodja(db, User)
         _seed_roster_updates(db, User)
@@ -396,7 +397,7 @@ def _seed_staff(db, User):
         ("saso",  "Sašo Juretič"),
         ("alan",  "Alan Daksobler"),
         ("vid",   "Vid Kenda"),
-        ("nejc",  "Nejc Tominec"),
+        ("nejc",  "Nejc Kete"),
         ("borut", "Borut Čermelj"),
     ]
     created = []
@@ -466,3 +467,17 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+def _preimenuj_nejc(db, User):
+    """Enkratni popravek: račun 'nejc' je bil vpisan kot Nejc Tominec.
+
+    Teče ob vsakem zagonu, a naredi nekaj samo prvič – pozneje se ime že
+    ujema in funkcija ne spremeni ničesar. Lahko ostane v kodi.
+    """
+    u = User.query.filter_by(username="nejc").first()
+    if u and u.full_name != "Nejc Kete":
+        staro = u.full_name
+        u.full_name = "Nejc Kete"
+        db.session.commit()
+        print(f"✅  Uporabnik 'nejc' preimenovan: {staro} → Nejc Kete.")
