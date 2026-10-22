@@ -10,7 +10,8 @@ import uuid
 from datetime import datetime
 
 from flask import (Blueprint, render_template, redirect, url_for, flash,
-                   request, jsonify, current_app, send_from_directory, abort)
+                   request, jsonify, current_app, send_from_directory, abort,
+                   Response)
 from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
@@ -40,23 +41,84 @@ def _partner_or_403(partner_id):
     return partner
 
 
+# Stolpca za vsebino slike dodamo ob prvi uporabi, da ni treba posegati
+# v app.py. Teče enkrat na zagon in na obstoječi bazi ne naredi škode.
+_stolpci_urejeni = False
+
+
+def _zagotovi_stolpce():
+    global _stolpci_urejeni
+    if _stolpci_urejeni:
+        return
+    _stolpci_urejeni = True
+    try:
+        from sqlalchemy import inspect, text as sqltext
+        obstojeci = [c["name"] for c in inspect(db.engine).get_columns("chat_messages")]
+        narecje = db.engine.dialect.name
+        blob = "BYTEA" if narecje == "postgresql" else "BLOB"
+        for ime, tip in (("image_data", blob), ("image_mime", "VARCHAR(60)")):
+            if ime not in obstojeci:
+                db.session.execute(sqltext(
+                    f"ALTER TABLE chat_messages ADD COLUMN {ime} {tip}"))
+                db.session.commit()
+                print(f"✅  Dodan stolpec '{ime}' v tabelo chat_messages.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"⚠️  Stolpcev za slike v klepetu ni bilo mogoče dodati: {e}")
+
+
+@chat_bp.before_app_request
+def _poskrbi_za_bazo():
+    """Stolpca dodamo pred PRVO zahtevo, ne šele ob pošiljanju slike.
+
+    Takoj po objavi nova koda bere tudi stolpca image_data in image_mime.
+    Če ju v bazi še ni, bi padlo vsako branje klepeta – tudi števec
+    neprebranih, ki teče na vsaki strani. Zato migracijo opravimo prej.
+    Funkcija se po prvem klicu takoj vrne, zato ne upočasnjuje strani.
+    """
+    _zagotovi_stolpce()
+
+
+_MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+         ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic"}
+
+MAX_SLIKA = 8 * 1024 * 1024        # 8 MB na sliko
+
+
 def _save_image(f):
-    """Shrani priloženo sliko in vrne ime datoteke (ali None)."""
+    """Shrani priloženo sliko.
+
+    Vrne (ime_datoteke, vsebina, mime). Vsebina gre v bazo – tako slika
+    preživi objavo tudi, kadar mapa z datotekami ni trajna. Na disk jo
+    shranimo še vedno, a če to ne uspe, to ni več usodno.
+    """
+    prazno = (None, None, None)
     if not f or not getattr(f, "filename", ""):
-        return None
+        return prazno
     ext = os.path.splitext(f.filename)[1].lower()
     if ext not in ALLOWED_EXT:
-        return None
-    folder = current_app.config.get("UPLOAD_FOLDER", "")
-    if not folder:
-        return None
-    name = secure_filename(f"klepet_{uuid.uuid4().hex}{ext}")
+        return prazno
+
     try:
-        f.save(os.path.join(folder, name))
-        return name
+        vsebina = f.read()
     except Exception as e:
-        print(f"⚠️  Slike v klepetu ni bilo mogoče shraniti: {e}")
-        return None
+        print(f"⚠️  Slike v klepetu ni bilo mogoče prebrati: {e}")
+        return prazno
+    if not vsebina or len(vsebina) > MAX_SLIKA:
+        return prazno
+
+    mime = f.mimetype or _MIME.get(ext) or "application/octet-stream"
+    name = secure_filename(f"klepet_{uuid.uuid4().hex}{ext}")
+
+    folder = current_app.config.get("UPLOAD_FOLDER", "")
+    if folder:
+        try:
+            with open(os.path.join(folder, name), "wb") as d:
+                d.write(vsebina)
+        except Exception as e:
+            print(f"⚠️  Slike v klepetu ni bilo mogoče zapisati na disk: {e}")
+
+    return name, vsebina, mime
 
 
 def _msg_json(m):
@@ -231,8 +293,9 @@ def _obvesti(partner, m):
 @login_required
 def send(partner_id):
     partner = _partner_or_403(partner_id)
+    _zagotovi_stolpce()
     text = (request.form.get("text") or "").strip()
-    image = _save_image(request.files.get("image"))
+    image, slika_vsebina, slika_mime = _save_image(request.files.get("image"))
 
     if not text and not image:
         if request.form.get("ajax"):
@@ -245,6 +308,8 @@ def send(partner_id):
         sender_id  = current_user.id,
         text       = text or None,
         image      = image,
+        image_data = slika_vsebina,
+        image_mime = slika_mime,
         # Kar pošljem sam, je zame že prebrano
         seen_by_partner = _is_partner(),
         seen_by_staff   = not _is_partner(),
@@ -285,12 +350,50 @@ def unread_count():
 @chat_bp.route("/slika/<int:message_id>")
 @login_required
 def message_image(message_id):
+    """Postreže sliko sporočila.
+
+    Najprej iz baze – tam je trajno. Na disku pogledamo le pri starejših
+    sporočilih, ki so nastala, preden so se slike shranjevale v bazo.
+    """
     m = ChatMessage.query.get_or_404(message_id)
     if _is_partner() and m.partner_id != current_user.id:
         abort(403)
-    if not m.image:
-        abort(404)
-    return send_from_directory(current_app.config["UPLOAD_FOLDER"], m.image)
+
+    vsebina = None
+    try:
+        vsebina = m.image_data
+    except Exception:
+        pass                       # stolpca (še) ni – gremo na disk
+
+    if vsebina:
+        odgovor = Response(vsebina, mimetype=(m.image_mime or "image/jpeg"))
+        odgovor.headers["Cache-Control"] = "private, max-age=604800"
+        odgovor.headers["Content-Disposition"] = f'inline; filename="{m.image or "slika.jpg"}"'
+        return odgovor
+
+    if m.image:
+        pot = os.path.join(current_app.config.get("UPLOAD_FOLDER", ""),
+                           os.path.basename(m.image))
+        if os.path.exists(pot):
+            return send_from_directory(current_app.config["UPLOAD_FOLDER"],
+                                       os.path.basename(m.image))
+        # Datoteke ni več (mapa se ob objavi izprazni, če disk ni priklopljen).
+        # Namesto pokvarjenega kvadratka pokažemo razumljivo sličico.
+        return Response(_NI_SLIKE, mimetype="image/svg+xml",
+                        headers={"Cache-Control": "no-store"})
+    abort(404)
+
+
+# Nadomestna sličica, kadar slike ni več na voljo
+_NI_SLIKE = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="150">'
+    '<rect width="100%" height="100%" rx="8" fill="#f1f3f5" stroke="#dee2e6"/>'
+    '<text x="50%" y="46%" text-anchor="middle" font-family="system-ui,sans-serif"'
+    ' font-size="13" fill="#868e96">Slike ni več na strežniku</text>'
+    '<text x="50%" y="66%" text-anchor="middle" font-family="system-ui,sans-serif"'
+    ' font-size="11" fill="#adb5bd">prosi za ponovno pošiljanje</text>'
+    "</svg>"
+).encode()
 
 
 @chat_bp.route("/<int:message_id>/izbrisi", methods=["POST"])

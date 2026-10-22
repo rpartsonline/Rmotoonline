@@ -207,6 +207,45 @@
     if (m.id > lastId) lastId = m.id;
   }
 
+  /* Sliko pred pošiljanjem pretvorimo v JPEG.
+
+     Dva razloga:
+       1. Telefoni iPhone slikajo v obliki HEIC, ki je Chrome ne zna
+          prikazati – prejemnik je videl samo pokvarjen kvadratek.
+       2. Fotografija s telefona ima lahko 5 MB; po pretvorbi jih ima
+          nekaj sto kilobajtov, zato gre hitreje tudi po slabi povezavi.
+
+     Če pretvorba ne uspe (brskalnik oblike ne zna odpreti), pošljemo
+     izvirno datoteko – bolje tako kot nič. */
+  function vJpeg(f) {
+    return new Promise(function (res) {
+      if (!f || !/^image\//.test(f.type || '')) return res(f);
+      var url = URL.createObjectURL(f);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var naj = 1600;
+          var k = Math.min(1, naj / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * k));
+          var h = Math.max(1, Math.round(img.height * k));
+          var c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          var ctx = c.getContext('2d');
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, w, h);
+          c.toBlob(function (blob) {
+            URL.revokeObjectURL(url);
+            if (!blob) return res(f);
+            res(new File([blob], 'klepet_' + Date.now() + '.jpg',
+                         { type: 'image/jpeg' }));
+          }, 'image/jpeg', 0.85);
+        } catch (e) { URL.revokeObjectURL(url); res(f); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); res(f); };
+      img.src = url;
+    });
+  }
+
   // ── Pošiljanje ─────────────────────────────────────────────────────────────
   function poslji() {
     if (posting) return;
@@ -217,7 +256,14 @@
     posting = true;
     sendBtn.disabled = true;
 
-    var fd = new FormData(form);
+    vJpeg(slika).then(function (pripravljena) {
+      var fd = new FormData(form);
+      if (pripravljena) fd.set('image', pripravljena, pripravljena.name);
+      posljiNaprej(fd);
+    });
+  }
+
+  function posljiNaprej(fd) {
     fetch(form.action, { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (d) {

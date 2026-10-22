@@ -344,6 +344,11 @@ class ChatMessage(db.Model):
     sender_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     text       = db.Column(db.Text)
     image      = db.Column(db.String(255))            # ime shranjene datoteke
+    # Vsebina slike je shranjena v bazi, ne samo na disku. Mapa z datotekami
+    # se na Renderju ob vsaki objavi izprazni, če ni priklopljenega diska –
+    # takrat je sporočilo ostalo, slika pa je izginila. Baza je trajna.
+    image_data = db.Column(db.LargeBinary)
+    image_mime = db.Column(db.String(60))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     # Prebrano na posamezni strani – od tod števci neprebranih
